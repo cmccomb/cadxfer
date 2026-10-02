@@ -1,7 +1,8 @@
 use caxifer_bdf::{Document, FieldFormat, ParseOptions};
 use caxifer_core::CellKind;
 
-const TRI: &str = "GRID,10,,0.,0.,0.\nGRID,20,,1.,0.,0.\nGRID,30,,0.,1.,0.\nCTRIA3,100,7,10,20,30\n";
+const TRI: &str =
+    "GRID,10,,0.,0.,0.\nGRID,20,,1.,0.,0.\nGRID,30,,0.,1.,0.\nCTRIA3,100,7,10,20,30\n";
 
 fn fixed(head: &str, fields: &[&str], width: usize, tail: &str) -> String {
     let capacity = if width == 16 { 4 } else { 8 };
@@ -41,14 +42,26 @@ fn fixed_large_grid_continuation() {
     let source = fixed("GRID*", &["7", "", "1.234567890123", "2."], 16, "*A")
         + &fixed("*A", &["3.", "", "", ""], 16, "");
     let doc = Document::parse(&source).unwrap();
-    assert_eq!(doc.grids().next().unwrap().unwrap().coordinates, [1.234567890123, 2., 3.]);
+    assert_eq!(
+        doc.grids().next().unwrap().unwrap().coordinates,
+        [1.234567890123, 2., 3.]
+    );
     assert_eq!(doc.cards()[0].format, FieldFormat::Large);
 }
 
 #[test]
 fn large_free_grid() {
     let source = "GRID*,7,,1.5,2.5\n*,3.5\n";
-    assert_eq!(Document::parse(source).unwrap().grids().next().unwrap().unwrap().coordinates, [1.5, 2.5, 3.5]);
+    assert_eq!(
+        Document::parse(source)
+            .unwrap()
+            .grids()
+            .next()
+            .unwrap()
+            .unwrap()
+            .coordinates,
+        [1.5, 2.5, 3.5]
+    );
 }
 
 #[test]
@@ -78,23 +91,38 @@ fn preserves_full_deck_and_trailing_bytes() {
 
 #[test]
 fn recognizes_comma_begin_bulk() {
-    assert!(Document::parse("SOL 101\nCEND\nBEGIN,BULK\nGRID,1\nENDDATA\n").unwrap().is_full_deck());
+    assert!(
+        Document::parse("SOL 101\nCEND\nBEGIN,BULK\nGRID,1\nENDDATA\n")
+            .unwrap()
+            .is_full_deck()
+    );
 }
 
 #[test]
 fn missing_begin_bulk_is_error() {
-    assert_eq!(Document::parse("SOL 101\nCEND\nGRID,1\n").unwrap_err().code, "E_DECK");
+    assert_eq!(
+        Document::parse("SOL 101\nCEND\nGRID,1\n").unwrap_err().code,
+        "E_DECK"
+    );
 }
 
 #[test]
 fn multiple_bulk_sections_are_not_merged() {
-    assert_eq!(Document::parse("BEGIN BULK\nGRID,1\nBEGIN BULK\nGRID,2\n").unwrap_err().code, "E_DECK");
+    assert_eq!(
+        Document::parse("BEGIN BULK\nGRID,1\nBEGIN BULK\nGRID,2\n")
+            .unwrap_err()
+            .code,
+        "E_DECK"
+    );
 }
 
 #[test]
 fn final_newline_not_added() {
     let source = "GRID,1,,0.,0.,0.";
-    assert_eq!(Document::parse(source).unwrap().to_bytes(), source.as_bytes());
+    assert_eq!(
+        Document::parse(source).unwrap().to_bytes(),
+        source.as_bytes()
+    );
 }
 
 #[test]
@@ -122,13 +150,17 @@ fn multiline_include_with_dollar_in_filename() {
 
 #[test]
 fn unterminated_include_is_error() {
-    assert_eq!(Document::parse("INCLUDE 'unfinished\n").unwrap_err().code, "E_INCLUDE");
+    assert_eq!(
+        Document::parse("INCLUDE 'unfinished\n").unwrap_err().code,
+        "E_INCLUDE"
+    );
 }
 
 #[test]
 fn ignores_comment_between_continuations() {
     let source = fixed("CHEXA", &["1", "2", "1", "2", "3", "4", "5", "6"], 8, "+A")
-        + "$ between\n\n" + &fixed("+A", &["7", "8"], 8, "");
+        + "$ between\n\n"
+        + &fixed("+A", &["7", "8"], 8, "");
     let doc = Document::parse(source).unwrap();
     assert_eq!(doc.cards().len(), 1);
     assert_eq!(doc.card_text(&doc.cards()[0], 9), "8");
@@ -163,43 +195,114 @@ fn mismatched_label_is_error() {
 
 #[test]
 fn dangling_label_is_error() {
-    assert_eq!(Document::parse(fixed("UNKNOWN", &["1"], 8, "+A")).unwrap_err().code, "E_CONTINUATION");
+    assert_eq!(
+        Document::parse(fixed("UNKNOWN", &["1"], 8, "+A"))
+            .unwrap_err()
+            .code,
+        "E_CONTINUATION"
+    );
 }
 
 #[test]
 fn orphan_continuation_is_error() {
-    assert_eq!(Document::parse("+,1,2\n").unwrap_err().code, "E_CONTINUATION");
+    assert_eq!(
+        Document::parse("+,1,2\n").unwrap_err().code,
+        "E_CONTINUATION"
+    );
 }
 
 #[test]
 fn too_many_free_fields_fail_not_shift() {
-    assert_eq!(Document::parse("GRID,1,0,0,0,0,0,,0,99\n").unwrap_err().code, "E_CONTINUATION");
+    assert_eq!(
+        Document::parse("GRID,1,0,0,0,0,0,,0,99\n")
+            .unwrap_err()
+            .code,
+        "E_CONTINUATION"
+    );
 }
 
 #[test]
 fn data_tabs_rejected_comment_tabs_preserved() {
-    assert_eq!(Document::parse("GRID,1,,\t0,0,0\n").unwrap_err().code, "E_TAB");
+    assert_eq!(
+        Document::parse("GRID,1,,\t0,0,0\n").unwrap_err().code,
+        "E_TAB"
+    );
     assert!(Document::parse("GRID,1,,0,0,0 $ \t comment\n").is_ok());
 }
 
 #[test]
 fn non_ascii_data_rejected() {
-    assert_eq!(Document::parse("GRID,1,,π,0,0\n").unwrap_err().code, "E_ENCODING");
+    assert_eq!(
+        Document::parse("GRID,1,,π,0,0\n").unwrap_err().code,
+        "E_ENCODING"
+    );
 }
 
 #[test]
 fn limits_bytes_lines_cards_and_fields() {
     let base = ParseOptions::default();
-    assert_eq!(Document::parse_with_options(TRI, ParseOptions { max_bytes: 8, ..base }).unwrap_err().code, "E_LIMIT");
-    assert_eq!(Document::parse_with_options(TRI, ParseOptions { max_line_bytes: 8, ..base }).unwrap_err().code, "E_LIMIT");
-    assert_eq!(Document::parse_with_options(TRI, ParseOptions { max_cards: 1, ..base }).unwrap_err().code, "E_LIMIT");
-    assert_eq!(Document::parse_with_options(TRI, ParseOptions { max_fields_per_card: 1, ..base }).unwrap_err().code, "E_LIMIT");
+    assert_eq!(
+        Document::parse_with_options(
+            TRI,
+            ParseOptions {
+                max_bytes: 8,
+                ..base
+            }
+        )
+        .unwrap_err()
+        .code,
+        "E_LIMIT"
+    );
+    assert_eq!(
+        Document::parse_with_options(
+            TRI,
+            ParseOptions {
+                max_line_bytes: 8,
+                ..base
+            }
+        )
+        .unwrap_err()
+        .code,
+        "E_LIMIT"
+    );
+    assert_eq!(
+        Document::parse_with_options(
+            TRI,
+            ParseOptions {
+                max_cards: 1,
+                ..base
+            }
+        )
+        .unwrap_err()
+        .code,
+        "E_LIMIT"
+    );
+    assert_eq!(
+        Document::parse_with_options(
+            TRI,
+            ParseOptions {
+                max_fields_per_card: 1,
+                ..base
+            }
+        )
+        .unwrap_err()
+        .code,
+        "E_LIMIT"
+    );
 }
 
 #[test]
 fn bounded_reader_checks_one_byte_past_limit() {
-    let options = ParseOptions { max_bytes: 5, ..ParseOptions::default() };
-    assert_eq!(Document::read_with_options(TRI.as_bytes(), options).unwrap_err().code, "E_LIMIT");
+    let options = ParseOptions {
+        max_bytes: 5,
+        ..ParseOptions::default()
+    };
+    assert_eq!(
+        Document::read_with_options(TRI.as_bytes(), options)
+            .unwrap_err()
+            .code,
+        "E_LIMIT"
+    );
 }
 
 #[test]
@@ -238,7 +341,10 @@ fn dangling_reference_reports_line() {
 #[test]
 fn repeated_connectivity_rejected() {
     let doc = Document::parse("GRID,1\nCROD,10,7,1,1\n").unwrap();
-    assert_eq!(doc.geometry().unwrap_err().code, "E_DEGENERATE_CONNECTIVITY");
+    assert_eq!(
+        doc.geometry().unwrap_err().code,
+        "E_DEGENERATE_CONNECTIVITY"
+    );
 }
 
 #[test]
@@ -259,7 +365,12 @@ fn materials_are_opaque_warnings_not_false_validation() {
     let report = doc.validate_geometry();
     assert!(report.valid_in_scope());
     assert_eq!(report.warning_count(), 1);
-    assert!(doc.geometry().unwrap().omissions.iter().any(|o| o.category == "MAT1"));
+    assert!(doc
+        .geometry()
+        .unwrap()
+        .omissions
+        .iter()
+        .any(|o| o.category == "MAT1"));
 }
 
 #[test]
@@ -271,15 +382,22 @@ fn empty_is_roundtrippable_not_projectable() {
 
 #[test]
 fn deterministic_id_sorting_preserves_connectivity() {
-    let doc = Document::parse("GRID,30,,0,1,0\nGRID,10,,0,0,0\nGRID,20,,1,0,0\nCTRIA3,100,7,30,10,20\n").unwrap();
+    let doc =
+        Document::parse("GRID,30,,0,1,0\nGRID,10,,0,0,0\nGRID,20,,1,0,0\nCTRIA3,100,7,30,10,20\n")
+            .unwrap();
     let mesh = doc.geometry().unwrap().mesh;
-    assert_eq!(mesh.points.iter().map(|p| p.id).collect::<Vec<_>>(), [10, 20, 30]);
+    assert_eq!(
+        mesh.points.iter().map(|p| p.id).collect::<Vec<_>>(),
+        [10, 20, 30]
+    );
     assert_eq!(mesh.cells[0].connectivity, [2, 0, 1]);
 }
 
 #[test]
 fn all_linear_cell_families() {
-    let nodes = (1..=8).map(|id| format!("GRID,{id},,{id},0,0\n")).collect::<String>();
+    let nodes = (1..=8)
+        .map(|id| format!("GRID,{id},,{id},0,0\n"))
+        .collect::<String>();
     let source = nodes + "CROD,1,7,1,2\nCONROD,2,1,2,8,1.\nCBAR,3,7,1,2,0.,1.,0.\nCBEAM,4,7,1,2,0.,1.,0.\nCTRIA3,5,7,1,2,3\nCQUAD4,6,7,1,2,3,4\nCTETRA,7,7,1,2,3,4\nCHEXA,8,7,1,2,3,4,5,6\n+,7,8\nCPENTA,9,7,1,2,3,4,5,6\nCPYRAM,10,7,1,2,3,4,5\n";
     let mesh = Document::parse(source).unwrap().geometry().unwrap().mesh;
     assert_eq!(mesh.cells.len(), 10);
@@ -293,7 +411,10 @@ fn free_edit_changes_only_coordinate_tokens() {
     let source = b"$ header\r\nGRID, 1 , , 0. , 2. , 3. ,0,,0 $ note\r\nMYSTERY,keep\n";
     let mut doc = Document::parse(source).unwrap();
     doc.set_grid_coordinates(1, [10., -2., 0.125]).unwrap();
-    assert_eq!(doc.to_bytes(), b"$ header\r\nGRID, 1 , , 10. , -2. , 0.125 ,0,,0 $ note\r\nMYSTERY,keep\n");
+    assert_eq!(
+        doc.to_bytes(),
+        b"$ header\r\nGRID, 1 , , 10. , -2. , 0.125 ,0,,0 $ note\r\nMYSTERY,keep\n"
+    );
 }
 
 #[test]
@@ -310,7 +431,12 @@ fn fixed_edit_preserves_card_width_and_comment() {
 fn failed_edit_is_transactional() {
     let source = fixed("GRID", &["1", "", "0.", "0.", "0."], 8, "");
     let mut doc = Document::parse(&source).unwrap();
-    assert_eq!(doc.set_grid_coordinates(1, [1., std::f64::consts::PI, 3.]).unwrap_err().code, "E_FIELD_WIDTH");
+    assert_eq!(
+        doc.set_grid_coordinates(1, [1., std::f64::consts::PI, 3.])
+            .unwrap_err()
+            .code,
+        "E_FIELD_WIDTH"
+    );
     assert_eq!(doc.to_bytes(), source.as_bytes());
 }
 
@@ -319,7 +445,10 @@ fn edit_can_be_repeated_without_stale_spans() {
     let mut doc = Document::parse("GRID,1,,0.,0.,0.\n").unwrap();
     doc.set_grid_coordinates(1, [123456., 0., 0.]).unwrap();
     doc.set_grid_coordinates(1, [1., 2., 3.]).unwrap();
-    assert_eq!(doc.grids().next().unwrap().unwrap().coordinates, [1., 2., 3.]);
+    assert_eq!(
+        doc.grids().next().unwrap().unwrap().coordinates,
+        [1., 2., 3.]
+    );
 }
 
 #[test]
@@ -332,15 +461,22 @@ fn edit_uses_native_not_basic_frame() {
 #[test]
 fn refuses_implicit_field_edits() {
     let mut doc = Document::parse("GRID,1\n").unwrap();
-    assert_eq!(doc.set_grid_coordinates(1, [0.; 3]).unwrap_err().code, "E_IMPLICIT_FIELD");
+    assert_eq!(
+        doc.set_grid_coordinates(1, [0.; 3]).unwrap_err().code,
+        "E_IMPLICIT_FIELD"
+    );
 }
 
 #[test]
 fn write_propagates_failures() {
     struct Broken;
     impl std::io::Write for Broken {
-        fn write(&mut self, _: &[u8]) -> std::io::Result<usize> { Err(std::io::Error::other("fail")) }
-        fn flush(&mut self) -> std::io::Result<()> { Ok(()) }
+        fn write(&mut self, _: &[u8]) -> std::io::Result<usize> {
+            Err(std::io::Error::other("fail"))
+        }
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
     }
     assert!(Document::parse(TRI).unwrap().write_to(Broken).is_err());
 }
@@ -389,6 +525,14 @@ fn post_enddata_marker_is_opaque() {
 
 #[test]
 fn line_count_limit_is_enforced() {
-    let options = ParseOptions { max_lines: 2, ..ParseOptions::default() };
-    assert_eq!(Document::parse_with_options("\n\n\n", options).unwrap_err().code, "E_LIMIT");
+    let options = ParseOptions {
+        max_lines: 2,
+        ..ParseOptions::default()
+    };
+    assert_eq!(
+        Document::parse_with_options("\n\n\n", options)
+            .unwrap_err()
+            .code,
+        "E_LIMIT"
+    );
 }

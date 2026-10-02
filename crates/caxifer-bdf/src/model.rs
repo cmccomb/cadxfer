@@ -1,7 +1,9 @@
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{btree_map::Entry, BTreeMap, BTreeSet};
 
-use caxifer_core::{Cell, CellKind, Diagnostic, Error, Mesh, Point, Result, Severity, ValidationReport};
-use crate::{Card, Document, parse_real};
+use crate::{parse_real, Card, Document};
+use caxifer_core::{
+    Cell, CellKind, Diagnostic, Error, Mesh, Point, Result, Severity, ValidationReport,
+};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Grid {
@@ -30,30 +32,97 @@ pub struct GeometryProjection {
 }
 
 fn positive(input: &str, field: &str, line: usize) -> Result<u64> {
-    let value = input.parse::<u64>().map_err(|_| Error::new("E_INTEGER", format!("{field} must be a positive integer, got {input:?}")).at(line))?;
-    if value == 0 { return Err(Error::new("E_INTEGER", format!("{field} must be positive")).at(line)); }
+    let value = input.parse::<u64>().map_err(|_| {
+        Error::new(
+            "E_INTEGER",
+            format!("{field} must be a positive integer, got {input:?}"),
+        )
+        .at(line)
+    })?;
+    if value == 0 {
+        return Err(Error::new("E_INTEGER", format!("{field} must be positive")).at(line));
+    }
     Ok(value)
 }
 
 fn nonnegative(input: &str, field: &str, line: usize) -> Result<u64> {
-    if input.is_empty() { return Ok(0); }
-    input.parse::<u64>().map_err(|_| Error::new("E_INTEGER", format!("{field} must be nonnegative, got {input:?}")).at(line))
+    if input.is_empty() {
+        return Ok(0);
+    }
+    input.parse::<u64>().map_err(|_| {
+        Error::new(
+            "E_INTEGER",
+            format!("{field} must be nonnegative, got {input:?}"),
+        )
+        .at(line)
+    })
 }
 
 /// These cards can be excluded from a *geometry-only* view. They are preserved
 /// as source, not claimed to be semantically supported or solver-validated.
 fn opaque_nongeometry(name: &str) -> bool {
-    matches!(name,
-        "MAT1" | "MAT2" | "MAT3" | "MAT4" | "MAT5" | "MAT8" | "MAT9"
-        | "PSHELL" | "PSOLID" | "PLSOLID" | "PROD" | "PBAR" | "PBARL"
-        | "PBEAM" | "PBEAML" | "PCOMP" | "PCOMPG" | "PARAM"
-        | "FORCE" | "FORCE1" | "FORCE2" | "MOMENT" | "MOMENT1" | "MOMENT2"
-        | "PLOAD" | "PLOAD1" | "PLOAD2" | "PLOAD4" | "GRAV" | "LOAD"
-        | "SPC" | "SPC1" | "SPCADD" | "SPCD" | "MPC" | "MPCADD"
-        | "SET1" | "SET3" | "EIGR" | "EIGRL" | "TSTEP" | "TSTEPNL"
-        | "FREQ" | "FREQ1" | "FREQ2" | "DLOAD" | "RLOAD1" | "RLOAD2"
-        | "TLOAD1" | "TLOAD2" | "TABLED1" | "TABLED2" | "TABLED3" | "TABLED4"
-        | "CORD1R" | "CORD1C" | "CORD1S" | "CORD2R" | "CORD2C" | "CORD2S"
+    matches!(
+        name,
+        "MAT1"
+            | "MAT2"
+            | "MAT3"
+            | "MAT4"
+            | "MAT5"
+            | "MAT8"
+            | "MAT9"
+            | "PSHELL"
+            | "PSOLID"
+            | "PLSOLID"
+            | "PROD"
+            | "PBAR"
+            | "PBARL"
+            | "PBEAM"
+            | "PBEAML"
+            | "PCOMP"
+            | "PCOMPG"
+            | "PARAM"
+            | "FORCE"
+            | "FORCE1"
+            | "FORCE2"
+            | "MOMENT"
+            | "MOMENT1"
+            | "MOMENT2"
+            | "PLOAD"
+            | "PLOAD1"
+            | "PLOAD2"
+            | "PLOAD4"
+            | "GRAV"
+            | "LOAD"
+            | "SPC"
+            | "SPC1"
+            | "SPCADD"
+            | "SPCD"
+            | "MPC"
+            | "MPCADD"
+            | "SET1"
+            | "SET3"
+            | "EIGR"
+            | "EIGRL"
+            | "TSTEP"
+            | "TSTEPNL"
+            | "FREQ"
+            | "FREQ1"
+            | "FREQ2"
+            | "DLOAD"
+            | "RLOAD1"
+            | "RLOAD2"
+            | "TLOAD1"
+            | "TLOAD2"
+            | "TABLED1"
+            | "TABLED2"
+            | "TABLED3"
+            | "TABLED4"
+            | "CORD1R"
+            | "CORD1C"
+            | "CORD1S"
+            | "CORD2R"
+            | "CORD2C"
+            | "CORD2S"
     )
 }
 
@@ -81,7 +150,11 @@ struct NativeElement {
 impl Document {
     pub(crate) fn parse_grid(&self, card: &Card) -> Result<Grid> {
         if self.has_grdset {
-            return Err(Error::new("E_GRDSET", "GRDSET defaults are unresolved; native GRID values cannot be interpreted safely").at(card.line));
+            return Err(Error::new(
+                "E_GRDSET",
+                "GRDSET defaults are unresolved; native GRID values cannot be interpreted safely",
+            )
+            .at(card.line));
         }
         if !self.include_lines.is_empty() {
             return Err(Error::new("E_INCLUDE_UNRESOLVED", "INCLUDE may supply GRID defaults; typed GRID interpretation is disabled until the deck is flattened").at(card.line));
@@ -95,38 +168,73 @@ impl Document {
                 *value = parse_real(f(axis + 2)).map_err(|e| e.at(card.line))?;
             }
         }
-        let cd = if f(5).is_empty() { 0 } else {
-            f(5).parse::<i64>().map_err(|_| Error::new("E_INTEGER", "invalid GRID CD").at(card.line))?
+        let cd = if f(5).is_empty() {
+            0
+        } else {
+            f(5).parse::<i64>()
+                .map_err(|_| Error::new("E_INTEGER", "invalid GRID CD").at(card.line))?
         };
-        if cd < -1 { return Err(Error::new("E_INTEGER", "GRID CD must be >= -1").at(card.line)); }
+        if cd < -1 {
+            return Err(Error::new("E_INTEGER", "GRID CD must be >= -1").at(card.line));
+        }
         let ps = f(6).to_string();
         let mut seen = BTreeSet::new();
-        if !ps.bytes().all(|byte| (b'1'..=b'6').contains(&byte) && seen.insert(byte)) {
-            return Err(Error::new("E_GRID_PS", "GRID PS must contain unique digits 1 through 6").at(card.line));
+        if !ps
+            .bytes()
+            .all(|byte| (b'1'..=b'6').contains(&byte) && seen.insert(byte))
+        {
+            return Err(Error::new(
+                "E_GRID_PS",
+                "GRID PS must contain unique digits 1 through 6",
+            )
+            .at(card.line));
         }
         let seid = nonnegative(f(7), "GRID SEID", card.line)?;
         if (8..card.fields().len()).any(|i| !f(i).is_empty()) {
-            return Err(Error::new("E_GRID_FIELDS", "unexpected data after GRID SEID").at(card.line));
+            return Err(
+                Error::new("E_GRID_FIELDS", "unexpected data after GRID SEID").at(card.line),
+            );
         }
-        Ok(Grid { id, cp, coordinates, cd, ps, seid, line: card.line })
+        Ok(Grid {
+            id,
+            cp,
+            coordinates,
+            cd,
+            ps,
+            seid,
+            line: card.line,
+        })
     }
 
     pub fn grids(&self) -> impl Iterator<Item = Result<Grid>> + '_ {
-        self.cards.iter().filter(|card| card.name() == "GRID").map(|card| self.parse_grid(card))
+        self.cards
+            .iter()
+            .filter(|card| card.name() == "GRID")
+            .map(|card| self.parse_grid(card))
     }
 
     fn parse_element(&self, card: &Card, kind: CellKind) -> Result<NativeElement> {
         let f = |i| self.card_text(card, i);
         let id = positive(f(0), "element ID", card.line)?;
         let conrod = card.name() == "CONROD";
-        let property_id = if conrod { None } else {
+        let property_id = if conrod {
+            None
+        } else {
             // Some dialects default PID to EID. Do not guess that rule here.
-            Some(positive(f(1), "element PID (explicit value required in v0.1)", card.line)?)
+            Some(positive(
+                f(1),
+                "element PID (explicit value required in v0.1)",
+                card.line,
+            )?)
         };
         let first_node = if conrod { 1 } else { 2 };
         let mut nodes = Vec::new();
         for index in 0..kind.node_count() {
-            nodes.push(positive(f(first_node + index), "element GRID reference", card.line)?);
+            nodes.push(positive(
+                f(first_node + index),
+                "element GRID reference",
+                card.line,
+            )?);
         }
         if matches!(card.name(), "CTETRA" | "CHEXA" | "CPENTA" | "CPYRAM") {
             let first_extra = first_node + kind.node_count();
@@ -134,7 +242,13 @@ impl Document {
                 return Err(Error::new("E_HIGH_ORDER", format!("{} contains extra nodes/data; higher-order cells are not reduced to linear cells", card.name())).at(card.line));
             }
         }
-        Ok(NativeElement { id, property_id, nodes, kind, line: card.line })
+        Ok(NativeElement {
+            id,
+            property_id,
+            nodes,
+            kind,
+            line: card.line,
+        })
     }
 
     fn analyze_geometry(&self) -> (ValidationReport, Mesh) {
@@ -151,9 +265,10 @@ impl Document {
                         if grid.seid != 0 {
                             report.diagnostics.push(Error::new("E_SUPERELEMENT", format!("GRID {} uses SEID={}; superelements are unsupported", grid.id, grid.seid)).at(grid.line).into());
                         }
-                        if points.contains_key(&grid.id) {
-                            report.diagnostics.push(Error::new("E_DUPLICATE_GRID", format!("duplicate GRID {}", grid.id)).at(grid.line).into());
-                        } else { points.insert(grid.id, grid); }
+                        match points.entry(grid.id) {
+                            Entry::Vacant(entry) => { entry.insert(grid); }
+                            Entry::Occupied(_) => report.diagnostics.push(Error::new("E_DUPLICATE_GRID", format!("duplicate GRID {}", grid.id)).at(grid.line).into()),
+                        }
                     }
                     Err(error) => report.diagnostics.push(error.into()),
                 },
@@ -164,9 +279,10 @@ impl Document {
                     if let Some(kind) = element_kind(name) {
                         match self.parse_element(card, kind) {
                             Ok(element) => {
-                                if native_cells.contains_key(&element.id) {
-                                    report.diagnostics.push(Error::new("E_DUPLICATE_ELEMENT", format!("duplicate element {}", element.id)).at(element.line).into());
-                                } else { native_cells.insert(element.id, element); }
+                                match native_cells.entry(element.id) {
+                                    Entry::Vacant(entry) => { entry.insert(element); }
+                                    Entry::Occupied(_) => report.diagnostics.push(Error::new("E_DUPLICATE_ELEMENT", format!("duplicate element {}", element.id)).at(element.line).into()),
+                                }
                             }
                             Err(error) => report.diagnostics.push(error.into()),
                         }
@@ -191,7 +307,10 @@ impl Document {
         let mut node_indices = BTreeMap::new();
         for (id, grid) in points {
             node_indices.insert(id, mesh.points.len());
-            mesh.points.push(Point { id, position: grid.coordinates });
+            mesh.points.push(Point {
+                id,
+                position: grid.coordinates,
+            });
         }
         for (_, element) in native_cells {
             let mut connectivity = Vec::new();
@@ -199,21 +318,44 @@ impl Document {
             let mut valid = true;
             for id in element.nodes {
                 if !seen.insert(id) {
-                    report.diagnostics.push(Error::new("E_DEGENERATE_CONNECTIVITY", format!("element {} repeats GRID {id}", element.id)).at(element.line).into());
+                    report.diagnostics.push(
+                        Error::new(
+                            "E_DEGENERATE_CONNECTIVITY",
+                            format!("element {} repeats GRID {id}", element.id),
+                        )
+                        .at(element.line)
+                        .into(),
+                    );
                     valid = false;
                 }
                 match node_indices.get(&id) {
                     Some(&index) => connectivity.push(index),
                     None => {
-                        report.diagnostics.push(Error::new("E_MISSING_GRID", format!("element {} references missing GRID {id}", element.id)).at(element.line).into());
+                        report.diagnostics.push(
+                            Error::new(
+                                "E_MISSING_GRID",
+                                format!("element {} references missing GRID {id}", element.id),
+                            )
+                            .at(element.line)
+                            .into(),
+                        );
                         valid = false;
                     }
                 }
             }
-            if valid { mesh.cells.push(Cell { id: element.id, kind: element.kind, connectivity, property_id: element.property_id }); }
+            if valid {
+                mesh.cells.push(Cell {
+                    id: element.id,
+                    kind: element.kind,
+                    connectivity,
+                    property_id: element.property_id,
+                });
+            }
         }
         if mesh.points.is_empty() {
-            report.diagnostics.push(Error::new("E_EMPTY_GEOMETRY", "no usable GRID points found").into());
+            report
+                .diagnostics
+                .push(Error::new("E_EMPTY_GEOMETRY", "no usable GRID points found").into());
         }
         (report, mesh)
     }
@@ -230,8 +372,16 @@ impl Document {
     /// comments, and source formatting do not. Always inspect `omissions`.
     pub fn geometry(&self) -> Result<GeometryProjection> {
         let (report, mesh) = self.analyze_geometry();
-        if let Some(diagnostic) = report.diagnostics.iter().find(|d| d.severity == Severity::Error) {
-            return Err(Error { code: diagnostic.code, message: diagnostic.message.clone(), line: diagnostic.line });
+        if let Some(diagnostic) = report
+            .diagnostics
+            .iter()
+            .find(|d| d.severity == Severity::Error)
+        {
+            return Err(Error {
+                code: diagnostic.code,
+                message: diagnostic.message.clone(),
+                line: diagnostic.line,
+            });
         }
         mesh.validate()?;
         let mut omissions = Vec::new();
@@ -240,11 +390,19 @@ impl Document {
             detail: "geometry-only: source text, comments, GRID CD/PS, element orientations/offsets/section data, and solver semantics are not represented; units remain unspecified".into(),
         });
         if self.full_deck {
-            omissions.push(Omission { category: "control-sections".into(), count: 1, detail: "executive and case-control sections are not exported".into() });
+            omissions.push(Omission {
+                category: "control-sections".into(),
+                count: 1,
+                detail: "executive and case-control sections are not exported".into(),
+            });
         }
         for (name, count) in self.card_counts() {
             if opaque_nongeometry(&name) {
-                omissions.push(Omission { category: name, count, detail: "opaque nongeometry card(s) not exported".into() });
+                omissions.push(Omission {
+                    category: name,
+                    count,
+                    detail: "opaque nongeometry card(s) not exported".into(),
+                });
             }
         }
         Ok(GeometryProjection { mesh, omissions })

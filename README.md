@@ -1,3 +1,5 @@
+[![CI](https://github.com/cmccomb/caxifer/actions/workflows/ci.yml/badge.svg)](https://github.com/cmccomb/caxifer/actions/workflows/ci.yml)
+
 # caxifer
 
 <p align="center"><img src="assets/logo.png" alt="caxifer logo" width="320"></p>
@@ -36,7 +38,7 @@ Output paths must be new. `plate-copy.bdf` preserves the original file bytes.
 `plate.vtu` contains geometry and original IDs, **not a runnable Nastran model**.
 The converter reports what it excludes. No command overwrites the source.
 
-`cargo install caxifer` is **not** the installation instruction for this archive:
+`cargo install caxifer` is **not** the installation instruction for this repository:
 the package has not been published to a registry.
 
 ## What 0.1 does
@@ -145,8 +147,9 @@ cargo test --workspace --all-features --locked --offline
 cargo check -p caxifer-formats --no-default-features --locked --offline
 cargo check -p caxifer-formats --no-default-features --features bdf --locked --offline
 cargo check -p caxifer-formats --no-default-features --features vtu --locked --offline
-cargo clippy --workspace --all-targets --all-features --locked --offline
-cargo doc --workspace --all-features --no-deps --locked --offline
+cargo fmt --all -- --check
+cargo clippy --workspace --all-targets --all-features --locked --offline -- -D warnings
+RUSTDOCFLAGS='-D warnings' cargo doc --workspace --all-features --no-deps --locked --offline
 python3 scripts/check_source.py
 python3 scripts/check_interop.py --build
 ```
@@ -156,10 +159,9 @@ Python parsers, verifies byte-for-byte round trips, and checks all linear cell
 families against an explicit fixture. With Python VTK installed, add `--vtk` for
 an independent VTK reader check. The Python scripts require Python 3.11+.
 
-CI definitions cover Linux, macOS, Windows, and the intended minimum Rust
-version. A definition is not evidence of a passing CI run. The included
-[verification record](docs/BUILD-STATUS.md) distinguishes checks actually run
-from checks still requiring a Rust toolchain.
+CI covers Linux, macOS, Windows, and the intended minimum Rust version. The
+[verification record](docs/BUILD-STATUS.md) lists checks that have run and the
+remaining limits of this source candidate.
 
 ## Development and release
 

@@ -5,6 +5,8 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+env:
+  CARGO_TERM_COLOR: always
 jobs:
   test:
     strategy:
@@ -22,6 +24,9 @@ jobs:
         run: rustup toolchain install ${{ matrix.rust }} --profile minimal --component clippy,rustfmt
       - name: Select toolchain
         run: rustup override set ${{ matrix.rust }}
+      - name: Check formatting
+        if: matrix.os == 'ubuntu-latest' && matrix.rust == 'stable'
+        run: cargo fmt --all -- --check
       - name: Test all packages, targets and doctests
         run: cargo test --workspace --all-features --locked --offline
       - name: Check the no-format facade
@@ -31,8 +36,10 @@ jobs:
       - name: Check VTU-only facade
         run: cargo check -p caxifer-formats --no-default-features --features vtu --locked --offline
       - name: Clippy
-        run: cargo clippy --workspace --all-targets --all-features --locked --offline
+        run: cargo clippy --workspace --all-targets --all-features --locked --offline -- -D warnings
       - name: Documentation
+        env:
+          RUSTDOCFLAGS: -D warnings
         run: cargo doc --workspace --all-features --no-deps --locked --offline
       - uses: actions/setup-python@v5
         with:

@@ -14,6 +14,6 @@ synthetic fixtures, Rust tests, independent Python interoperability checks,
 CI definitions, and release documentation. The workspace has no external Rust
 dependencies and forbids unsafe Rust.
 
-Not published. Rust compilation/tests were not run in the authoring environment;
+Not published to crates.io. Rust compilation/tests were not run in the original authoring environment;
 see docs/BUILD-STATUS.md. OP2/FRD, Python bindings, coordinate resolution,
 INCLUDE expansion, and performance claims are deliberately not part of 0.1.0.

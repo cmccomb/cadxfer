@@ -1,8 +1,8 @@
 # Before publishing 0.1.0
 
-This archive is a source package. Nothing has been uploaded to crates.io or a
-GitHub repository, no registry names have been reserved, and no CI run has been
-claimed. Do not run `cargo publish` merely because package versions say 0.1.0.
+This repository has not been published to crates.io. No registry names have
+been reserved. Do not run `cargo publish` merely because package versions say
+0.1.0. See [BUILD-STATUS.md](BUILD-STATUS.md) for completed local and CI checks.
 
 ## Required gates
 
@@ -10,7 +10,7 @@ Run Rust compilation, the complete test suite and examples, all feature
 combinations, Clippy, rustdoc, and the independent CLI interoperability script.
 Run on Linux, macOS, and Windows and on the intended Rust 1.85 minimum. Run
 `cargo fmt --all`, review the diff, then enforce `cargo fmt --all --check` before
-publishing. The authoring environment could not execute Rust formatting either.
+publishing.
 
 Read BUILD-STATUS.md and replace the unverified status only with recorded real
 command outputs. Add real-world, redistributable decks and compare against
@@ -19,8 +19,7 @@ Benchmark before claiming performance or memory advantages. A 0.1 experimental
 release can retain its narrow scope, but must pass its own tests.
 
 Confirm license/authorship details, package-name availability, and repository
-ownership. Set real `repository` and `homepage` metadata only after creating the
-repository; this source package intentionally contains no invented URLs.
+ownership. The manifests now use the public repository URL.
 Check that every packaged crate includes both licenses and its README.
 
 ## Packaging

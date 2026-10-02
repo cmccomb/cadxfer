@@ -10,7 +10,9 @@ pub fn quote(text: &str) -> String {
             '\n' => output.push_str("\\n"),
             '\r' => output.push_str("\\r"),
             '\t' => output.push_str("\\t"),
-            ch if ch <= '\u{1f}' => { let _ = write!(output, "\\u{:04x}", ch as u32); }
+            ch if ch <= '\u{1f}' => {
+                let _ = write!(output, "\\u{:04x}", ch as u32);
+            }
             ch => output.push(ch),
         }
     }
@@ -19,7 +21,14 @@ pub fn quote(text: &str) -> String {
 }
 
 pub fn object<K: AsRef<str>>(fields: impl IntoIterator<Item = (K, String)>) -> String {
-    format!("{{{}}}", fields.into_iter().map(|(key, value)| format!("{}:{value}", quote(key.as_ref()))).collect::<Vec<_>>().join(","))
+    format!(
+        "{{{}}}",
+        fields
+            .into_iter()
+            .map(|(key, value)| format!("{}:{value}", quote(key.as_ref())))
+            .collect::<Vec<_>>()
+            .join(",")
+    )
 }
 
 pub fn array(values: impl IntoIterator<Item = String>) -> String {
@@ -34,7 +43,14 @@ mod tests {
         assert_eq!(quote("a\"b\\c\n\r\t\0"), "\"a\\\"b\\\\c\\n\\r\\t\\u0000\"");
     }
     #[test]
-    fn preserves_unicode() { assert_eq!(quote("Δ"), "\"Δ\""); }
+    fn preserves_unicode() {
+        assert_eq!(quote("Δ"), "\"Δ\"");
+    }
     #[test]
-    fn builds_objects() { assert_eq!(object([("x", "1".into()), ("y", quote("z"))]), "{\"x\":1,\"y\":\"z\"}"); }
+    fn builds_objects() {
+        assert_eq!(
+            object([("x", "1".into()), ("y", quote("z"))]),
+            "{\"x\":1,\"y\":\"z\"}"
+        );
+    }
 }

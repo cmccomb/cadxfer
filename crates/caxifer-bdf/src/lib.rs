@@ -17,7 +17,7 @@ mod model;
 mod number;
 mod syntax;
 
+pub use caxifer_core::{Error, Result};
 pub use model::{GeometryProjection, Grid, Omission};
 pub use number::parse_real;
 pub use syntax::{Card, Document, Field, FieldFormat, ParseOptions};
-pub use caxifer_core::{Error, Result};
