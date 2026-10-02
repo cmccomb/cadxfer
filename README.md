@@ -10,7 +10,11 @@ caxifer separates the original engineering document from the information a
 particular downstream tool can represent. Read and preserve the document first;
 project it into geometry only when that loss of information is explicit.
 
-[![Diagram of model.bdf flowing through caxifer to an exact BDF copy, an edited BDF, a geometry-only VTU mesh, and JSON inspection output](assets/conversion-flow.svg)](assets/conversion-flow.svg)
+[![Schematic quad mesh showing a byte-identical BDF copy, a BDF with one moved node, and a VTU mesh that omits solver records](assets/conversion-flow.svg)](assets/conversion-flow.svg)
+
+The illustration shows the difference between preserving a BDF, editing one
+GRID node's coordinates, and projecting geometry into VTU. The VTU keeps
+original IDs but omits nongeometry records and reports those omissions.
 
 This is the **0.1.0 source repository**, not a crates.io publication. The Rust
 compiler was unavailable in the original authoring environment. See the

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate the README's source-to-output diagram using only Python's stdlib."""
+"""Generate the README's mesh comparison SVG using only Python's stdlib."""
 
 from __future__ import annotations
 
@@ -11,143 +11,152 @@ from xml.etree import ElementTree
 
 
 OUTPUT = Path(__file__).resolve().parents[1] / "assets" / "conversion-flow.svg"
+BACKGROUND = "#0b1423"
+PANEL = "#17283e"
+WHITE = "#f5f8ff"
+MUTED = "#b6c7d9"
+COPY = "#69dfc0"
+EDIT = "#77baff"
+VTU = "#ffa468"
+RECORDS = ("PSHELL", "MAT1", "FORCE", "SPC1")
 
 
 @dataclass(frozen=True)
-class Outcome:
-    y: int
+class Panel:
+    x: int
+    step: str
     filename: str
-    detail: str
-    command: str
     color: str
-    icon: str = "lines"
+    variant: str
+    summary: str
 
 
-OUTCOMES = (
-    Outcome(104, "copy.bdf", "Every original byte preserved", "roundtrip", "#64dec2"),
-    Outcome(225, "edited.bdf", "Only selected GRID fields change", "set-grid", "#75bbff"),
-    Outcome(346, "mesh.vtu", "Geometry + original IDs", "convert --geometry-only", "#ff9f58", "mesh"),
-    Outcome(467, "report.json", "Machine-readable inspection¹", "info model.bdf --json", "#c2a4ff", "json"),
+PANELS = (
+    Panel(50, "01  EXACT COPY", "copy.bdf", COPY, "copy", "Same mesh. Every source byte retained."),
+    Panel(437, "02  GRID EDIT", "edited.bdf", EDIT, "edited", "One node moved. Other fields retained."),
+    Panel(824, "03  VTU PROJECTION", "mesh.vtu", VTU, "vtu", "Same geometry and IDs; omissions reported."),
 )
 
-PRESENTATION = {
-    "title": 'fill="#f6f9ff" font-family="Arial, Helvetica, sans-serif" font-size="32" font-weight="700"',
-    "brand": 'fill="#f6f9ff" font-family="Arial, Helvetica, sans-serif" font-size="34" font-weight="700"',
-    "subtitle": 'fill="#aebed3" font-family="Arial, Helvetica, sans-serif" font-size="16"',
-    "eyebrow": 'fill="#8ea9c6" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="700" letter-spacing="2"',
-    "filename": 'fill="#f5f8ff" font-family="Arial, Helvetica, sans-serif" font-size="21" font-weight="700"',
-    "detail": 'fill="#d1deed" font-family="Arial, Helvetica, sans-serif" font-size="15"',
-    "command": 'fill="#9cb0c8" font-family="Menlo, Consolas, monospace" font-size="13"',
-    "body": 'fill="#d1deed" font-family="Arial, Helvetica, sans-serif" font-size="16"',
-    "note": 'fill="#aebed3" font-family="Arial, Helvetica, sans-serif" font-size="14"',
-}
+
+def text(x: int, y: int, value: str, *, size: int = 16, color: str = WHITE,
+         weight: int = 400, mono: bool = False, spacing: int = 0) -> str:
+    family = "Menlo, Consolas, monospace" if mono else "Arial, Helvetica, sans-serif"
+    return (f'<text x="{x}" y="{y}" fill="{color}" font-family="{family}" '
+            f'font-size="{size}" font-weight="{weight}" letter-spacing="{spacing}">'
+            f'{escape(value)}</text>')
 
 
-def file_icon(x: int, y: int, color: str, kind: str) -> str:
-    contents = {
-        "lines": f'<path d="M{x + 10} {y + 26}h24 M{x + 10} {y + 35}h21" stroke="{color}" stroke-width="2.5" stroke-linecap="round"/>',
-        "mesh": f'<path d="M{x + 10} {y + 38}l12-15 12 15z M{x + 10} {y + 38}l12-7 12 7 M{x + 22} {y + 23}v8" fill="none" stroke="{color}" stroke-width="1.8" stroke-linejoin="round"/>',
-        "json": f'<text x="{x + 8}" y="{y + 37}" fill="{color}" font-family="monospace" font-size="18" font-weight="700">{{ }}</text>',
-    }[kind]
-    return (
-        f'<path d="M{x + 4} {y + 3}h29l11 11v37a4 4 0 0 1-4 4H{x + 4}a4 4 0 0 1-4-4V{y + 7}a4 4 0 0 1 4-4z" '
-        f'fill="#17283e" stroke="{color}" stroke-width="2"/>'
-        f'<path d="M{x + 33} {y + 3}v11h11" fill="none" stroke="{color}" stroke-width="2"/>'
-        + contents
-    )
+def mesh(x: int, y: int, variant: str) -> str:
+    """Draw one schematic quad mesh; the edited view displaces one GRID node."""
+    points: dict[tuple[int, int], tuple[int, int]] = {}
+    for row in range(4):
+        for col in range(5):
+            px, py = x + col * 43 + row * 8, y + row * 34 - col * 4
+            if variant == "edited" and (col, row) == (4, 1):
+                px += 25
+                py -= 11
+            points[col, row] = px, py
+
+    color = VTU if variant == "vtu" else (EDIT if variant == "edited" else COPY)
+    parts = ['<g aria-hidden="true">']
+    for row in range(3):
+        for col in range(4):
+            corners = (points[col, row], points[col + 1, row],
+                       points[col + 1, row + 1], points[col, row + 1])
+            coordinates = " ".join(f"{px},{py}" for px, py in corners)
+            fill = "#b65d35" if variant == "vtu" and (row + col) % 2 else "#2f4b62"
+            opacity = "0.45" if variant == "vtu" else "0.35"
+            parts.append(f'<polygon points="{coordinates}" fill="{fill}" fill-opacity="{opacity}" '
+                         f'stroke="{color}" stroke-width="1.7" stroke-linejoin="round"/>')
+    for (col, row), (px, py) in points.items():
+        moved = variant == "edited" and (col, row) == (4, 1)
+        parts.append(f'<circle cx="{px}" cy="{py}" r="{6 if moved else 2.8}" '
+                     f'fill="{VTU if moved else color}"/>')
+    if variant == "edited":
+        old_x, old_y = x + 4 * 43 + 8, y + 34 - 4 * 4
+        new_x, new_y = points[4, 1]
+        parts.append(f'<circle cx="{old_x}" cy="{old_y}" r="7" fill="none" '
+                     'stroke="#a9bdd1" stroke-width="1.5" stroke-dasharray="3 3"/>')
+        parts.append(f'<path d="M{old_x + 9} {old_y - 2}L{new_x - 8} {new_y + 2}" '
+                     f'stroke="{VTU}" stroke-width="2.5" stroke-linecap="round"/>')
+        parts.append(f'<circle cx="{new_x}" cy="{new_y}" r="9" fill="none" '
+                     f'stroke="{VTU}" stroke-opacity="0.65" stroke-width="2"/>')
+    parts.append("</g>")
+    return "\n".join(parts)
 
 
-def output_card(item: Outcome) -> str:
-    y = item.y
-    return f"""
-  <g>
-    <rect x="842" y="{y}" width="338" height="104" rx="19" fill="#15263c" stroke="#34506b" stroke-width="1.5"/>
-    <rect x="842" y="{y}" width="7" height="104" rx="3.5" fill="{item.color}"/>
-    {file_icon(861, y + 22, item.color, item.icon)}
-    <text x="923" y="{y + 32}" class="filename">{escape(item.filename)}</text>
-    <text x="923" y="{y + 59}" class="detail">{escape(item.detail)}</text>
-    <text x="923" y="{y + 82}" class="command">{escape(item.command)}</text>
-  </g>"""
+def record_pills(x: int, y: int, *, color: str, omitted: bool) -> str:
+    parts = []
+    for index, label in enumerate(RECORDS):
+        left = x + index * 78
+        stroke = "#71839a" if omitted else color
+        parts.append(f'<rect x="{left}" y="{y}" width="70" height="25" rx="7" '
+                     f'fill="#1c3048" stroke="{stroke}" stroke-width="1"/>')
+        parts.append(text(left + 8, y + 18, label, size=12, color=stroke, weight=700, mono=True))
+        if omitted:
+            parts.append(f'<path d="M{left + 7} {y + 21}L{left + 63} {y + 4}" '
+                         'stroke="#ec7f77" stroke-width="2"/>')
+    return "\n".join(parts)
+
+
+def output_panel(panel: Panel) -> str:
+    x, color = panel.x, panel.color
+    omitted = panel.variant == "vtu"
+    return "\n".join((
+        f'<rect x="{x}" y="445" width="365" height="331" rx="22" fill="{PANEL}" '
+        'stroke="#385573" stroke-width="1.5"/>',
+        f'<rect x="{x}" y="445" width="365" height="7" rx="3.5" fill="{color}"/>',
+        text(x + 25, 480, panel.step, size=13, color=color, weight=700, spacing=1),
+        text(x + 25, 513, panel.filename, size=24, weight=700),
+        mesh(x + 76, 554, panel.variant),
+        text(x + 25, 681, "OTHER BDF RECORDS", size=12, color=MUTED, weight=700, spacing=1),
+        record_pills(x + 25, 691, color=color, omitted=omitted),
+        text(x + 25, 750, panel.summary, size=14, color=MUTED),
+    ))
 
 
 def render() -> str:
-    branch_lines = "\n".join(
-        f'<path d="M784 {item.y + 52}H829" stroke="{item.color}" stroke-width="3"/>'
-        f'<path d="M829 {item.y + 46}l11 6-11 6z" fill="{item.color}"/>'
-        for item in OUTCOMES
-    )
-    cards = "\n".join(output_card(item).strip() for item in OUTCOMES)
-    svg = f"""<svg xmlns="http://www.w3.org/2000/svg" width="1240" height="650" viewBox="0 0 1240 650" role="img" aria-labelledby="title description">
-  <title id="title">caxifer: one BDF source, several explicit outputs</title>
-  <desc id="description">A model.bdf file enters caxifer. It can become a byte-identical BDF copy, a BDF with selected GRID fields edited, a geometry-only VTU mesh, or JSON inspection output saved from stdout. VTU omits solver data and reports omissions.</desc>
-  <defs>
-    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#101b2c"/>
-      <stop offset="1" stop-color="#0a1220"/>
-    </linearGradient>
-    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#ffbd55"/>
-      <stop offset="1" stop-color="#ff6e3c"/>
-    </linearGradient>
-  </defs>
-  <style>
-    .title {{ fill: #f6f9ff; font: 700 32px system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }}
-    .brand {{ fill: #f6f9ff; font: 700 34px system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }}
-    .subtitle {{ fill: #aebed3; font: 16px system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }}
-    .eyebrow {{ fill: #8ea9c6; font: 700 13px system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; letter-spacing: 2px; }}
-    .filename {{ fill: #f5f8ff; font: 700 21px system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }}
-    .detail {{ fill: #d1deed; font: 15px system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }}
-    .command {{ fill: #9cb0c8; font: 13px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }}
-    .body {{ fill: #d1deed; font: 16px system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }}
-    .note {{ fill: #aebed3; font: 14px system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }}
-  </style>
-
-  <rect width="1240" height="650" rx="27" fill="url(#background)"/>
-  <text x="58" y="58" class="title">One BDF, several explicit outcomes</text>
-  <text x="59" y="85" class="subtitle">Preserve the source first. Choose when to edit or project.</text>
-
-  <path d="M340 344H401" stroke="#ffae57" stroke-width="4"/>
-  <path d="M401 337l13 7-13 7z" fill="#ffae57"/>
-  <path d="M729 344H784 M784 156V519" fill="none" stroke="#58708f" stroke-width="3" stroke-linecap="round"/>
-  <circle cx="784" cy="344" r="6" fill="#ffae57"/>
-  {branch_lines}
-
-  <g>
-    <rect x="58" y="218" width="282" height="251" rx="22" fill="#15263c" stroke="#3a5572" stroke-width="1.5"/>
-    <text x="85" y="252" class="eyebrow">SOURCE FILE</text>
-    <path d="M90 279h91l25 25v72a7 7 0 0 1-7 7H90a7 7 0 0 1-7-7v-90a7 7 0 0 1 7-7z" fill="#1b3049" stroke="#ffae57" stroke-width="2"/>
-    <path d="M181 279v25h25" fill="none" stroke="#ffae57" stroke-width="2"/>
-    <path d="M102 357l29-46 30 46z M102 357l30-21 29 21 M131 311l1 25" fill="none" stroke="#ffae57" stroke-width="2" stroke-linejoin="round"/>
-    <text x="270" y="322" class="filename" text-anchor="middle">model.bdf</text>
-    <text x="270" y="349" class="detail" text-anchor="middle">Nastran deck</text>
-    <text x="84" y="419" class="detail">Comments, unknown cards,</text>
-    <text x="84" y="442" class="detail">line endings, original bytes</text>
-  </g>
-
-  <g>
-    <rect x="423" y="185" width="306" height="315" rx="25" fill="#192b42" stroke="#ff9c55" stroke-width="2"/>
-    <rect x="423" y="185" width="306" height="8" rx="4" fill="url(#accent)"/>
-    <text x="452" y="227" class="eyebrow">DOCUMENT + GEOMETRY</text>
-    <text x="452" y="274" class="brand">caxifer</text>
-    <text x="452" y="304" class="body">Read and preserve the source</text>
-    <path d="M452 326H698" stroke="#38516b" stroke-width="1"/>
-    <circle cx="460" cy="357" r="4" fill="#64dec2"/>
-    <text x="475" y="363" class="body">Roundtrip exactly</text>
-    <circle cx="460" cy="404" r="4" fill="#75bbff"/>
-    <text x="475" y="410" class="body">Edit selected GRID fields</text>
-    <circle cx="460" cy="451" r="4" fill="#ff9f58"/>
-    <text x="475" y="457" class="body">Project geometry by choice</text>
-  </g>
-
-  {cards}
-
-  <path d="M58 604H1180" stroke="#30445e" stroke-width="1"/>
-  <text x="59" y="628" class="note">¹ Redirect JSON stdout to save report.json. VTU omits solver data; caxifer reports omissions.</text>
-</svg>
-"""
-    for name, attributes in PRESENTATION.items():
-        svg = svg.replace(f'class="{name}"', f'class="{name}" {attributes}')
-    return svg
+    parts = [
+        '<svg xmlns="http://www.w3.org/2000/svg" width="1240" height="820" '
+        'viewBox="0 0 1240 820" role="img" aria-labelledby="title description">',
+        '<title id="title">How caxifer changes a BDF mesh and its surrounding data</title>',
+        '<desc id="description">A schematic BDF quad mesh branches into three outputs. The BDF copy has identical geometry and records. The edited BDF moves one mesh node but keeps other records. The VTU retains the original geometry and IDs while solver records are omitted and reported.</desc>',
+        '<defs><linearGradient id="background" x1="0" y1="0" x2="1" y2="1">'
+        '<stop offset="0" stop-color="#122238"/>'
+        f'<stop offset="1" stop-color="{BACKGROUND}"/>'
+        '</linearGradient></defs>',
+        '<rect width="1240" height="820" rx="26" fill="url(#background)"/>',
+        text(50, 58, "The mesh tells the story", size=32, weight=700),
+        text(51, 87, "One preserved BDF source. Three different output guarantees.",
+             size=16, color=MUTED),
+        '<rect x="365" y="122" width="510" height="242" rx="23" '
+        f'fill="{PANEL}" stroke="#f4ad5a" stroke-width="2"/>',
+        '<rect x="365" y="122" width="510" height="7" rx="3.5" fill="#f4ad5a"/>',
+        text(391, 159, "SOURCE DOCUMENT", size=13, color="#f4ad5a", weight=700, spacing=1),
+        text(391, 191, "model.bdf", size=25, weight=700),
+        mesh(408, 221, "source"),
+        text(663, 217, "SOURCE RECORDS", size=12, color=MUTED, weight=700, spacing=1),
+        '<rect x="661" y="234" width="188" height="91" rx="12" fill="#20354d"/>',
+        text(675, 258, "PSHELL    MAT1", size=14, color="#f6ca87", weight=700, mono=True),
+        text(675, 284, "FORCE     SPC1", size=14, color="#f6ca87", weight=700, mono=True),
+        text(675, 309, "+ comments, source bytes", size=12, color=MUTED),
+        '<path d="M620 364V403 M232 403H1006" fill="none" stroke="#6885a2" '
+        'stroke-width="2.5" stroke-linecap="round"/>',
+    ]
+    for panel in PANELS:
+        center = panel.x + 182
+        parts.extend((
+            f'<path d="M{center} 403V429" stroke="{panel.color}" stroke-width="3"/>',
+            f'<path d="M{center - 7} 429l7 12 7-12z" fill="{panel.color}"/>',
+            output_panel(panel),
+        ))
+    parts.extend((
+        '<path d="M50 792H1190" stroke="#304761" stroke-width="1"/>',
+        text(51, 811, "Schematic mesh: the copy and VTU keep source geometry; only the edited BDF moves a node.",
+             size=13, color=MUTED),
+        '</svg>',
+    ))
+    return "\n".join(parts) + "\n"
 
 
 def main() -> int:
