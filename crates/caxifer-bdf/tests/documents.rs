@@ -1,5 +1,6 @@
 use caxifer_bdf::{Document, FieldFormat, ParseOptions};
 use caxifer_core::CellKind;
+use std::fmt::Write as _;
 
 const TRI: &str =
     "GRID,10,,0.,0.,0.\nGRID,20,,1.,0.,0.\nGRID,30,,0.,1.,0.\nCTRIA3,100,7,10,20,30\n";
@@ -395,9 +396,10 @@ fn deterministic_id_sorting_preserves_connectivity() {
 
 #[test]
 fn all_linear_cell_families() {
-    let nodes = (1..=8)
-        .map(|id| format!("GRID,{id},,{id},0,0\n"))
-        .collect::<String>();
+    let mut nodes = String::new();
+    for id in 1..=8 {
+        writeln!(&mut nodes, "GRID,{id},,{id},0,0").unwrap();
+    }
     let source = nodes + "CROD,1,7,1,2\nCONROD,2,1,2,8,1.\nCBAR,3,7,1,2,0.,1.,0.\nCBEAM,4,7,1,2,0.,1.,0.\nCTRIA3,5,7,1,2,3\nCQUAD4,6,7,1,2,3,4\nCTETRA,7,7,1,2,3,4\nCHEXA,8,7,1,2,3,4,5,6\n+,7,8\nCPENTA,9,7,1,2,3,4,5,6\nCPYRAM,10,7,1,2,3,4,5\n";
     let mesh = Document::parse(source).unwrap().geometry().unwrap().mesh;
     assert_eq!(mesh.cells.len(), 10);
