@@ -1,0 +1,101 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1240" height="650" viewBox="0 0 1240 650" role="img" aria-labelledby="title description">
+  <title id="title">caxifer: one BDF source, several explicit outputs</title>
+  <desc id="description">A model.bdf file enters caxifer. It can become a byte-identical BDF copy, a BDF with selected GRID fields edited, a geometry-only VTU mesh, or JSON inspection output saved from stdout. VTU omits solver data and reports omissions.</desc>
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#101b2c"/>
+      <stop offset="1" stop-color="#0a1220"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffbd55"/>
+      <stop offset="1" stop-color="#ff6e3c"/>
+    </linearGradient>
+  </defs>
+  <style>
+    .title { fill: #f6f9ff; font: 700 32px system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+    .brand { fill: #f6f9ff; font: 700 34px system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+    .subtitle { fill: #aebed3; font: 16px system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+    .eyebrow { fill: #8ea9c6; font: 700 13px system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; letter-spacing: 2px; }
+    .filename { fill: #f5f8ff; font: 700 21px system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+    .detail { fill: #d1deed; font: 15px system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+    .command { fill: #9cb0c8; font: 13px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .body { fill: #d1deed; font: 16px system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+    .note { fill: #aebed3; font: 14px system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+  </style>
+
+  <rect width="1240" height="650" rx="27" fill="url(#background)"/>
+  <text x="58" y="58" class="title" fill="#f6f9ff" font-family="Arial, Helvetica, sans-serif" font-size="32" font-weight="700">One BDF, several explicit outcomes</text>
+  <text x="59" y="85" class="subtitle" fill="#aebed3" font-family="Arial, Helvetica, sans-serif" font-size="16">Preserve the source first. Choose when to edit or project.</text>
+
+  <path d="M340 344H401" stroke="#ffae57" stroke-width="4"/>
+  <path d="M401 337l13 7-13 7z" fill="#ffae57"/>
+  <path d="M729 344H784 M784 156V519" fill="none" stroke="#58708f" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="784" cy="344" r="6" fill="#ffae57"/>
+  <path d="M784 156H829" stroke="#64dec2" stroke-width="3"/><path d="M829 150l11 6-11 6z" fill="#64dec2"/>
+<path d="M784 277H829" stroke="#75bbff" stroke-width="3"/><path d="M829 271l11 6-11 6z" fill="#75bbff"/>
+<path d="M784 398H829" stroke="#ff9f58" stroke-width="3"/><path d="M829 392l11 6-11 6z" fill="#ff9f58"/>
+<path d="M784 519H829" stroke="#c2a4ff" stroke-width="3"/><path d="M829 513l11 6-11 6z" fill="#c2a4ff"/>
+
+  <g>
+    <rect x="58" y="218" width="282" height="251" rx="22" fill="#15263c" stroke="#3a5572" stroke-width="1.5"/>
+    <text x="85" y="252" class="eyebrow" fill="#8ea9c6" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="700" letter-spacing="2">SOURCE FILE</text>
+    <path d="M90 279h91l25 25v72a7 7 0 0 1-7 7H90a7 7 0 0 1-7-7v-90a7 7 0 0 1 7-7z" fill="#1b3049" stroke="#ffae57" stroke-width="2"/>
+    <path d="M181 279v25h25" fill="none" stroke="#ffae57" stroke-width="2"/>
+    <path d="M102 357l29-46 30 46z M102 357l30-21 29 21 M131 311l1 25" fill="none" stroke="#ffae57" stroke-width="2" stroke-linejoin="round"/>
+    <text x="270" y="322" class="filename" fill="#f5f8ff" font-family="Arial, Helvetica, sans-serif" font-size="21" font-weight="700" text-anchor="middle">model.bdf</text>
+    <text x="270" y="349" class="detail" fill="#d1deed" font-family="Arial, Helvetica, sans-serif" font-size="15" text-anchor="middle">Nastran deck</text>
+    <text x="84" y="419" class="detail" fill="#d1deed" font-family="Arial, Helvetica, sans-serif" font-size="15">Comments, unknown cards,</text>
+    <text x="84" y="442" class="detail" fill="#d1deed" font-family="Arial, Helvetica, sans-serif" font-size="15">line endings, original bytes</text>
+  </g>
+
+  <g>
+    <rect x="423" y="185" width="306" height="315" rx="25" fill="#192b42" stroke="#ff9c55" stroke-width="2"/>
+    <rect x="423" y="185" width="306" height="8" rx="4" fill="url(#accent)"/>
+    <text x="452" y="227" class="eyebrow" fill="#8ea9c6" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="700" letter-spacing="2">DOCUMENT + GEOMETRY</text>
+    <text x="452" y="274" class="brand" fill="#f6f9ff" font-family="Arial, Helvetica, sans-serif" font-size="34" font-weight="700">caxifer</text>
+    <text x="452" y="304" class="body" fill="#d1deed" font-family="Arial, Helvetica, sans-serif" font-size="16">Read and preserve the source</text>
+    <path d="M452 326H698" stroke="#38516b" stroke-width="1"/>
+    <circle cx="460" cy="357" r="4" fill="#64dec2"/>
+    <text x="475" y="363" class="body" fill="#d1deed" font-family="Arial, Helvetica, sans-serif" font-size="16">Roundtrip exactly</text>
+    <circle cx="460" cy="404" r="4" fill="#75bbff"/>
+    <text x="475" y="410" class="body" fill="#d1deed" font-family="Arial, Helvetica, sans-serif" font-size="16">Edit selected GRID fields</text>
+    <circle cx="460" cy="451" r="4" fill="#ff9f58"/>
+    <text x="475" y="457" class="body" fill="#d1deed" font-family="Arial, Helvetica, sans-serif" font-size="16">Project geometry by choice</text>
+  </g>
+
+  <g>
+    <rect x="842" y="104" width="338" height="104" rx="19" fill="#15263c" stroke="#34506b" stroke-width="1.5"/>
+    <rect x="842" y="104" width="7" height="104" rx="3.5" fill="#64dec2"/>
+    <path d="M865 129h29l11 11v37a4 4 0 0 1-4 4H865a4 4 0 0 1-4-4V133a4 4 0 0 1 4-4z" fill="#17283e" stroke="#64dec2" stroke-width="2"/><path d="M894 129v11h11" fill="none" stroke="#64dec2" stroke-width="2"/><path d="M871 152h24 M871 161h21" stroke="#64dec2" stroke-width="2.5" stroke-linecap="round"/>
+    <text x="923" y="136" class="filename" fill="#f5f8ff" font-family="Arial, Helvetica, sans-serif" font-size="21" font-weight="700">copy.bdf</text>
+    <text x="923" y="163" class="detail" fill="#d1deed" font-family="Arial, Helvetica, sans-serif" font-size="15">Every original byte preserved</text>
+    <text x="923" y="186" class="command" fill="#9cb0c8" font-family="Menlo, Consolas, monospace" font-size="13">roundtrip</text>
+  </g>
+<g>
+    <rect x="842" y="225" width="338" height="104" rx="19" fill="#15263c" stroke="#34506b" stroke-width="1.5"/>
+    <rect x="842" y="225" width="7" height="104" rx="3.5" fill="#75bbff"/>
+    <path d="M865 250h29l11 11v37a4 4 0 0 1-4 4H865a4 4 0 0 1-4-4V254a4 4 0 0 1 4-4z" fill="#17283e" stroke="#75bbff" stroke-width="2"/><path d="M894 250v11h11" fill="none" stroke="#75bbff" stroke-width="2"/><path d="M871 273h24 M871 282h21" stroke="#75bbff" stroke-width="2.5" stroke-linecap="round"/>
+    <text x="923" y="257" class="filename" fill="#f5f8ff" font-family="Arial, Helvetica, sans-serif" font-size="21" font-weight="700">edited.bdf</text>
+    <text x="923" y="284" class="detail" fill="#d1deed" font-family="Arial, Helvetica, sans-serif" font-size="15">Only selected GRID fields change</text>
+    <text x="923" y="307" class="command" fill="#9cb0c8" font-family="Menlo, Consolas, monospace" font-size="13">set-grid</text>
+  </g>
+<g>
+    <rect x="842" y="346" width="338" height="104" rx="19" fill="#15263c" stroke="#34506b" stroke-width="1.5"/>
+    <rect x="842" y="346" width="7" height="104" rx="3.5" fill="#ff9f58"/>
+    <path d="M865 371h29l11 11v37a4 4 0 0 1-4 4H865a4 4 0 0 1-4-4V375a4 4 0 0 1 4-4z" fill="#17283e" stroke="#ff9f58" stroke-width="2"/><path d="M894 371v11h11" fill="none" stroke="#ff9f58" stroke-width="2"/><path d="M871 406l12-15 12 15z M871 406l12-7 12 7 M883 391v8" fill="none" stroke="#ff9f58" stroke-width="1.8" stroke-linejoin="round"/>
+    <text x="923" y="378" class="filename" fill="#f5f8ff" font-family="Arial, Helvetica, sans-serif" font-size="21" font-weight="700">mesh.vtu</text>
+    <text x="923" y="405" class="detail" fill="#d1deed" font-family="Arial, Helvetica, sans-serif" font-size="15">Geometry + original IDs</text>
+    <text x="923" y="428" class="command" fill="#9cb0c8" font-family="Menlo, Consolas, monospace" font-size="13">convert --geometry-only</text>
+  </g>
+<g>
+    <rect x="842" y="467" width="338" height="104" rx="19" fill="#15263c" stroke="#34506b" stroke-width="1.5"/>
+    <rect x="842" y="467" width="7" height="104" rx="3.5" fill="#c2a4ff"/>
+    <path d="M865 492h29l11 11v37a4 4 0 0 1-4 4H865a4 4 0 0 1-4-4V496a4 4 0 0 1 4-4z" fill="#17283e" stroke="#c2a4ff" stroke-width="2"/><path d="M894 492v11h11" fill="none" stroke="#c2a4ff" stroke-width="2"/><text x="869" y="526" fill="#c2a4ff" font-family="monospace" font-size="18" font-weight="700">{ }</text>
+    <text x="923" y="499" class="filename" fill="#f5f8ff" font-family="Arial, Helvetica, sans-serif" font-size="21" font-weight="700">report.json</text>
+    <text x="923" y="526" class="detail" fill="#d1deed" font-family="Arial, Helvetica, sans-serif" font-size="15">Machine-readable inspection¹</text>
+    <text x="923" y="549" class="command" fill="#9cb0c8" font-family="Menlo, Consolas, monospace" font-size="13">info model.bdf --json</text>
+  </g>
+
+  <path d="M58 604H1180" stroke="#30445e" stroke-width="1"/>
+  <text x="59" y="628" class="note" fill="#aebed3" font-family="Arial, Helvetica, sans-serif" font-size="14">¹ Redirect JSON stdout to save report.json. VTU omits solver data; caxifer reports omissions.</text>
+</svg>

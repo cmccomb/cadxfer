@@ -4,5 +4,6 @@
 *.md text eol=lf
 *.py text eol=lf
 *.yml text eol=lf
+*.svg text eol=lf
 # Byte-sensitive fixtures must not be rewritten by Git on Windows.
 *.bdf -text

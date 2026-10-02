@@ -10,6 +10,8 @@ caxifer separates the original engineering document from the information a
 particular downstream tool can represent. Read and preserve the document first;
 project it into geometry only when that loss of information is explicit.
 
+[![Diagram of model.bdf flowing through caxifer to an exact BDF copy, an edited BDF, a geometry-only VTU mesh, and JSON inspection output](assets/conversion-flow.svg)](assets/conversion-flow.svg)
+
 This is the **0.1.0 source repository**, not a crates.io publication. The Rust
 compiler was unavailable in the original authoring environment. See the
 [build status](docs/BUILD-STATUS.md) for subsequent local verification and run
@@ -152,6 +154,7 @@ cargo clippy --workspace --all-targets --all-features --locked --offline -- -D w
 RUSTDOCFLAGS='-D warnings' cargo doc --workspace --all-features --no-deps --locked --offline
 python3 scripts/check_source.py
 python3 scripts/check_interop.py --build
+python3 scripts/generate_readme_diagram.py --check
 ```
 
 The last script executes the built CLI, checks its JSON and XML with independent
@@ -168,5 +171,7 @@ remaining limits of this source candidate.
 Read [DESIGN.md](docs/DESIGN.md) before changing preservation or projection
 semantics. [ROADMAP.md](docs/ROADMAP.md) describes the next format milestones.
 [RELEASING.md](docs/RELEASING.md) lists the gates before a registry publication.
+Regenerate the diagram with `python3 scripts/generate_readme_diagram.py` after
+changing the supported outputs.
 
 Licensed under MIT OR Apache-2.0. Synthetic fixtures use the same license.

@@ -44,6 +44,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+      - name: Check generated README diagram
+        run: python scripts/generate_readme_diagram.py --check
       - name: Check source package
         run: python scripts/check_source.py
       - name: Execute independent CLI interoperability checks
