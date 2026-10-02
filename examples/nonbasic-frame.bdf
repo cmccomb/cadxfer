@@ -1,0 +1,4 @@
+$ These are local coordinates. Exporting them as global coordinates would be wrong.
+GRID,1,42,0.,0.,0.
+CORD2R,42,0,1.,2.,3.,1.,2.,4.
++,2.,2.,3.

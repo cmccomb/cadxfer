@@ -1,0 +1,10 @@
+{
+  "kind": "noncompiler-source-review",
+  "python_scripts_syntax_checked": 3,
+  "workflow_yaml_parsed": true,
+  "workflow_matrix_entries": 4,
+  "rust_files_lexed": 14,
+  "rust_delimiter_errors": 0,
+  "rust_compilation_run": false,
+  "note": "Pygments lexical/delimiter review does not validate Rust syntax, types, lifetimes, or behavior."
+}

@@ -1,0 +1,4 @@
+$ Native round-trip works. Geometry conversion must fail, not ignore the CBUSH.
+GRID,1,,0.,0.,0.
+GRID,2,,1.,0.,0.
+CBUSH,10,7,1,2

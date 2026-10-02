@@ -1,0 +1,19 @@
+$ caxifer example: flat unit square; units deliberately unspecified.
+SOL 101
+CEND
+TITLE = A small plate
+SUBCASE 1
+  SPC = 1
+  LOAD = 2
+BEGIN BULK
+GRID,10,,0.,0.,0.
+GRID,20,,1.,0.,0.
+GRID,30,,1.,1.,0.
+GRID,40,,0.,1.,0.
+CQUAD4,100,7,10,20,30,40
+PSHELL,7,9,0.01
+MAT1,9,2.1+11,,0.3
+SPC1,1,123456,10,40
+FORCE,2,20,0,100.,0.,0.,1.
+ENDDATA
+$ The entire deck survives native round-tripping; VTU contains geometry only.

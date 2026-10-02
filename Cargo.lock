@@ -1,0 +1,42 @@
+# Local-only workspace lockfile prepared with this source package.
+# Cargo verification is pending; see docs/BUILD-STATUS.md.
+version = 4
+
+[[package]]
+name = "caxifer"
+version = "0.1.0"
+
+dependencies = [
+ "caxifer-core",
+ "caxifer-formats",
+]
+
+[[package]]
+name = "caxifer-bdf"
+version = "0.1.0"
+
+dependencies = [
+ "caxifer-core",
+]
+
+[[package]]
+name = "caxifer-core"
+version = "0.1.0"
+
+[[package]]
+name = "caxifer-formats"
+version = "0.1.0"
+
+dependencies = [
+ "caxifer-bdf",
+ "caxifer-core",
+ "caxifer-vtu",
+]
+
+[[package]]
+name = "caxifer-vtu"
+version = "0.1.0"
+
+dependencies = [
+ "caxifer-core",
+]

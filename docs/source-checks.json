@@ -1,0 +1,17 @@
+{
+  "kind": "source-package-checks",
+  "version": "0.1.0",
+  "checks_passed": [
+    "five package manifests parse and required files exist",
+    "all Rust dependencies are workspace-local and acyclic",
+    "lockfile matches workspace package versions and dependency graph",
+    "feature gates match implemented libraries; unsafe code forbidden",
+    "no todo!/unimplemented! placeholders in Rust source",
+    "fixed-width and byte-sensitive fixtures have intended byte layouts",
+    "independent topology expectations are internally consistent"
+  ],
+  "rust_test_functions_present": 92,
+  "rust_compilation_run": false,
+  "rust_tests_run": false,
+  "note": "Packaging/fixture checks are not Rust compilation or implementation tests."
+}

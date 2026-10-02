@@ -1,0 +1,18 @@
+$ Synthetic mixed linear cells: reader/writer interoperability fixture.
+GRID,1,,0.0,0.0,0.0
+GRID,2,,1.0,0.0,0.0
+GRID,3,,1.0,1.0,0.0
+GRID,4,,0.0,1.0,0.0
+GRID,5,,0.0,0.0,1.0
+GRID,6,,1.0,0.0,1.0
+GRID,7,,1.0,1.0,1.0
+GRID,8,,0.0,1.0,1.0
+GRID,9,,0.5,0.5,1.0
+CROD,101,7,1,2
+CTRIA3,102,7,1,2,4
+CQUAD4,103,7,1,2,3,4
+CTETRA,104,7,1,2,4,5
+CHEXA,105,7,1,2,3,4,5,6
++,7,8
+CPENTA,106,7,1,2,4,5,6,8
+CPYRAM,107,7,1,2,3,4,9

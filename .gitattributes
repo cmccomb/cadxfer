@@ -1,0 +1,8 @@
+* text=auto
+*.rs text eol=lf
+*.toml text eol=lf
+*.md text eol=lf
+*.py text eol=lf
+*.yml text eol=lf
+# Byte-sensitive fixtures must not be rewritten by Git on Windows.
+*.bdf -text

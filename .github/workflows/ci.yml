@@ -1,0 +1,43 @@
+name: CI
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest, rust: stable }
+          - { os: macos-latest, rust: stable }
+          - { os: windows-latest, rust: stable }
+          - { os: ubuntu-latest, rust: '1.85.0' }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install toolchain
+        run: rustup toolchain install ${{ matrix.rust }} --profile minimal --component clippy,rustfmt
+      - name: Select toolchain
+        run: rustup override set ${{ matrix.rust }}
+      - name: Test all packages, targets and doctests
+        run: cargo test --workspace --all-features --locked --offline
+      - name: Check the no-format facade
+        run: cargo check -p caxifer-formats --no-default-features --locked --offline
+      - name: Check BDF-only facade
+        run: cargo check -p caxifer-formats --no-default-features --features bdf --locked --offline
+      - name: Check VTU-only facade
+        run: cargo check -p caxifer-formats --no-default-features --features vtu --locked --offline
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets --all-features --locked --offline
+      - name: Documentation
+        run: cargo doc --workspace --all-features --no-deps --locked --offline
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Check source package
+        run: python scripts/check_source.py
+      - name: Execute independent CLI interoperability checks
+        run: python scripts/check_interop.py --build

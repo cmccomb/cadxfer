@@ -1,0 +1,7 @@
+$ Geometry only: three bars forming a triangle.
+GRID,1,,0.,0.,0.
+GRID,2,,1.,0.,0.
+GRID,3,,0.5,1.,0.
+CROD,10,7,1,2
+CROD,20,7,2,3
+CROD,30,7,3,1
