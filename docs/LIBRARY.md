@@ -2,7 +2,14 @@
 
 `caexfer` is one Rust package with a library and a CLI. It uses the Rust 2024
 edition, requires Rust 1.85 or newer, and uses `quick-xml` for VTU parsing. It
-is available from GitHub, not yet from crates.io:
+is available as a versioned dependency after publication:
+
+```toml
+[dependencies]
+caexfer = "0.1.0"
+```
+
+For unreleased commits, use GitHub:
 
 ```toml
 [dependencies]

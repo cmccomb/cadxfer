@@ -186,3 +186,132 @@ fn op2_requires_matching_mesh() {
             .contains("OP2 requires --mesh")
     );
 }
+
+#[test]
+fn formats_advertises_read_only_pch_in_both_presentations() {
+    let s = Scratch::new();
+    let machine = s.run(&["formats", "--json"]);
+    assert!(machine.status.success());
+    let machine = String::from_utf8(machine.stdout).unwrap();
+    assert!(machine.contains("\"format\":\"pch\""));
+    assert!(machine.contains("\"writable\":false"));
+    let human = s.run(&["formats"]);
+    assert!(human.status.success());
+    assert!(
+        String::from_utf8(human.stdout)
+            .unwrap()
+            .contains("pch  ASCII real SORT1 displacement, read-only")
+    );
+}
+
+#[test]
+fn human_inspection_and_validation_report_their_scopes() {
+    let s = Scratch::new();
+    let bdf = s.run(&["info", "mesh.bdf"]);
+    assert!(bdf.status.success());
+    assert!(
+        String::from_utf8(bdf.stdout)
+            .unwrap()
+            .contains("Geometry projection available: true")
+    );
+    let validated = s.run(&["validate", "mesh.bdf"]);
+    assert!(validated.status.success());
+    assert!(
+        String::from_utf8(validated.stdout)
+            .unwrap()
+            .contains("Not a full Nastran solver validation")
+    );
+
+    std::fs::write(
+        s.0.join("omitted.inp"),
+        "*NODE\n1,0,0,0\n2,1,0,0\n*ELEMENT, TYPE=T3D2\n10,1,2\n*MATERIAL, NAME=STEEL\n",
+    )
+    .unwrap();
+    let info = s.run(&["info", "omitted.inp"]);
+    assert!(info.status.success());
+    assert!(
+        String::from_utf8(info.stdout)
+            .unwrap()
+            .contains("INP: 2 points")
+    );
+    let relaxed = s.run(&["validate", "omitted.inp"]);
+    assert!(relaxed.status.success());
+    let strict = s.run(&["validate", "omitted.inp", "--strict", "--json"]);
+    assert_eq!(strict.status.code(), Some(1));
+    assert!(
+        String::from_utf8(strict.stdout)
+            .unwrap()
+            .contains("\"passed\":false")
+    );
+}
+
+#[test]
+fn human_conversion_reports_omissions_and_companion_install() {
+    let s = Scratch::new();
+    let converted = s.run(&["convert", "mesh.bdf", "mesh.vtu", "--accept-projection"]);
+    assert!(converted.status.success());
+    assert!(
+        String::from_utf8(converted.stdout)
+            .unwrap()
+            .contains("Wrote mesh.vtu: 2 points")
+    );
+    assert!(
+        String::from_utf8(converted.stderr)
+            .unwrap()
+            .contains("Omission:")
+    );
+
+    let op2 = s.run(&[
+        "convert",
+        "mesh.bdf",
+        "zeros.op2",
+        "--accept-projection",
+        "--assume-zero-displacement",
+        "--mesh-out",
+        "zeros.bdf",
+    ]);
+    assert!(
+        op2.status.success(),
+        "{}",
+        String::from_utf8_lossy(&op2.stderr)
+    );
+    assert!(s.0.join("zeros.op2").is_file());
+    assert!(s.0.join("zeros.bdf").is_file());
+    assert!(
+        String::from_utf8(op2.stdout)
+            .unwrap()
+            .contains("Wrote companion mesh zeros.bdf")
+    );
+    assert!(
+        String::from_utf8(op2.stderr)
+            .unwrap()
+            .contains("SYNTHETIC ASSUMPTION")
+    );
+}
+
+#[test]
+fn bounded_and_explicit_format_input_fail_before_output_creation() {
+    let s = Scratch::new();
+    let bounded = s.run(&[
+        "convert",
+        "mesh.bdf",
+        "small.vtu",
+        "--max-bytes",
+        "2",
+        "--accept-projection",
+        "--json",
+    ]);
+    assert_eq!(bounded.status.code(), Some(1));
+    assert!(!s.0.join("small.vtu").exists());
+    let bad_source = s.run(&[
+        "convert",
+        "mesh.bdf",
+        "wrong.vtu",
+        "--from",
+        "vtu",
+        "--accept-projection",
+        "--json",
+    ]);
+    assert_eq!(bad_source.status.code(), Some(1));
+    assert!(!s.0.join("wrong.vtu").exists());
+}
