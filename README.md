@@ -43,10 +43,9 @@ files must be new; the CLI never overwrites an existing path.
 
 ## Conversion routes
 
-[![Schematic of a BDF document and BDF, VTU, MSH, INP, FRD, and OP2 representations](assets/conversion-flow.svg)](assets/conversion-flow.svg)
+[![Schematic of BDF, VTU, MSH, INP, FRD, and OP2 representations](assets/conversion-flow.svg)](assets/conversion-flow.svg)
 
-The figure shows what each format can carry. Its BDF byte copy uses the library's
-`Document::write_to`; the matrix lists `convert` routes:
+The figure shows what each format can carry; the matrix lists `convert` routes:
 
 | From ↓ / To → | BDF | VTU | MSH 4.1 | INP | FRD | OP2 (+ optional mesh) |
 | --- | --- | --- | --- | --- | --- | --- |

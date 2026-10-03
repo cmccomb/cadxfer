@@ -15,8 +15,6 @@ PANEL = "#17283e"
 WHITE = "#f5f8ff"
 MUTED = "#b6c7d9"
 DIM = "#758ba3"
-SOURCE = "#f4bc72"
-COPY = "#69dfc0"
 
 
 @dataclass(frozen=True)
@@ -30,20 +28,13 @@ class Card:
     note: str
 
 
-NATIVE = (
-    Card(235, 137, "SOURCE DOCUMENT", "model.bdf", SOURCE, "source",
-         "PSHELL  MAT1  FORCE  SPC1"),
-    Card(640, 137, "LIBRARY BYTE COPY", "copy.bdf", COPY, "copy",
-         "Every source byte retained"),
-)
-
-PROJECTED = (
-    Card(45, 518, "BDF", "mesh.bdf", "#69dfc0", "bdf", "Solver cards omitted"),
-    Card(435, 518, "VTU", "mesh.vtu", "#ffae75", "vtu", "Point and cell arrays"),
-    Card(825, 518, "MSH 4.1", "mesh.msh", "#b9a0ff", "msh", "Component labels can be lost"),
-    Card(45, 773, "INP", "mesh.inp", "#75d2d6", "inp", "Properties and results omitted"),
-    Card(435, 773, "FRD", "results.frd", "#f28eaa", "frd", "ASCII values rounded"),
-    Card(825, 773, "OP2", "results.op2", "#f6c76d", "op2", "Optional separate mesh export"),
+FORMATS = (
+    Card(45, 118, "BDF", "mesh.bdf", "#69dfc0", "bdf", "Solver cards omitted"),
+    Card(435, 118, "VTU", "mesh.vtu", "#ffae75", "vtu", "Point and cell arrays"),
+    Card(825, 118, "MSH 4.1", "mesh.msh", "#b9a0ff", "msh", "Component labels can be lost"),
+    Card(45, 373, "INP", "mesh.inp", "#75d2d6", "inp", "Properties and results omitted"),
+    Card(435, 373, "FRD", "results.frd", "#f28eaa", "frd", "ASCII values rounded"),
+    Card(825, 373, "OP2", "results.op2", "#f6c76d", "op2", "Optional separate mesh export"),
 )
 
 
@@ -79,7 +70,8 @@ def mesh(x: int, y: int, accent: str, variant: str) -> str:
     if variant == "msh":
         for col, row, label in ((0, 0, "10"), (2, 0, "20"), (4, 3, "30")):
             px, py = points[col, row]
-            parts.append(text(px + 5, py - 7, label, size=10, color=WHITE, mono=True))
+            label_y = py + 13 if row == 0 else py - 7
+            parts.append(text(px + 5, label_y, label, size=10, color=WHITE, mono=True))
     parts.append("</g>")
     return "\n".join(parts)
 
@@ -100,14 +92,13 @@ def op2_table(x: int, y: int, accent: str) -> str:
     return "\n".join(parts)
 
 
-def card(card: Card, *, native: bool) -> str:
+def card(card: Card) -> str:
     x, y = card.x, card.y
-    height = 222 if native else 218
     art = (op2_table(x + 25, y + 83, card.accent) if card.visual == "op2"
            else mesh(x + 30, y + 87, card.accent, card.visual))
     right = x + 244
     return "\n".join((
-        f'<rect x="{x}" y="{y}" width="365" height="{height}" rx="20" '
+        f'<rect x="{x}" y="{y}" width="365" height="218" rx="20" '
         f'fill="{PANEL}" stroke="#3c5875" stroke-width="1.3"/>',
         f'<rect x="{x}" y="{y}" width="365" height="6" rx="3" fill="{card.accent}"/>',
         text(x + 24, y + 37, card.label, size=13, color=card.accent, weight=700, spacing=1),
@@ -115,14 +106,12 @@ def card(card: Card, *, native: bool) -> str:
         art,
         f'<path d="M{x + 231} {y + 82}V{y + 181}" stroke="#3c5875"/>',
         text(right, y + 106, "TOPOLOGY", size=11, color=DIM, weight=700, spacing=1),
-        text(right, y + 128, "not stored" if card.visual == "op2" else
-             "source cells" if card.visual == "source" else "same cells",
+        text(right, y + 128, "not stored" if card.visual == "op2" else "same cells",
              size=13, color=WHITE),
         text(right, y + 154, "DATA", size=11, color=DIM, weight=700, spacing=1),
-        text(right, y + 176, "native" if native else (
-            "DISP only" if card.visual == "op2" else
+        text(right, y + 176, "DISP only" if card.visual == "op2" else
             "nodal" if card.visual == "frd" else
-            "mesh only" if card.visual in {"bdf", "inp"} else "numeric"),
+            "mesh only" if card.visual in {"bdf", "inp"} else "numeric",
              size=13, color=card.accent),
         f'<path d="M{x + 24} {y + 189}H{x + 341}" stroke="#38516b"/>',
         text(x + 24, y + 210, card.note, size=13, color=MUTED),
@@ -131,39 +120,28 @@ def card(card: Card, *, native: bool) -> str:
 
 def render() -> str:
     parts = [
-        '<svg xmlns="http://www.w3.org/2000/svg" width="1240" height="1037" '
-        'viewBox="0 0 1240 1037" role="img" aria-labelledby="title description">',
-        '<title id="title">Caexfer preserves native BDF bytes and projects six format subsets</title>',
-        '<desc id="description">The top row shows BDF document byte preservation through the Rust library. '
-        'The lower cards show BDF and INP geometry decks; VTU and MSH meshes with numeric fields; '
+        '<svg xmlns="http://www.w3.org/2000/svg" width="1240" height="637" '
+        'viewBox="0 0 1240 637" role="img" aria-labelledby="title description">',
+        '<title id="title">Six engineering format representations</title>',
+        '<desc id="description">The cards show BDF and INP geometry decks; '
+        'VTU and MSH meshes with numeric fields; '
         'FRD mesh with nodal fields; and an OP2 displacement table with an optional separate mesh. '
         'Mesh-bearing representations share the same topology.</desc>',
         '<defs><linearGradient id="background" x1="0" y1="0" x2="1" y2="1">'
         '<stop offset="0" stop-color="#122238"/>'
         f'<stop offset="1" stop-color="{BACKGROUND}"/>'
         '</linearGradient></defs>',
-        '<rect width="1240" height="1037" rx="24" fill="url(#background)"/>',
-        text(45, 58, "What each format carries", size=32, weight=700),
-        text(46, 87, "BDF Document preserves source bytes. Conversions project supported geometry and results.",
-             size=16, color=MUTED),
-        text(46, 120, "BDF LIBRARY DOCUMENT", size=13, color=SOURCE, weight=700, spacing=1),
-    ]
-    parts.extend(card(item, native=True) for item in NATIVE)
-    parts.extend((
-        '<path d="M600 248H633" stroke="#89a3ba" stroke-width="2.5"/>',
-        '<path d="M632 243l7 5-7 5" fill="none" '
-        'stroke="#89a3ba" stroke-width="2"/>',
-        '<path d="M45 400H1190" stroke="#304761"/>',
-        text(45, 449, "SIX FORMAT REPRESENTATIONS", size=22, weight=700),
-        text(46, 476, "Mesh-bearing outputs retain cell topology; carried fields depend on the input.",
+        '<rect width="1240" height="637" rx="24" fill="url(#background)"/>',
+        text(45, 49, "SIX FORMAT REPRESENTATIONS", size=22, weight=700),
+        text(46, 76, "Mesh-bearing outputs retain cell topology; carried fields depend on the input.",
              size=15, color=MUTED),
-        text(46, 497, "Routes and conditions are specified in the matrix below.",
+        text(46, 97, "Routes and conditions are specified in the matrix below.",
              size=13, color=DIM),
-    ))
-    parts.extend(card(item, native=False) for item in PROJECTED)
+    ]
+    parts.extend(card(item) for item in FORMATS)
     parts.extend((
-        '<path d="M45 1013H1190" stroke="#304761"/>',
-        text(46, 1030, "Schematic only: field availability depends on the source; OP2 needs pyNastran and a matching mesh for reading.",
+        '<path d="M45 613H1190" stroke="#304761"/>',
+        text(46, 630, "Schematic only: field availability depends on the source; OP2 needs pyNastran and a matching mesh for reading.",
              size=12, color=MUTED),
         '</svg>',
     ))
