@@ -98,9 +98,9 @@ The package has not been published to crates.io.
 Preserve a BDF while explicitly exporting its supported geometry:
 
 ```rust
-use caexfer::{bdf::Document, vtu};
+use caexfer::{bdf::Document, core::Result, vtu};
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn main() -> Result<()> {
     let document = Document::open("model.bdf")?;
     let projection = document.geometry()?;
     for omission in &projection.omissions {

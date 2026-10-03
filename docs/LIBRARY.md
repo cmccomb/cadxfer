@@ -9,9 +9,14 @@ yet from crates.io:
 caexfer = { git = "https://github.com/cmccomb/caexfer.git" }
 ```
 
-Your application's Cargo.lock records the resolved Git revision. For a local checkout, use
-`caexfer = { path = "../caexfer" }`. Run `cargo doc --no-deps --open` in the
-checkout to browse every public type and method.
+Your application's Cargo.lock records the resolved Git revision. For a local
+checkout, use `caexfer = { path = "../caexfer" }`. Run
+`cargo doc --no-deps --open` in the checkout to browse every public type and
+method.
+
+Fallible library calls return `core::Result<T>`. Its error has a stable
+diagnostic code, and file I/O errors convert to it, so examples can use the
+same result type for both caexfer and filesystem operations.
 
 ## Choose the right representation
 
@@ -35,9 +40,9 @@ represent every field.
 ## Inspect, copy, and project BDF
 
 ```rust
-use caexfer::bdf::Document;
+use caexfer::{bdf::Document, core::Result};
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn main() -> Result<()> {
     let doc = Document::open("model.bdf")?;
     for grid in doc.grids() {
         println!("GRID {}: {:?}", grid?.id, grid?.coordinates);
@@ -62,9 +67,10 @@ returns typed source, destination, and assumption notices:
 
 ```rust
 use caexfer::conversion::{self, Format, Options};
+use caexfer::core::Result;
 use std::path::Path;
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn main() -> Result<()> {
     let output = std::fs::OpenOptions::new()
         .write(true).create_new(true).open("results.msh")?;
     let report = conversion::convert_path(
@@ -91,9 +97,9 @@ For direct control over format-specific features, call an adapter:
 Read a supported ASCII VTU piece and write its mesh and fields as Gmsh MSH 4.1:
 
 ```rust
-use caexfer::{msh, vtu};
+use caexfer::{core::Result, msh, vtu};
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn main() -> Result<()> {
     let source = std::fs::read_to_string("results.vtu")?;
     let mut dataset = vtu::read(&source)?;
     dataset.validate()?;
@@ -140,10 +146,10 @@ matching BDF into a basic-frame mesh, then pass that mesh to
 `op2::read_displacements`:
 
 ```rust
-use caexfer::{bdf::Document, op2};
+use caexfer::{bdf::Document, core::Result, op2};
 use std::path::Path;
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn main() -> Result<()> {
     let doc = Document::open("model.bdf")?;
     let mesh = doc.geometry()?.mesh;
     let (dataset, assumed_zero) = op2::read_displacements(

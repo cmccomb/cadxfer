@@ -21,7 +21,7 @@
 //! vtu::write(&projection.mesh, &mut bytes)?;
 //! let dataset = vtu::read(std::str::from_utf8(&bytes).unwrap())?;
 //! assert_eq!(dataset.mesh.points.len(), 2);
-//! # Ok::<(), Box<dyn std::error::Error>>(())
+//! # Ok::<(), caexfer::core::Error>(())
 //! ```
 //!
 //! Library writers accept caller-owned streams; they can leave partial output
