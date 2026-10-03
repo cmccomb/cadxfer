@@ -77,18 +77,29 @@ def mesh(x: int, y: int, accent: str, variant: str) -> str:
 
 
 def op2_table(x: int, y: int, accent: str) -> str:
-    """Result columns deliberately have no mesh silhouette."""
+    """Align each displacement component under its own centered heading."""
+    columns = (58, 82, 106, 130, 154, 178)
+
+    def cell(offset: int, baseline: int, value: str) -> str:
+        return f'<text x="{x + offset}" y="{y + baseline}">{value}</text>'
+
     parts = [
         f'<rect x="{x}" y="{y}" width="195" height="104" rx="10" '
         'fill="#21344b" stroke="#49627b"/>',
-        text(x + 12, y + 22, "ID", size=11, color=MUTED, mono=True),
-        text(x + 46, y + 22, "T1 T2 T3 R1 R2 R3", size=11, color=accent, mono=True),
+        '<g font-family="Menlo, Consolas, monospace" font-size="11" text-anchor="middle">',
+        f'<text x="{x + 26}" y="{y + 22}" fill="{MUTED}">ID</text>',
+        f'<g fill="{accent}">',
+        ''.join(cell(offset, 22, label) for offset, label in zip(columns[:3], ("T1", "T2", "T3"))),
+        ''.join(cell(offset, 22, label) for offset, label in zip(columns[3:], ("R1", "R2", "R3"))),
+        '</g>',
         f'<path d="M{x + 10} {y + 29}H{x + 185}" stroke="#49627b"/>',
-        text(x + 12, y + 53, "10", size=11, color=WHITE, mono=True),
-        text(x + 46, y + 53, "0  0  0  0  0  0", size=11, color=WHITE, mono=True),
-        text(x + 12, y + 79, "20", size=11, color=WHITE, mono=True),
-        text(x + 46, y + 79, "0  0  0  0  0  0", size=11, color=WHITE, mono=True),
+        f'<g fill="{WHITE}">',
     ]
+    for baseline, node_id in ((53, "10"), (79, "20")):
+        parts.append(cell(26, baseline, node_id))
+        parts.append(''.join(cell(offset, baseline, "0") for offset in columns[:3]))
+        parts.append(''.join(cell(offset, baseline, "0") for offset in columns[3:]))
+    parts.extend(('</g>', '</g>'))
     return "\n".join(parts)
 
 
@@ -100,7 +111,8 @@ def card(card: Card) -> str:
     return "\n".join((
         f'<rect x="{x}" y="{y}" width="365" height="218" rx="20" '
         f'fill="{PANEL}" stroke="#3c5875" stroke-width="1.3"/>',
-        f'<rect x="{x}" y="{y}" width="365" height="6" rx="3" fill="{card.accent}"/>',
+        f'<rect x="{x + 24}" y="{y + 10}" width="317" height="5" rx="2.5" '
+        f'fill="{card.accent}"/>',
         text(x + 24, y + 37, card.label, size=13, color=card.accent, weight=700, spacing=1),
         text(x + 24, y + 68, card.filename, size=23, weight=700),
         art,
