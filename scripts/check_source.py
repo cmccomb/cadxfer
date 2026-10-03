@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Standard-library-only source packaging checks. This does NOT compile Rust."""
+"""Check source packaging and fixture invariants without compiling Rust."""
 from __future__ import annotations
 
 import json
@@ -8,79 +8,49 @@ import re
 import tomllib
 
 ROOT = Path(__file__).resolve().parents[1]
+FORMATS = ("bdf", "vtu", "msh", "inp", "frd", "op2")
 
 
 def main() -> None:
-    workspace = tomllib.loads((ROOT / "Cargo.toml").read_text())
-    version = workspace["workspace"]["package"]["version"]
-    members: dict[str, tuple[Path, dict]] = {}
-    checks: list[str] = []
-    for rel in workspace["workspace"]["members"]:
-        folder = ROOT / rel
-        manifest = tomllib.loads((folder / "Cargo.toml").read_text())
-        name = manifest["package"]["name"]
-        assert name not in members, name
-        assert manifest["package"]["version"] == {"workspace": True}
-        assert (folder / "README.md").is_file()
-        assert (folder / "LICENSE-MIT").is_file()
-        assert (folder / "LICENSE-APACHE").is_file()
-        assert (folder / "src/lib.rs").is_file() or (folder / "src/main.rs").is_file()
-        members[name] = (folder, manifest)
-    checks.append("five package manifests parse and required files exist")
-    assert len(members) == 5
-    graph: dict[str, list[str]] = {}
-    for name, (folder, manifest) in members.items():
-        graph[name] = []
-        for dep, spec in manifest.get("dependencies", {}).items():
-            assert "path" in spec, f"unexpected nonlocal dependency: {dep}"
-            assert spec["version"] == version
-            target = (folder / spec["path"]).resolve()
-            assert target == members[dep][0].resolve()
-            graph[name].append(dep)
-        for example in manifest.get("example", []):
-            assert (folder / example["path"]).is_file()
-    done: set[str] = set()
-    def visit(name: str, active: set[str]) -> None:
-        assert name not in active, f"dependency cycle at {name}"
-        if name in done:
-            return
-        for child in graph[name]:
-            visit(child, active | {name})
-        done.add(name)
-    for name in graph:
-        visit(name, set())
-    checks.append("all Rust dependencies are workspace-local and acyclic")
+    manifest = tomllib.loads((ROOT / "Cargo.toml").read_text())
+    package = manifest["package"]
+    version = package["version"]
+    assert package["name"] == "caexfer"
+    assert not manifest.get("workspace") and not manifest.get("dependencies")
+    assert manifest["lints"]["rust"]["unsafe_code"] == "forbid"
+    assert all((ROOT / name).is_file() for name in ("README.md", "LICENSE-MIT", "LICENSE-APACHE"))
+    checks = ["one dependency-free package with README and licenses; unsafe code forbidden"]
+
     lock = tomllib.loads((ROOT / "Cargo.lock").read_text())
-    assert {p["name"] for p in lock["package"]} == set(members)
-    assert all(p["version"] == version and "source" not in p for p in lock["package"])
-    for package in lock["package"]:
-        assert set(package.get("dependencies", [])) == set(graph[package["name"]])
-    checks.append("lockfile matches workspace package versions and dependency graph")
-    facade = members["caexfer-formats"][1]
-    assert facade["features"]["default"] == []
-    assert set(facade["features"]) == {"default", "bdf", "vtu", "msh", "inp", "frd", "op2", "all-formats"}
-    assert workspace["workspace"]["lints"]["rust"]["unsafe_code"] == "forbid"
-    checks.append("feature gates match implemented libraries; unsafe code forbidden")
-    tests = 0
-    for source in (ROOT / "crates").rglob("*.rs"):
-        text = source.read_text()
-        assert not re.search(r"\b(?:todo|unimplemented)!\s*\(", text), source
-        tests += len(re.findall(r"#\[test\]", text))
+    assert lock["package"] == [{"name": "caexfer", "version": version}]
+    checks.append("lockfile contains only the caexfer package")
+
+    lib = (ROOT / "src/lib.rs").read_text()
+    assert all((ROOT / "src" / f"{name}.rs").is_file() or (ROOT / "src" / name / "mod.rs").is_file() for name in FORMATS)
+    assert all(re.search(rf"^pub mod {name};$", lib, re.M) for name in FORMATS)
+    assert (ROOT / "src/bdf/mesh.rs").is_file()
+    assert (ROOT / "src/main.rs").is_file()
+    checks.append("library exposes every supported format and the CLI is present")
+
+    sources = list((ROOT / "src").rglob("*.rs")) + list((ROOT / "tests").rglob("*.rs"))
+    tests = sum(len(re.findall(r"#\[test\]", source.read_text())) for source in sources)
+    assert not any(re.search(r"\b(?:todo|unimplemented)!\s*\(", source.read_text()) for source in sources)
     checks.append("no todo!/unimplemented! placeholders in Rust source")
+
     small = (ROOT / "tests/fixtures/small.bdf").read_bytes()
     large = (ROOT / "tests/fixtures/large.bdf").read_bytes()
-    assert all(len(line) == 80 for line in small.splitlines())
-    assert all(len(line) == 80 for line in large.splitlines())
+    assert all(len(line) == 80 for line in small.splitlines() + large.splitlines())
     assert large.splitlines()[0][72:80].strip() == large.splitlines()[1][:8].strip() == b"*A"
     assert b"\xff" in (ROOT / "tests/fixtures/mixed-newlines.bdf").read_bytes()
     checks.append("fixed-width and byte-sensitive fixtures have intended byte layouts")
+
     expected = json.loads((ROOT / "tests/fixtures/mixed-linear.expected.json").read_text())
     ids = {point["id"] for point in expected["nodes"]}
     assert len(ids) == 9
-    assert [c["vtk_type"] for c in expected["cells"]] == [3, 5, 9, 10, 12, 13, 14]
-    for cell in expected["cells"]:
-        assert set(cell["node_ids"]) <= ids
+    assert [cell["vtk_type"] for cell in expected["cells"]] == [3, 5, 9, 10, 12, 13, 14]
+    assert all(set(cell["node_ids"]) <= ids for cell in expected["cells"])
     checks.append("independent topology expectations are internally consistent")
+
     print(json.dumps({
         "kind": "source-package-checks", "version": version,
         "checks_passed": checks, "rust_test_functions_present": tests,

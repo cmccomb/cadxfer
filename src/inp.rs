@@ -1,5 +1,5 @@
 //! Flat Abaqus/CalculiX INP mesh subset. Solver cards are reported as omissions.
-use caexfer_core::{Cell, CellKind, Error, Mesh, Point, Result};
+use crate::core::{Cell, CellKind, Error, Mesh, Point, Result};
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::Write;
 

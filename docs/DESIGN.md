@@ -27,9 +27,8 @@ Reading OP2 requires a matching BDF geometry projection and checks node
 identity and basic result coordinates. Writing OP2 emits no geometry; a matching
 BDF must be kept separately. A recognized three-component displacement has
 unknown rotations and fails by default; an explicit assertion can set them to
-float zero, and the fill is reported. Format
-features remain optional; all Rust
-workspace dependencies are local.
+float zero, and the fill is reported. All format modules are part of the one
+dependency-free Rust package.
 
 A result-free BDF or INP can deliberately produce a synthetic all-zero OP2
 through `--assume-zero-displacement`. This is an explicit hypothetical field,

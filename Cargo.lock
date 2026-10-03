@@ -5,34 +5,3 @@ version = 4
 [[package]]
 name = "caexfer"
 version = "0.1.0"
-dependencies = [
- "caexfer-core",
- "caexfer-formats",
-]
-
-[[package]]
-name = "caexfer-bdf"
-version = "0.1.0"
-dependencies = [
- "caexfer-core",
-]
-
-[[package]]
-name = "caexfer-core"
-version = "0.1.0"
-
-[[package]]
-name = "caexfer-formats"
-version = "0.1.0"
-dependencies = [
- "caexfer-bdf",
- "caexfer-core",
- "caexfer-vtu",
-]
-
-[[package]]
-name = "caexfer-vtu"
-version = "0.1.0"
-dependencies = [
- "caexfer-core",
-]

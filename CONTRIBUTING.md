@@ -1,7 +1,7 @@
 # Contributing
 
 Treat original engineering files as user data, not expendable parser input.
-A format addition should provide an independent crate, a documented read/write
+A format addition should provide a focused module, a documented read/write
 support matrix, source-preservation tests where promised, explicit unsupported
 cases, a redistributable fixture with provenance, and downstream-reader checks.
 

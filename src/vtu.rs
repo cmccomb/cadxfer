@@ -3,7 +3,7 @@
 //! Binary, compressed, appended, parallel and multi-piece layouts are outside
 //! this bounded reader/writer.
 
-use caexfer_core::{Cell, CellKind, Dataset, Error, Field, FieldLocation, Mesh, Point, Result};
+use crate::core::{Cell, CellKind, Dataset, Error, Field, FieldLocation, Mesh, Point, Result};
 use std::collections::BTreeSet;
 use std::io::Write;
 
@@ -456,7 +456,7 @@ pub fn read(source: &str) -> Result<Dataset> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use caexfer_core::{Cell, Point};
+    use crate::core::{Cell, Point};
 
     fn triangle() -> Mesh {
         Mesh {

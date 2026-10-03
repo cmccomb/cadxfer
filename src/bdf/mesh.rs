@@ -1,6 +1,7 @@
 //! Geometry-only BDF exporter. Output is a mesh exchange deck, not a solver-ready model.
-use caexfer_core::{CellKind, Error, Mesh, Result};
+use crate::core::{CellKind, Error, Mesh, Result};
 use std::io::Write;
+
 fn name(kind: CellKind) -> &'static str {
     match kind {
         CellKind::Line2 => "CROD",
@@ -12,6 +13,7 @@ fn name(kind: CellKind) -> &'static str {
         CellKind::Pyramid5 => "CPYRAM",
     }
 }
+
 /// Write only basic-frame GRID and linear element cards. PID is retained when
 /// present, otherwise a placeholder PID 1 is used; no property cards are made.
 pub fn write(mesh: &Mesh, mut writer: impl Write) -> Result<()> {

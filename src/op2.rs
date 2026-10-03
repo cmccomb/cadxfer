@@ -1,6 +1,6 @@
 //! Optional pyNastran-backed OP2 displacement adapter.
 //! A matching basic-frame BDF mesh is required; no binary record guesswork.
-use caexfer_core::{Dataset, Error, Field, FieldLocation, Mesh, Result};
+use crate::core::{Dataset, Error, Field, FieldLocation, Mesh, Result};
 use std::collections::BTreeMap;
 use std::io::Write;
 use std::path::Path;
@@ -242,7 +242,7 @@ pub fn write_displacements(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use caexfer_core::Point;
+    use crate::core::Point;
 
     fn sample() -> (Dataset, Field) {
         let dataset = Dataset {

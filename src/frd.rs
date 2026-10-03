@@ -1,5 +1,5 @@
 //! ASCII CalculiX FRD geometry and supported nodal result records.
-use caexfer_core::{Cell, CellKind, Dataset, Error, Field, FieldLocation, Mesh, Point, Result};
+use crate::core::{Cell, CellKind, Dataset, Error, Field, FieldLocation, Mesh, Point, Result};
 use std::collections::BTreeMap;
 use std::io::Write;
 fn err(message: impl Into<String>) -> Error {
@@ -557,8 +557,7 @@ mod tests {
 
     #[test]
     fn ascii_writer_preserves_mesh_and_nodal_values_with_continuation() {
-        let mut dataset =
-            read(include_bytes!("../../../tests/fixtures/linear-results.frd")).unwrap();
+        let mut dataset = read(include_bytes!("../tests/fixtures/linear-results.frd")).unwrap();
         dataset.fields.push(Field {
             name: "EXTRA".into(),
             location: FieldLocation::Point,

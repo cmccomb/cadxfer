@@ -4,8 +4,8 @@ use std::io::{Read, Write};
 use std::ops::Range;
 use std::path::Path;
 
-use crate::number::format_real;
-use caexfer_core::{Error, Result};
+use super::number::format_real;
+use crate::core::{Error, Result};
 
 /// Resource limits apply before semantic interpretation. No INCLUDE is opened.
 #[derive(Debug, Clone, Copy)]

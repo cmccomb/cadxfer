@@ -8,6 +8,17 @@
 
 **Compiled binaries:** None included
 
+## Single-package refactor on macOS
+
+The five-crate workspace was consolidated into one dependency-free `caexfer`
+package. The 101 Rust unit and integration tests, two example targets, and one
+doctest passed. Formatting, Clippy with warnings denied, rustdoc with warnings
+denied, the source-package check, generated README diagram, independent CLI
+interoperability check, and 25 routes without optional Python passed. With
+pyNastran 1.4.1, the full matrix passed 36 routes and six byte-identical native
+copies. `cargo package --allow-dirty --locked --offline` verified a 66-file
+source package.
+
 ## Local verification on macOS
 
 The original source package was assembled without a Rust toolchain. After

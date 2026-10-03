@@ -6,10 +6,10 @@ use std::fs::File;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-use caexfer_core::{Dataset, Error, Field, FieldLocation, Result, Severity, ValidationReport};
-use caexfer_formats::{
-    bdf::{parse_real, Document, ParseOptions},
-    bdf_mesh, frd, inp, msh, op2, vtu,
+use caexfer::core::{Dataset, Error, Field, FieldLocation, Result, Severity, ValidationReport};
+use caexfer::{
+    bdf::{self, parse_real, Document, ParseOptions},
+    frd, inp, msh, op2, vtu,
 };
 use json::{array, object, quote};
 
@@ -82,6 +82,43 @@ fn text(arg: &OsStr) -> Result<&str> {
         .ok_or_else(|| usage("option value is not valid UTF-8"))
 }
 
+fn set_flag(slot: &mut bool, name: &str) -> Result<()> {
+    if *slot {
+        return Err(usage(format!("duplicate {name}")));
+    }
+    *slot = true;
+    Ok(())
+}
+
+fn set_option<T>(
+    slot: &mut Option<T>,
+    name: &str,
+    parse: impl FnOnce() -> Result<T>,
+) -> Result<()> {
+    if slot.is_some() {
+        return Err(usage(format!("duplicate {name}")));
+    }
+    *slot = Some(parse()?);
+    Ok(())
+}
+
+fn is_op2_output(args: &Args) -> bool {
+    args.command == "convert"
+        && args
+            .paths
+            .get(1)
+            .and_then(|path| path.extension())
+            .and_then(OsStr::to_str)
+            .is_some_and(|extension| extension.eq_ignore_ascii_case("op2"))
+}
+
+fn python(args: &Args) -> PathBuf {
+    args.python
+        .clone()
+        .or_else(|| std::env::var_os("CAEXFER_PYTHON").map(PathBuf::from))
+        .unwrap_or_else(|| PathBuf::from("python3"))
+}
+
 fn parse_args(raw: Vec<OsString>) -> Result<Args> {
     if raw.is_empty() {
         return Ok(Args {
@@ -133,101 +170,73 @@ fn parse_args(raw: Vec<OsString>) -> Result<Args> {
                 .and_then(|v| text(v))
         };
         if options && arg == "--json" {
-            if args.json {
-                return Err(usage("duplicate --json"));
-            }
-            args.json = true;
+            set_flag(&mut args.json, "--json")?;
         } else if options && arg == "--strict" {
-            if args.strict {
-                return Err(usage("duplicate --strict"));
-            }
-            args.strict = true;
+            set_flag(&mut args.strict, "--strict")?;
         } else if options && arg == "--geometry-only" {
-            if args.geometry_only {
-                return Err(usage("duplicate --geometry-only"));
-            }
-            args.geometry_only = true;
+            set_flag(&mut args.geometry_only, "--geometry-only")?;
         } else if options && arg == "--zero-missing-rotations" {
-            if args.zero_missing_rotations {
-                return Err(usage("duplicate --zero-missing-rotations"));
-            }
-            args.zero_missing_rotations = true;
+            set_flag(&mut args.zero_missing_rotations, "--zero-missing-rotations")?;
         } else if options && arg == "--assume-zero-displacement" {
-            if args.assume_zero_displacement {
-                return Err(usage("duplicate --assume-zero-displacement"));
-            }
-            args.assume_zero_displacement = true;
+            set_flag(
+                &mut args.assume_zero_displacement,
+                "--assume-zero-displacement",
+            )?;
         } else if options && arg == "--from" {
-            if args.from.is_some() {
-                return Err(usage("duplicate --from"));
-            }
-            args.from = Some(value(1)?.to_string());
+            set_option(&mut args.from, "--from", || Ok(value(1)?.to_string()))?;
             index += 1;
         } else if options && arg == "--mesh" {
-            if args.mesh.is_some() {
-                return Err(usage("duplicate --mesh"));
-            }
-            args.mesh = Some(PathBuf::from(value(1)?));
+            set_option(&mut args.mesh, "--mesh", || Ok(PathBuf::from(value(1)?)))?;
             index += 1;
         } else if options && arg == "--python" {
-            if args.python.is_some() {
-                return Err(usage("duplicate --python"));
-            }
-            args.python = Some(PathBuf::from(value(1)?));
+            set_option(&mut args.python, "--python", || {
+                Ok(PathBuf::from(value(1)?))
+            })?;
             index += 1;
         } else if options && arg == "--subcase" {
-            if args.subcase.is_some() {
-                return Err(usage("duplicate --subcase"));
-            }
-            args.subcase = Some(
+            set_option(&mut args.subcase, "--subcase", || {
                 value(1)?
                     .parse()
-                    .map_err(|_| usage("--subcase requires an integer"))?,
-            );
+                    .map_err(|_| usage("--subcase requires an integer"))
+            })?;
             index += 1;
         } else if options && arg == "--step" {
-            if args.step.is_some() {
-                return Err(usage("duplicate --step"));
-            }
-            args.step = Some(
+            set_option(&mut args.step, "--step", || {
                 value(1)?
                     .parse()
-                    .map_err(|_| usage("--step requires a nonnegative integer"))?,
-            );
+                    .map_err(|_| usage("--step requires a nonnegative integer"))
+            })?;
             index += 1;
         } else if options && arg == "--max-bytes" {
-            if args.max_bytes.is_some() {
-                return Err(usage("duplicate --max-bytes"));
-            }
-            let limit = value(1)?
-                .parse()
-                .map_err(|_| usage("--max-bytes requires a positive integer"))?;
-            if limit == 0 {
-                return Err(usage("--max-bytes must be positive"));
-            }
-            args.max_bytes = Some(limit);
+            set_option(&mut args.max_bytes, "--max-bytes", || {
+                let limit = value(1)?
+                    .parse()
+                    .map_err(|_| usage("--max-bytes requires a positive integer"))?;
+                if limit == 0 {
+                    return Err(usage("--max-bytes must be positive"));
+                }
+                Ok(limit)
+            })?;
             index += 1;
         } else if options && arg == "--id" {
-            if args.id.is_some() {
-                return Err(usage("duplicate --id"));
-            }
-            let id = value(1)?
-                .parse()
-                .map_err(|_| usage("--id requires a positive integer"))?;
-            if id == 0 {
-                return Err(usage("--id must be positive"));
-            }
-            args.id = Some(id);
+            set_option(&mut args.id, "--id", || {
+                let id = value(1)?
+                    .parse()
+                    .map_err(|_| usage("--id requires a positive integer"))?;
+                if id == 0 {
+                    return Err(usage("--id must be positive"));
+                }
+                Ok(id)
+            })?;
             index += 1;
         } else if options && arg == "--xyz" {
-            if args.xyz.is_some() {
-                return Err(usage("duplicate --xyz"));
-            }
-            args.xyz = Some([
-                parse_real(value(1)?)?,
-                parse_real(value(2)?)?,
-                parse_real(value(3)?)?,
-            ]);
+            set_option(&mut args.xyz, "--xyz", || {
+                Ok([
+                    parse_real(value(1)?)?,
+                    parse_real(value(2)?)?,
+                    parse_real(value(3)?)?,
+                ])
+            })?;
             index += 3;
         } else if options && arg.to_string_lossy().starts_with('-') {
             return Err(usage(format!(
@@ -256,26 +265,11 @@ fn parse_args(raw: Vec<OsString>) -> Result<Args> {
     if args.geometry_only && args.command != "convert" {
         return Err(usage("--geometry-only is only for convert"));
     }
-    if args.zero_missing_rotations
-        && (args.command != "convert"
-            || args
-                .paths
-                .get(1)
-                .and_then(|path| path.extension())
-                .and_then(OsStr::to_str)
-                .is_none_or(|extension| !extension.eq_ignore_ascii_case("op2")))
-    {
+    let op2_output = is_op2_output(&args);
+    if args.zero_missing_rotations && !op2_output {
         return Err(usage("--zero-missing-rotations applies only to OP2 output"));
     }
-    if args.assume_zero_displacement
-        && (args.command != "convert"
-            || args
-                .paths
-                .get(1)
-                .and_then(|path| path.extension())
-                .and_then(OsStr::to_str)
-                .is_none_or(|extension| !extension.eq_ignore_ascii_case("op2")))
-    {
+    if args.assume_zero_displacement && !op2_output {
         return Err(usage(
             "--assume-zero-displacement applies only to OP2 output",
         ));
@@ -414,13 +408,7 @@ fn read_limited(path: &Path, max: usize) -> Result<Vec<u8>> {
 fn read_dataset(args: &Args) -> Result<(Dataset, Vec<String>)> {
     let format = format_of(args)?;
     let max = args.max_bytes.unwrap_or(ParseOptions::default().max_bytes);
-    let writing_op2 = args.command == "convert"
-        && args
-            .paths
-            .get(1)
-            .and_then(|path| path.extension())
-            .and_then(OsStr::to_str)
-            .is_some_and(|extension| extension.eq_ignore_ascii_case("op2"));
+    let writing_op2 = is_op2_output(args);
     if format != "op2"
         && (args.mesh.is_some()
             || args.subcase.is_some()
@@ -553,11 +541,7 @@ fn read_dataset(args: &Args) -> Result<(Dataset, Vec<String>)> {
             if std::fs::metadata(&args.paths[0])?.len() > max as u64 {
                 return Err(Error::new("E_LIMIT", "OP2 exceeds input byte limit"));
             }
-            let python = args
-                .python
-                .clone()
-                .or_else(|| std::env::var_os("CAEXFER_PYTHON").map(PathBuf::from))
-                .unwrap_or_else(|| PathBuf::from("python3"));
+            let python = python(args);
             let (dataset, assumed_zero) = op2::read_displacements(
                 &args.paths[0],
                 &projection.mesh,
@@ -681,7 +665,7 @@ fn run_convert(args: &Args) -> Result<u8> {
                     omissions.push(format!("{missing} BDF element(s) use placeholder PID 1; no property cards are emitted"));
                 }
                 output::create_new(&args.paths[1], |writer| {
-                    bdf_mesh::write(&dataset.mesh, writer)
+                    bdf::mesh::write(&dataset.mesh, writer)
                 })?;
             }
         }
@@ -795,11 +779,7 @@ fn run_convert(args: &Args) -> Result<u8> {
             omissions
                 .push("OP2 contains no mesh; export and keep a matching BDF separately".into());
             omissions.push("OP2 real displacement values use float32 precision".into());
-            let python = args
-                .python
-                .clone()
-                .or_else(|| std::env::var_os("CAEXFER_PYTHON").map(PathBuf::from))
-                .unwrap_or_else(|| PathBuf::from("python3"));
+            let python = python(args);
             let bytes = op2::write_displacements(
                 &dataset,
                 field,

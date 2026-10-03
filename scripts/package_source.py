@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def main() -> None:
-    version = tomllib.loads((ROOT / "Cargo.toml").read_text())["workspace"]["package"]["version"]
+    version = tomllib.loads((ROOT / "Cargo.toml").read_text())["package"]["version"]
     name = f"caexfer-{version}"
     output = ROOT / "dist"
     output.mkdir(exist_ok=True)

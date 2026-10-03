@@ -1,5 +1,5 @@
-use caexfer_bdf::{Document, ParseOptions};
-use caexfer_core::CellKind;
+use caexfer::bdf::{Document, ParseOptions};
+use caexfer::core::CellKind;
 use std::fmt::Write as _;
 
 const TRI: &str =

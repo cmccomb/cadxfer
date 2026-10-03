@@ -2,6 +2,11 @@
 
 ## Unreleased — caexfer namespace
 
+Consolidated five workspace crates into one `caexfer` package with a library
+and CLI. All format adapters are modules, and the geometry-only BDF writer now
+lives under `bdf::mesh`. Removed feature gates, facade crates, duplicated
+manifests and licenses, and feature-isolation checks.
+
 Renamed the GitHub repository, five Rust packages, CLI, examples, scripts, and
 README branding from `caxifer`, briefly `cadxfer`, to `caexfer`. Added a from/to
 conversion matrix.

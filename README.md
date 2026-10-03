@@ -69,11 +69,11 @@ number is not a production-readiness claim.
 ## Start here
 
 Requires Rust/Cargo 1.85 or newer. No third-party Rust crates or native libraries
-are required by this workspace. From this directory:
+are required. From this directory:
 
 ```sh
-cargo test --workspace --all-features --locked --offline
-cargo install --path crates/caexfer --locked --offline
+cargo test --locked --offline
+cargo install --path . --locked --offline
 
 caexfer formats
 caexfer info examples/plate.bdf
@@ -149,11 +149,11 @@ For a local consuming project, use a path dependency to this repository:
 
 ```toml
 [dependencies]
-caexfer-formats = { path = "../caexfer/crates/caexfer-formats", features = ["bdf", "vtu"] }
+caexfer = { path = "../caexfer" }
 ```
 
 ```rust
-use caexfer_formats::{bdf::Document, vtu};
+use caexfer::{bdf::Document, vtu};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let document = Document::open("model.bdf")?;
@@ -180,39 +180,29 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 A caller writing to its own stream owns output durability/error handling. The
 CLI additionally stages its file output before installing a new destination.
 
-For only BDF, depend directly on `crates/caexfer-bdf`. The umbrella crate defaults
-to **no format features**. It conditionally exposes the BDF and VTU crates plus the MSH, INP, FRD,
-and OP2 adapters. The OP2 adapter calls pyNastran only when used.
+The package exposes BDF, VTU, MSH, INP, FRD, and OP2 as modules. The OP2
+adapter calls pyNastran only when used.
 
 The public BDF interface centers on `Document`, its card and GRID views,
 geometry projection, scoped diagnostics, and coordinate edits. Inspect a card's
 data through `Document::card_text`; source span indexing and physical field
 format classification are implementation details.
 
-## Workspace
+## Code layout
 
-| Package | Responsibility |
-| --- | --- |
-| `caexfer` | CLI, JSON reporting, staged no-clobber output |
-| `caexfer-bdf` | Native BDF document, field indexing, edits, geometry projection |
-| `caexfer-vtu` | ASCII VTU mesh and field reader/writer |
-| `caexfer-formats` | Feature-selected BDF, VTU, MSH, INP, FRD, OP2 adapters |
-| `caexfer-core` | Diagnostics, linear mesh and located numeric field types |
-
-No universal solver IR, runtime plugin registry, AI interface, or empty format
-crate is included. Those are not prerequisites for reading a file correctly.
+One `caexfer` package contains the library and CLI. `src/bdf/` contains the
+native document and its geometry-only mesh writer; `src/{vtu,msh,inp,frd,op2}.rs`
+contain the other format adapters. `src/core.rs` holds shared mesh, field, and
+diagnostic types. The library API is `caexfer::bdf`, `caexfer::vtu`, and so on.
 
 ## Verification
 
 ```sh
-cargo test --workspace --all-features --locked --offline
-cargo check -p caexfer-formats --no-default-features --locked --offline
-cargo check -p caexfer-formats --no-default-features --features bdf --locked --offline
-cargo check -p caexfer-formats --no-default-features --features vtu --locked --offline
-for feature in msh inp frd op2; do cargo check -p caexfer-formats --no-default-features --features "$feature" --locked --offline; done
+cargo test --all-targets --locked --offline
+cargo test --doc --locked --offline
 cargo fmt --all -- --check
-cargo clippy --workspace --all-targets --all-features --locked --offline -- -D warnings
-RUSTDOCFLAGS='-D warnings' cargo doc --workspace --all-features --no-deps --locked --offline
+cargo clippy --all-targets --locked --offline -- -D warnings
+RUSTDOCFLAGS='-D warnings' cargo doc --no-deps --locked --offline
 python3 scripts/check_source.py
 python3 scripts/check_interop.py --build
 python3 scripts/check_matrix.py

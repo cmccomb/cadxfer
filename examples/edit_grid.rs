@@ -1,5 +1,5 @@
-//! Run: cargo run -p caexfer-bdf --example edit_grid
-use caexfer_bdf::Document;
+//! Run: cargo run --example edit_grid
+use caexfer::bdf::Document;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let source = b"$ retain this exact comment\r\nGRID,42,,0.,0.,0.\r\n";

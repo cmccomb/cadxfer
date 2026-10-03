@@ -27,26 +27,16 @@ jobs:
       - name: Check formatting
         if: matrix.os == 'ubuntu-latest' && matrix.rust == 'stable'
         run: cargo fmt --all -- --check
-      - name: Test all packages, targets and doctests
-        run: cargo test --workspace --all-features --locked --offline
-      - name: Check the no-format facade
-        run: cargo check -p caexfer-formats --no-default-features --locked --offline
-      - name: Check BDF-only facade
-        run: cargo check -p caexfer-formats --no-default-features --features bdf --locked --offline
-      - name: Check VTU-only facade
-        run: cargo check -p caexfer-formats --no-default-features --features vtu --locked --offline
-      - name: Check new format modules separately
-        shell: bash
-        run: |
-          for feature in msh inp frd op2; do
-            cargo check -p caexfer-formats --no-default-features --features "$feature" --locked --offline
-          done
+      - name: Test library, CLI, and examples
+        run: cargo test --all-targets --locked --offline
+      - name: Test doctests
+        run: cargo test --doc --locked --offline
       - name: Clippy
-        run: cargo clippy --workspace --all-targets --all-features --locked --offline -- -D warnings
+        run: cargo clippy --all-targets --locked --offline -- -D warnings
       - name: Documentation
         env:
           RUSTDOCFLAGS: -D warnings
-        run: cargo doc --workspace --all-features --no-deps --locked --offline
+        run: cargo doc --no-deps --locked --offline
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
@@ -54,6 +44,9 @@ jobs:
         run: python scripts/generate_readme_diagram.py --check
       - name: Check source package
         run: python scripts/check_source.py
+      - name: Verify Cargo package
+        if: matrix.os == 'ubuntu-latest' && matrix.rust == 'stable'
+        run: cargo package --locked --offline
       - name: Execute independent CLI interoperability checks
         run: python scripts/check_interop.py --build
       - name: Check supported conversion matrix

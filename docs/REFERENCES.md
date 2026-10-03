@@ -29,10 +29,10 @@ projects is vendored into caexfer.
 - pyNastran result-object documentation: static/transient real table creation and
   OP2 writing interfaces used by the optional displacement exporter.
   https://pynastran-git.readthedocs.io/en/latest/reference/op2/result_objects/pyNastran.op2.result_objects.html
-- Cargo documentation: workspaces, feature selection, local installation.
-  https://doc.rust-lang.org/cargo/reference/workspaces.html
-  https://doc.rust-lang.org/cargo/reference/features.html
+- Cargo documentation: package layout, local installation, and packaging.
+  https://doc.rust-lang.org/cargo/guide/project-layout.html
   https://doc.rust-lang.org/cargo/commands/cargo-install.html
+  https://doc.rust-lang.org/cargo/commands/cargo-package.html
 
 Vendor dialects differ. These references establish the intended subset; they do
 not justify claiming complete MSC/NX/OptiStruct interoperability. Revisit the

@@ -1,7 +1,7 @@
 use std::collections::{btree_map::Entry, BTreeMap, BTreeSet};
 
-use crate::{parse_real, Card, Document};
-use caexfer_core::{
+use super::{parse_real, Card, Document};
+use crate::core::{
     Cell, CellKind, Diagnostic, Error, Mesh, Point, Result, Severity, ValidationReport,
 };
 

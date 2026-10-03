@@ -1,5 +1,5 @@
 //! ASCII Gmsh MSH 4.1 linear mesh and numeric data blocks.
-use caexfer_core::{Cell, CellKind, Dataset, Error, Field, FieldLocation, Mesh, Point, Result};
+use crate::core::{Cell, CellKind, Dataset, Error, Field, FieldLocation, Mesh, Point, Result};
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::Write;
 

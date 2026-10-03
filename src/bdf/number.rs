@@ -1,4 +1,4 @@
-use caexfer_core::{Error, Result};
+use crate::core::{Error, Result};
 
 /// Parse a finite Nastran real, including `1.2-3`, `.7+2`, and `1D+3`.
 /// A blank is deliberately an error: defaults belong to the card schema.
