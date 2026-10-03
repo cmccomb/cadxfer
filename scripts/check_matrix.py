@@ -92,15 +92,21 @@ def main() -> None:
             if options.op2_python and source_format in ('frd', 'op2'):
                 result = folder / f'{source_format}-to-op2.op2'
                 if source_format == 'frd':
+                    mesh = folder / 'frd-for-op2.bdf'
                     report = run('convert', source, result, '--accept-projection',
-                                 '--zero-missing-rotations', '--python', options.op2_python)
+                                 '--zero-missing-rotations', '--python', options.op2_python,
+                                 '--mesh-out', mesh)
+                    assert report['mesh_output']['path'] == str(mesh)
+                    assert report['mesh_output']['format'] == 'bdf'
+                    assert any('excluded from companion mesh' in item['detail']
+                               for item in report['mesh_output']['omissions'])
                 else:
                     report = run('convert', source, result, '--accept-projection', *extra)
                 assert result.is_file() and report['fields'] >= 1
                 mesh = (ROOT / 'tests/fixtures/solid_bending.bdf' if source_format == 'op2'
                         else folder / 'frd-for-op2.bdf')
                 if source_format == 'frd':
-                    run('convert', source, mesh, '--accept-projection')
+                    assert mesh.is_file() and run('validate', mesh)['passed']
                     assert any('typed float 0.0' in item['detail'] for item in report['omissions'])
                 reread = folder / f'{source_format}-op2-reread.vtu'
                 run('convert', result, reread, '--mesh', mesh,
@@ -140,6 +146,58 @@ def main() -> None:
                         assert any('synthetic all-zero' in item for item in reread_report['omissions'])
                     routes += 1
         if options.op2_python:
+            op2_source = sources['op2']
+            op2_mesh = ROOT / 'tests/fixtures/solid_bending.bdf'
+            for extension in ('vtu', 'msh', 'inp', 'frd'):
+                companion = folder / f'op2-companion.{extension}'
+                run('convert', op2_mesh, companion, '--accept-projection')
+                destination = folder / f'op2-with-{extension}-mesh.vtu'
+                refused = run('convert', op2_source, destination, '--mesh', companion,
+                              '--python', options.op2_python, '--accept-projection', code=2)
+                assert refused['error']['code'] == 'E_USAGE' and not destination.exists()
+                report = run('convert', op2_source, destination, '--mesh', companion,
+                             '--assume-basic-frame', '--python', options.op2_python,
+                             '--accept-projection')
+                assert (report['points'], report['cells'], report['fields']) == (72, 186, 1)
+                assert any(item['stage'] == 'assumption' and 'basic-frame' in item['detail']
+                           for item in report['omissions'])
+                routes += 1
+            enriched_mesh = folder / 'op2-enriched-companion.vtu'
+            run('convert', op2_source, enriched_mesh, '--mesh', op2_mesh,
+                '--python', options.op2_python, '--accept-projection')
+            enriched_result = folder / 'op2-with-enriched-mesh.vtu'
+            enriched_report = run('convert', op2_source, enriched_result,
+                                  '--mesh', enriched_mesh, '--assume-basic-frame',
+                                  '--python', options.op2_python, '--accept-projection')
+            assert any('numeric field(s) in companion mesh ignored' in item['detail']
+                       for item in enriched_report['omissions'])
+            routes += 1
+            mismatched = folder / 'op2-mismatched-mesh.vtu'
+            refused = run('convert', op2_source, mismatched,
+                          '--mesh', sources['vtu'], '--assume-basic-frame',
+                          '--python', options.op2_python, '--accept-projection', code=1)
+            assert refused['error']['code'] == 'E_OP2' and not mismatched.exists()
+            existing = folder / 'existing-companion.bdf'
+            existing.write_text('already here')
+            failed_pair = folder / 'no-partial-pair.op2'
+            refused = run('convert', sources['frd'], failed_pair, '--mesh-out', existing,
+                          '--zero-missing-rotations', '--python', options.op2_python,
+                          '--accept-projection', code=1)
+            assert refused['error']['code'] == 'E_EXISTS' and not failed_pair.exists()
+            assert existing.read_text() == 'already here'
+            paired_op2 = folder / 'paired-with-vtu.op2'
+            paired_vtu = folder / 'paired-mesh.vtu'
+            paired_report = run('convert', sources['frd'], paired_op2,
+                                '--mesh-out', paired_vtu, '--zero-missing-rotations',
+                                '--python', options.op2_python, '--accept-projection')
+            assert paired_report['mesh_output']['format'] == 'vtu'
+            assert run('info', paired_vtu)['fields'] == 0
+            paired_readback = folder / 'paired-vtu-readback.msh'
+            readback_report = run('convert', paired_op2, paired_readback,
+                                  '--mesh', paired_vtu, '--assume-basic-frame',
+                                  '--python', options.op2_python, '--accept-projection')
+            assert readback_report['fields'] == 1
+            routes += 1
             mesh = folder / 'result-carrier-mesh.bdf'
             run('convert', sources['frd'], mesh, '--accept-projection')
             for carrier in ('vtu', 'msh'):

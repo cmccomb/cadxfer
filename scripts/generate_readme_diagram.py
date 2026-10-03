@@ -43,7 +43,7 @@ PROJECTED = (
     Card(825, 518, "MSH 4.1", "mesh.msh", "#b9a0ff", "msh", "Component labels can be lost"),
     Card(45, 773, "INP", "mesh.inp", "#75d2d6", "inp", "Properties and results omitted"),
     Card(435, 773, "FRD", "results.frd", "#f28eaa", "frd", "ASCII values rounded"),
-    Card(825, 773, "OP2", "results.op2", "#f6c76d", "op2", "From BDF: explicit zero assumption"),
+    Card(825, 773, "OP2", "results.op2", "#f6c76d", "op2", "Optional separate mesh export"),
 )
 
 
@@ -136,7 +136,7 @@ def render() -> str:
         '<title id="title">Caexfer preserves native BDF bytes and projects six format subsets</title>',
         '<desc id="description">The top row shows BDF document byte preservation through the Rust library. '
         'The lower cards show BDF and INP geometry decks; VTU and MSH meshes with numeric fields; '
-        'FRD mesh with nodal fields; and an OP2 displacement table without embedded geometry. '
+        'FRD mesh with nodal fields; and an OP2 displacement table with an optional separate mesh. '
         'Mesh-bearing representations share the same topology.</desc>',
         '<defs><linearGradient id="background" x1="0" y1="0" x2="1" y2="1">'
         '<stop offset="0" stop-color="#122238"/>'
@@ -163,7 +163,7 @@ def render() -> str:
     parts.extend(card(item, native=False) for item in PROJECTED)
     parts.extend((
         '<path d="M45 1013H1190" stroke="#304761"/>',
-        text(46, 1030, "Schematic only: field availability depends on the source; OP2 needs pyNastran and a matching BDF for reading.",
+        text(46, 1030, "Schematic only: field availability depends on the source; OP2 needs pyNastran and a matching mesh for reading.",
              size=12, color=MUTED),
         '</svg>',
     ))

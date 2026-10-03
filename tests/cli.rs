@@ -109,6 +109,39 @@ fn source_file_is_never_overwritten() {
 }
 
 #[test]
+fn companion_mesh_option_is_only_for_op2_and_needs_a_mesh_format() {
+    let s = Scratch::new();
+    assert_eq!(
+        s.run(&[
+            "convert",
+            "mesh.bdf",
+            "mesh.vtu",
+            "--accept-projection",
+            "--mesh-out",
+            "extra.bdf",
+        ])
+        .status
+        .code(),
+        Some(2)
+    );
+    assert_eq!(
+        s.run(&[
+            "convert",
+            "mesh.bdf",
+            "mesh.op2",
+            "--accept-projection",
+            "--mesh-out",
+            "extra.op2",
+        ])
+        .status
+        .code(),
+        Some(2)
+    );
+    assert!(!s.0.join("mesh.op2").exists());
+    assert!(!s.0.join("extra.op2").exists());
+}
+
+#[test]
 fn strict_validation_fails_on_opaque_material() {
     let s = Scratch::new();
     std::fs::write(s.0.join("opaque.bdf"), "GRID,1\nMAT1,7,2.1+11\n").unwrap();

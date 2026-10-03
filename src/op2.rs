@@ -1,5 +1,6 @@
 //! Optional pyNastran-backed OP2 displacement adapter.
-//! A matching basic-frame BDF mesh is required; no binary record guesswork.
+//! A matching mesh with original node IDs is required. Coordinates and
+//! displacements must be in the basic frame; no binary record guesswork.
 use crate::core::{Dataset, Error, Field, FieldLocation, Mesh, Result};
 use std::collections::BTreeMap;
 use std::io::Write;
@@ -8,7 +9,10 @@ use std::process::{Command, Stdio};
 
 /// Decode one real six-component displacement table using the installed
 /// pyNastran Python package. `step` is a zero-based index within the subcase.
-/// The bool reports whether the OP2 title marks a synthetic all-zero table.
+/// `mesh` must match the result node IDs; its coordinates and the result
+/// components must be in the basic frame. This function does not transform
+/// frames or verify mesh coordinates against OP2. The bool reports whether the
+/// OP2 title marks a synthetic all-zero table.
 pub fn read_displacements(
     path: &Path,
     mesh: &Mesh,

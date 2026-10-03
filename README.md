@@ -28,6 +28,9 @@ cd caexfer
 caexfer formats
 caexfer info examples/plate.bdf
 caexfer convert examples/plate.bdf plate.vtu --accept-projection
+# With pyNastran and a source containing displacement results:
+caexfer convert tests/fixtures/linear-results.frd results.op2 --zero-missing-rotations \
+  --mesh-out results-mesh.bdf --accept-projection
 ```
 
 For a local checkout without installing, replace `caexfer` with
@@ -45,14 +48,14 @@ files must be new; the CLI never overwrites an existing path.
 The figure shows what each format can carry. Its BDF byte copy uses the library's
 `Document::write_to`; the matrix lists `convert` routes:
 
-| From ↓ / To → | BDF | VTU | MSH 4.1 | INP | FRD | OP2 |
+| From ↓ / To → | BDF | VTU | MSH 4.1 | INP | FRD | OP2 (+ optional mesh) |
 | --- | --- | --- | --- | --- | --- | --- |
 | **BDF** | M | M | M | M | M† | Z |
 | **VTU** | M | F | F | M | F† | D‡ |
 | **MSH 4.1** | M | F | F | M | F† | D‡ |
 | **INP** | M | M | M | M | M† | Z |
 | **FRD** | M | F | F | M | F† | D‡ |
-| **OP2 + BDF mesh** | M* | F* | F* | M* | F*† | D*‡ |
+| **OP2 + matching mesh** | M* | F* | F* | M* | F*† | D*‡ |
 
 | Key | Result |
 | --- | --- |
@@ -61,14 +64,19 @@ The figure shows what each format can carry. Its BDF byte copy uses the library'
 | **D** | One real displacement table written to OP2 via pyNastran. |
 | **Z** | Synthetic OP2 with six float-zero displacement components per node; requires `--assume-zero-displacement`. |
 
-`*` Reading OP2 requires `--mesh model.bdf` because OP2 carries no geometry.
+`*` Reading OP2 requires `--mesh` with a matching BDF, VTU, MSH, INP, or FRD
+mesh. Node IDs must match; OP2 cannot verify companion coordinates or cells.
+BDF verifies `GRID CD=0`. Other formats cannot verify the OP2 displacement
+frame and require `--assume-basic-frame`.
 `†` FRD does not support five-node pyramids; its output can carry nodal fields and
 rounds ASCII values to six significant digits. `‡` OP2 writing requires
 pyNastran and one selected three- or six-component `DISP` field. If rotations
 are absent, `--zero-missing-rotations` explicitly asserts they are float zero;
-otherwise the conversion fails. `Z` also requires pyNastran and labels its
-values as assumed, not solver results. OP2 has no typed null for unknown
-values. See [format limits](docs/SUPPORT.md) for other omissions and conditions.
+otherwise the conversion fails. `--mesh-out FILE` optionally writes a separate,
+geometry-only companion mesh in any supported mesh-bearing output format. `Z`
+also requires pyNastran and labels its values as assumed, not solver results.
+OP2 has no typed null for unknown values. See [format limits](docs/SUPPORT.md)
+for other omissions and conditions.
 
 ## Scope
 
@@ -78,7 +86,7 @@ values. See [format limits](docs/SUPPORT.md) for other omissions and conditions.
   hexahedra, and pyramids. Bars and beams contribute centerlines only;
   higher-order geometry is rejected.
 - BDF and INP exports are geometry-only decks, not runnable solver models. OP2
-  exports results only and needs a matching BDF for later reading.
+  exports results only and needs a matching mesh for later reading.
 - `validate` checks the supported geometry or mesh/field subset, not full solver
   validity. OP2 is the only adapter that calls external Python software.
 

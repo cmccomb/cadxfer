@@ -12,7 +12,7 @@ use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 
 use crate::bdf::{self, Document, ParseOptions};
-use crate::core::{Dataset, Error, FieldLocation, Result};
+use crate::core::{Dataset, Error, FieldLocation, Mesh, Result};
 use crate::{frd, inp, msh, op2, vtu};
 
 /// Supported conversion format.
@@ -100,15 +100,17 @@ fn extension(path: &Path) -> String {
 pub struct Options {
     /// Override source extension detection.
     pub input_format: Option<Format>,
-    /// Matching BDF geometry required when reading OP2.
+    /// Matching BDF, VTU, MSH, INP, or FRD mesh required when reading OP2.
     pub mesh: Option<PathBuf>,
+    /// Assert basic-frame coordinates and displacements for a non-BDF OP2 mesh.
+    pub assume_basic_frame: bool,
     /// Python interpreter with pyNastran for OP2 reads and writes.
     pub python: PathBuf,
     /// OP2 displacement subcase, if more than one exists.
     pub subcase: Option<i64>,
     /// Zero-based OP2 result step, or FRD step number.
     pub step: Option<usize>,
-    /// Maximum source bytes; the same bound applies to a matching BDF.
+    /// Maximum source bytes; the same bound applies to an OP2 companion mesh.
     pub max_bytes: usize,
     /// Assert that absent OP2 R1/R2/R3 components are known float zero.
     pub zero_missing_rotations: bool,
@@ -119,6 +121,7 @@ impl Default for Options {
         Self {
             input_format: None,
             mesh: None,
+            assume_basic_frame: false,
             python: PathBuf::from("python3"),
             subcase: None,
             step: None,
@@ -224,8 +227,83 @@ fn read_limited(path: &Path, max_bytes: usize) -> Result<Vec<u8>> {
     Ok(bytes)
 }
 
+fn read_op2_mesh(path: &Path, options: &Options) -> Result<(Mesh, Vec<Omission>)> {
+    let format = Format::from_input_path(path)?;
+    match format {
+        Format::Bdf => {
+            let document = read_bdf(path, options.max_bytes)?;
+            for grid in document.grids() {
+                if grid?.cd != 0 {
+                    return Err(Error::new(
+                        "E_OP2",
+                        "nonbasic GRID CD requires displacement frame transformation",
+                    ));
+                }
+            }
+            let projection = document.geometry()?;
+            let omissions = projection
+                .omissions
+                .into_iter()
+                .map(|item| {
+                    Omission::new(
+                        Stage::Source,
+                        format!("BDF {} × {}: {}", item.category, item.count, item.detail),
+                    )
+                })
+                .collect();
+            Ok((projection.mesh, omissions))
+        }
+        Format::Op2 => Err(Error::new(
+            "E_USAGE",
+            "OP2 companion mesh must be a mesh-bearing format",
+        )),
+        _ => {
+            if !options.assume_basic_frame {
+                return Err(Error::new(
+                    "E_USAGE",
+                    "non-BDF OP2 mesh lacks GRID CD; pass --assume-basic-frame to assert basic-frame coordinates and displacements",
+                ));
+            }
+            let mesh_options = Options {
+                input_format: None,
+                mesh: None,
+                assume_basic_frame: false,
+                subcase: None,
+                step: None,
+                ..options.clone()
+            };
+            let read = read_path(path, &mesh_options)?;
+            let mut omissions = read
+                .omissions
+                .into_iter()
+                .map(|item| {
+                    Omission::new(
+                        item.stage,
+                        format!("companion {}: {}", format.name(), item.detail),
+                    )
+                })
+                .collect::<Vec<_>>();
+            if !read.dataset.fields.is_empty() {
+                omissions.push(Omission::new(
+                    Stage::Source,
+                    format!(
+                        "{} numeric field(s) in companion mesh ignored",
+                        read.dataset.fields.len()
+                    ),
+                ));
+            }
+            omissions.push(Omission::new(
+                Stage::Assumption,
+                format!("companion {} has no GRID CD; basic-frame coordinates and OP2 displacements asserted by caller", format.name()),
+            ));
+            Ok((read.dataset.mesh, omissions))
+        }
+    }
+}
+
 /// Read a supported source file into a mesh and fields, reporting omitted data.
-/// OP2 input requires `options.mesh` and a pyNastran interpreter.
+/// OP2 input requires `options.mesh` and a pyNastran interpreter. A non-BDF
+/// companion additionally requires `options.assume_basic_frame`.
 pub fn read_path(path: &Path, options: &Options) -> Result<ReadResult> {
     let format = options
         .input_format
@@ -234,6 +312,12 @@ pub fn read_path(path: &Path, options: &Options) -> Result<ReadResult> {
         return Err(Error::new(
             "E_USAGE",
             "mesh and subcase apply only to OP2 input",
+        ));
+    }
+    if format != Format::Op2 && options.assume_basic_frame {
+        return Err(Error::new(
+            "E_USAGE",
+            "basic-frame assertion applies only to OP2 input",
         ));
     }
     if !matches!(format, Format::Op2 | Format::Frd) && options.step.is_some() {
@@ -342,37 +426,18 @@ pub fn read_path(path: &Path, options: &Options) -> Result<ReadResult> {
             let mesh_path = options
                 .mesh
                 .as_deref()
-                .ok_or_else(|| Error::new("E_USAGE", "OP2 requires --mesh matching.bdf"))?;
-            let mesh_doc = read_bdf(mesh_path, options.max_bytes)?;
-            for grid in mesh_doc.grids() {
-                if grid?.cd != 0 {
-                    return Err(Error::new(
-                        "E_OP2",
-                        "nonbasic GRID CD requires displacement frame transformation",
-                    ));
-                }
-            }
-            let projection = mesh_doc.geometry()?;
+                .ok_or_else(|| Error::new("E_USAGE", "OP2 requires --mesh matching mesh file"))?;
+            let (mesh, mut omissions) = read_op2_mesh(mesh_path, options)?;
             if std::fs::metadata(path)?.len() > options.max_bytes as u64 {
                 return Err(Error::new("E_LIMIT", "OP2 exceeds input byte limit"));
             }
             let (dataset, assumed_zero) = op2::read_displacements(
                 path,
-                &projection.mesh,
+                &mesh,
                 &options.python,
                 options.subcase,
                 options.step,
             )?;
-            let mut omissions: Vec<_> = projection
-                .omissions
-                .into_iter()
-                .map(|item| {
-                    Omission::new(
-                        Stage::Source,
-                        format!("BDF {} × {}: {}", item.category, item.count, item.detail),
-                    )
-                })
-                .collect();
             if assumed_zero {
                 omissions.push(Omission::new(
                     Stage::Assumption,
@@ -618,7 +683,7 @@ pub fn convert(
             }
             omissions.push(Omission::new(
                 Stage::Destination,
-                "OP2 contains no mesh; export and keep a matching BDF separately",
+                "OP2 contains no mesh; retain or export a matching companion mesh",
             ));
             omissions.push(Omission::new(
                 Stage::Destination,

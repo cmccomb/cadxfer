@@ -21,7 +21,9 @@ USAGE
 
 COMMON OPTIONS
   --from FORMAT    bdf, vtu, msh, inp, frd, or op2; otherwise infer extension
-  --mesh BDF       Required BDF geometry for OP2 results
+  --mesh FILE      Matching BDF, VTU, MSH, INP, or FRD mesh for OP2 input
+  --assume-basic-frame  Assert basic-frame coordinates and displacements with non-BDF OP2 mesh
+  --mesh-out FILE  Write an optional companion mesh alongside OP2 output
   --python PATH    Python with pyNastran installed for OP2 (or CAEXFER_PYTHON; default: python3)
   --zero-missing-rotations  Confirm absent R1/R2/R3 are known float 0.0 for OP2 output
   --assume-zero-displacement  Create a synthetic all-zero OP2 displacement table from BDF/INP
@@ -36,7 +38,7 @@ COMMON OPTIONS
 SCOPE
   BDF library documents preserve source bytes; conversion projects a subset.
   validate is scoped, not full solver validation. Conversion reports omissions.
-  OP2 needs pyNastran; reading needs a matching BDF; output contains no mesh.
+  OP2 needs pyNastran; reading needs a matching mesh; output contains no mesh.
   Assumed-zero OP2 values are hypothetical, not solver results.
   Output paths must be new.
 
@@ -59,6 +61,8 @@ struct Args {
     assume_zero_displacement: bool,
     from: Option<String>,
     mesh: Option<PathBuf>,
+    mesh_out: Option<PathBuf>,
+    assume_basic_frame: bool,
     python: Option<PathBuf>,
     subcase: Option<i64>,
     step: Option<usize>,
@@ -174,11 +178,18 @@ fn parse_args(raw: Vec<OsString>) -> Result<Args> {
                 &mut args.assume_zero_displacement,
                 "--assume-zero-displacement",
             )?;
+        } else if options && arg == "--assume-basic-frame" {
+            set_flag(&mut args.assume_basic_frame, "--assume-basic-frame")?;
         } else if options && arg == "--from" {
             set_option(&mut args.from, "--from", || Ok(value(1)?.to_string()))?;
             index += 1;
         } else if options && arg == "--mesh" {
             set_option(&mut args.mesh, "--mesh", || Ok(PathBuf::from(value(1)?)))?;
+            index += 1;
+        } else if options && arg == "--mesh-out" {
+            set_option(&mut args.mesh_out, "--mesh-out", || {
+                Ok(PathBuf::from(value(1)?))
+            })?;
             index += 1;
         } else if options && arg == "--python" {
             set_option(&mut args.python, "--python", || {
@@ -238,6 +249,12 @@ fn parse_args(raw: Vec<OsString>) -> Result<Args> {
         return Err(usage("--accept-projection is only for convert"));
     }
     let op2_output = is_op2_output(&args);
+    if args.mesh_out.is_some() && !op2_output {
+        return Err(usage("--mesh-out applies only to OP2 output"));
+    }
+    if args.assume_basic_frame && args.mesh.is_none() {
+        return Err(usage("--assume-basic-frame requires --mesh for OP2 input"));
+    }
     if args.zero_missing_rotations && !op2_output {
         return Err(usage("--zero-missing-rotations applies only to OP2 output"));
     }
@@ -258,21 +275,13 @@ fn parse_args(raw: Vec<OsString>) -> Result<Args> {
         && (args.from.is_some()
             || args.max_bytes.is_some()
             || args.mesh.is_some()
+            || args.mesh_out.is_some()
+            || args.assume_basic_frame
             || args.python.is_some()
             || args.subcase.is_some()
             || args.step.is_some())
     {
         return Err(usage("formats does not read an input"));
-    }
-    if !matches!(args.command.as_str(), "convert" | "info" | "validate")
-        && (args.mesh.is_some()
-            || args.python.is_some()
-            || args.subcase.is_some()
-            || args.step.is_some())
-    {
-        return Err(usage(
-            "--mesh, --python, --subcase and --step apply to conversion or inspection",
-        ));
     }
     Ok(args)
 }
@@ -344,6 +353,7 @@ fn conversion_options(args: &Args) -> Result<Options> {
     Ok(Options {
         input_format: Some(format),
         mesh: args.mesh.clone(),
+        assume_basic_frame: args.assume_basic_frame,
         python: python(args),
         subcase: args.subcase,
         step: args.step,
@@ -407,13 +417,49 @@ fn run_convert(args: &Args) -> Result<u8> {
         assume_zero_displacement(args, &mut source, options.max_bytes)?;
     }
     let mut report = None;
-    output::create_new(&args.paths[1], |writer| {
-        report = Some(conversion::convert(source, target, &options, writer)?);
-        Ok(())
-    })?;
+    let mesh_output = if let Some(path) = &args.mesh_out {
+        let format = Format::from_output_path(path)?;
+        if format == Format::Op2 {
+            return Err(usage("--mesh-out requires a mesh-bearing output format"));
+        }
+        let mut mesh_source = source.clone();
+        let excluded = mesh_source.dataset.fields.len();
+        mesh_source.dataset.fields.clear();
+        if excluded > 0 {
+            mesh_source.omissions.push(Omission {
+                stage: Stage::Destination,
+                detail: format!("{excluded} result field(s) excluded from companion mesh"),
+            });
+        }
+        let mut mesh_report = None;
+        output::create_pair(
+            &args.paths[1],
+            |writer| {
+                report = Some(conversion::convert(source, target, &options, writer)?);
+                Ok(())
+            },
+            path,
+            |writer| {
+                mesh_report = Some(conversion::convert(mesh_source, format, &options, writer)?);
+                Ok(())
+            },
+        )?;
+        Some((
+            path,
+            format,
+            mesh_report
+                .ok_or_else(|| Error::new("E_OUTPUT", "companion mesh produced no report"))?,
+        ))
+    } else {
+        output::create_new(&args.paths[1], |writer| {
+            report = Some(conversion::convert(source, target, &options, writer)?);
+            Ok(())
+        })?;
+        None
+    };
     let report = report.ok_or_else(|| Error::new("E_OUTPUT", "conversion produced no report"))?;
     if args.json {
-        emit(&object([
+        let mut fields = vec![
             ("schema_version", "1".into()),
             ("operation", quote("mesh-and-fields-projection")),
             ("output", path_json(&args.paths[1])),
@@ -421,18 +467,19 @@ fn run_convert(args: &Args) -> Result<u8> {
             ("cells", report.cells.to_string()),
             ("fields", report.fields.to_string()),
             ("units", quote("unspecified")),
-            (
-                "omissions",
-                array(report.omissions.iter().map(|omission| {
-                    object([
-                        ("category", quote("source-or-destination")),
-                        ("stage", quote(omission.stage.name())),
-                        ("count", "1".into()),
-                        ("detail", quote(&omission.detail)),
-                    ])
-                })),
-            ),
-        ]))?;
+            ("omissions", omissions_json(&report.omissions)),
+        ];
+        if let Some((path, format, mesh_report)) = &mesh_output {
+            fields.push((
+                "mesh_output",
+                object([
+                    ("path", path_json(path)),
+                    ("format", quote(format.name())),
+                    ("omissions", omissions_json(&mesh_report.omissions)),
+                ]),
+            ));
+        }
+        emit(&object(fields))?;
     } else {
         emit(&format!(
             "Wrote {}: {} points, {} cells, {} source field(s). Units unspecified.",
@@ -445,8 +492,25 @@ fn run_convert(args: &Args) -> Result<u8> {
         for omission in report.omissions {
             writeln!(stderr, "Omission: {}", omission.detail)?;
         }
+        if let Some((path, _, mesh_report)) = mesh_output {
+            emit(&format!("Wrote companion mesh {}.", path.display()))?;
+            for omission in mesh_report.omissions {
+                writeln!(stderr, "Companion omission: {}", omission.detail)?;
+            }
+        }
     }
     Ok(0)
+}
+
+fn omissions_json(omissions: &[Omission]) -> String {
+    array(omissions.iter().map(|omission| {
+        object([
+            ("category", quote("source-or-destination")),
+            ("stage", quote(omission.stage.name())),
+            ("count", "1".into()),
+            ("detail", quote(&omission.detail)),
+        ])
+    }))
 }
 
 fn run_generic_info(args: &Args) -> Result<u8> {
@@ -545,8 +609,8 @@ fn run(args: Args) -> Result<u8> {
                     ),
                     (
                         "op2",
-                        "real displacement via pyNastran and matching BDF",
-                        "real displacement via pyNastran; explicit synthetic all-zero option; no embedded mesh",
+                        "real displacement via pyNastran and matching mesh",
+                        "real displacement via pyNastran; optional companion mesh export; no embedded mesh",
                     ),
                 ];
                 emit(&object([
@@ -564,7 +628,7 @@ fn run(args: Args) -> Result<u8> {
                     ),
                 ]))?;
             } else {
-                emit("bdf  document + linear mesh; geometry export\nvtu  ASCII mesh + numeric fields, read/write\nmsh  ASCII 4.1 mesh + numeric fields, read/write\ninp  flat mesh subset, read/geometry write\nfrd  ASCII mesh + nodal fields, read/write\nop2  real displacement via pyNastran, read/write; explicit synthetic-zero option; separate BDF mesh")?;
+                emit("bdf  document + linear mesh; geometry export\nvtu  ASCII mesh + numeric fields, read/write\nmsh  ASCII 4.1 mesh + numeric fields, read/write\ninp  flat mesh subset, read/geometry write\nfrd  ASCII mesh + nodal fields, read/write\nop2  real displacement via pyNastran, read/write; explicit synthetic-zero option; optional companion mesh")?;
             }
             return Ok(0);
         }
@@ -577,10 +641,14 @@ fn run(args: Args) -> Result<u8> {
     if format != Format::Bdf && matches!(args.command.as_str(), "info" | "validate") {
         return run_generic_info(&args);
     }
-    if args.mesh.is_some() || args.python.is_some() || args.subcase.is_some() || args.step.is_some()
+    if args.mesh.is_some()
+        || args.assume_basic_frame
+        || args.python.is_some()
+        || args.subcase.is_some()
+        || args.step.is_some()
     {
         return Err(usage(
-            "--mesh, --python, --subcase and --step do not apply to BDF inspection",
+            "OP2 mesh, frame, subcase, step and Python options do not apply to BDF inspection",
         ));
     }
     let doc = read_bdf(

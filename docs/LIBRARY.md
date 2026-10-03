@@ -21,7 +21,7 @@ checkout to browse every public type and method.
 | Extract supported BDF geometry | `Document::geometry()` | `GeometryProjection { mesh, omissions }` |
 | Read a mesh and numeric results | `vtu::read`, `msh::read`, or `frd::read` | `core::Dataset` |
 | Read a flat INP mesh | `inp::read` | `Inspection { mesh, omitted_keywords }` |
-| Read one OP2 displacement result | `op2::read_displacements` | `(Dataset, assumed_zero)`; matching BDF mesh and pyNastran required |
+| Read one OP2 displacement result | `op2::read_displacements` | `(Dataset, assumed_zero)`; matching `Mesh` and pyNastran required |
 | Convert a file and inspect losses | `conversion::convert_path` | Caller-owned output stream and `ConversionReport` |
 
 `core::Mesh` contains original positive point and cell IDs. Cell connectivity
@@ -78,7 +78,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 ```
 
 `Options` sets source format, result selection, byte limits, and the Python
-interpreter for OP2. `read_path` returns a `ReadResult` if an application needs
+interpreter for OP2. For OP2 input, set `mesh` to a matching BDF, VTU, MSH,
+INP, or FRD file. Set `assume_basic_frame` for a non-BDF companion only when
+its coordinates and the OP2 displacements are known to use the basic frame.
+`read_path` returns a `ReadResult` if an application needs
 to inspect or modify the dataset before calling `conversion::convert`. The
 caller owns the output stream and handles incomplete output on failure; use
 the CLI for staged no-clobber file creation.
@@ -151,12 +154,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-All GRID CD values in the BDF must be zero because OP2 displacements in
+The low-level OP2 reader accepts any validated `Mesh` with matching node IDs.
+Its caller must ensure basic-frame coordinates and displacement components.
+All GRID CD values in a BDF must be zero because OP2 displacements in
 nonbasic output frames are not transformed. Check `doc.grids()` before calling
-the adapter; the CLI performs this check for you. The returned boolean marks
+the adapter; the file-level conversion API performs this check for BDF and
+requires an explicit assertion for the other formats. The returned boolean marks
 an explicitly assumed all-zero table. The OP2 file contains results but no
 mesh. The write function returns bytes; the caller chooses how to persist them
-and must keep a matching BDF separately. See [`SUPPORT.md`](SUPPORT.md) for
+and must keep a matching mesh separately. See [`SUPPORT.md`](SUPPORT.md) for
 subcase, step, component, precision, and synthetic-result limits.
 
 All `read` functions report `core::Error` with a stable `code` and optional

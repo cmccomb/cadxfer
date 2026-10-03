@@ -126,7 +126,7 @@ impl ValidationReport {
 pub struct Point {
     /// Original node ID; never an index into the points array.
     pub id: u64,
-    /// Coordinates in the BDF basic frame. No inferred physical units.
+    /// Coordinates in the source mesh's represented frame. No inferred units.
     pub position: [f64; 3],
 }
 

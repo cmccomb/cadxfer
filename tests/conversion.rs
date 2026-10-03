@@ -23,3 +23,16 @@ fn public_conversion_reports_source_and_destination_losses() {
         (4, 1)
     );
 }
+
+#[test]
+fn op2_non_bdf_companion_requires_explicit_frame_assertion() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let options = Options {
+        mesh: Some(root.join("tests/fixtures/linear-results.frd")),
+        ..Options::default()
+    };
+    let error = conversion::read_path(&root.join("tests/fixtures/solid_bending.op2"), &options)
+        .unwrap_err();
+    assert_eq!(error.code, "E_USAGE");
+    assert!(error.message.contains("--assume-basic-frame"));
+}

@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Accept BDF, VTU, MSH, INP, or FRD companion meshes when reading OP2; non-BDF
+  companions require an explicit basic-frame assertion. OP2 output can also
+  stage an optional, geometry-only companion mesh through `--mesh-out`.
 - Added public `conversion` API with typed format selection and omission reports;
   the CLI now uses it for all conversions.
 - Retired the CLI `roundtrip` command and its opaque file copying. BDF byte

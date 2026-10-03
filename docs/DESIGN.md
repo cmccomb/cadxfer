@@ -22,9 +22,11 @@ are never inferred from a mesh. Every CLI conversion needs an explicit
 FRD and OP2 have different boundaries. The FRD adapter reads and writes a
 documented ASCII subset directly. OP2 reads and writes one real displacement
 table through pyNastran because record framing alone is not displacement data.
-Reading OP2 requires a matching BDF geometry projection and checks node
-identity and basic result coordinates. Writing OP2 emits no geometry; a matching
-BDF must be kept separately. A recognized three-component displacement has
+Reading OP2 requires a matching mesh and checks node identity. A BDF also
+supplies GRID CD, so the reader can reject nonbasic displacement frames.
+Other supported mesh formats require an explicit basic-frame assertion because
+they do not encode CD. Writing OP2 emits no geometry; the CLI can optionally
+write a separate companion mesh. A recognized three-component displacement has
 unknown rotations and fails by default; an explicit assertion can set them to
 float zero, and the fill is reported. All format modules are part of the one
 dependency-free Rust package.

@@ -141,11 +141,16 @@ does not assert that a solver computed any included values.
 ### Nastran OP2
 
 The OP2 adapter uses an installed pyNastran Python interpreter to decode one
-real six-component displacement table. Pass `--mesh model.bdf` and, if needed,
-`--python PATH`, `--subcase N`, and zero-based `--step N`. The BDF must project to
-a basic-frame mesh, all GRID CD values must be zero, and result node IDs must
-match exactly. Complex results, other OP2 tables, nonbasic result frames,
-multiple unselected subcases/steps, and embedded-geometry recovery are outside
+real six-component displacement table. Pass `--mesh FILE` with a matching BDF,
+VTU, MSH, INP, or FRD mesh and, if needed, `--python PATH`, `--subcase N`, and
+zero-based `--step N`. Result node IDs must match the companion mesh exactly;
+the OP2 result table cannot verify companion coordinates or connectivity.
+A BDF must project to a basic-frame mesh and all GRID CD values must be zero.
+The other formats do not encode GRID CD; they require `--assume-basic-frame`,
+which explicitly asserts that both coordinates and displacements are in the
+basic frame. Companion result fields are ignored. Complex results, other OP2
+tables, nonbasic result frames, multiple unselected subcases/steps, and
+embedded-geometry recovery are outside
 this read route. The OP2 writer accepts one named `DISP`/`DISPLACEMENT` nodal
 field with three or six real components. Three-component displacements have
 unknown rotations and fail by default. `--zero-missing-rotations` sets R1/R2/R3
@@ -154,20 +159,24 @@ reports the fill. OP2 has six numeric slots, not a typed null marker. The writer
 emits a single static or one-time transient MSC-style real displacement table through
 pyNastran, then rereads it before committing the file. Values use float32;
 nonzero values that would underflow to zero, overflowing values, and node IDs
-outside signed 32-bit range fail. The output OP2 contains no mesh, so retain or
-export a matching BDF separately. Other fields and a nonzero source step
-number are omitted with reports. A mesh-only BDF/INP cannot generate an OP2
+outside signed 32-bit range fail. The output OP2 contains no mesh, so retain a
+matching mesh or use `--mesh-out FILE` to create a geometry-only companion in
+BDF, VTU, MSH, INP, or FRD. The companion carries no result fields; BDF and
+INP companions are not runnable solver decks. Each output is staged before
+either is installed, and existing output paths are never overwritten. Because
+two file installs cannot be atomic, a failed second install can leave the OP2
+file in place; the CLI error identifies it. Other fields and a nonzero source
+step number are omitted with reports. A mesh-only BDF/INP cannot generate an OP2
 result from analysis. With `--assume-zero-displacement`, a BDF or INP mesh can
 generate a **synthetic** static table with T1/T2/T3/R1/R2/R3 all set to float
 `0.0` at every node. The OP2 title says `CAEXFER ASSUMED ZERO DISPLACEMENT -
 NOT SOLVER RESULTS`, and the CLI reports the same assumption. This does not
 infer a solution or verify consistency with loads, constraints, or prescribed
-motions in the input. INP users must separately export a matching BDF mesh for
-OP2 readers. BDF synthetic output requires basic-frame GRID CD=0 so caexfer
-can reread it with that BDF. A rewritten synthetic OP2 retains its provenance title; other
+motions in the input. INP users may retain the source mesh or export a companion.
+BDF synthetic output requires basic-frame GRID CD=0 so caexfer can reread it
+with that BDF. A rewritten synthetic OP2 retains its provenance title; other
 format projections report that provenance but do not encode it in their fields.
-The included real fixture permits an optional
-pyNastran-backed interoperability check.
+CI checks the included real fixture with pyNastran.
 
 ### Geometry-only BDF output
 
