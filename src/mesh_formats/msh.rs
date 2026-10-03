@@ -830,7 +830,7 @@ mod tests {
             write_version(&dataset, version, &mut output).unwrap();
             let decoded = read(std::str::from_utf8(&output).unwrap()).unwrap();
             assert_eq!(decoded.mesh.points, dataset.mesh.points);
-            assert!(decoded.mesh.cells.is_empty());
+            assert_eq!(decoded.mesh.cells, []);
         }
     }
 
@@ -873,6 +873,6 @@ mod tests {
         dataset.mesh.points[0].id = i32::MAX as u64 + 1;
         let mut output = Vec::new();
         assert_eq!(write_22(&dataset, &mut output).unwrap_err().code, "E_MSH");
-        assert!(output.is_empty());
+        assert_eq!(output, []);
     }
 }

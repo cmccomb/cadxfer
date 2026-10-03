@@ -318,7 +318,7 @@ fn destination_reports_ambiguous_or_dropped_fields() {
             .iter()
             .any(|item| item.detail.contains("cell field"))
     );
-    assert!(!encoded.is_empty());
+    assert_ne!(encoded, []);
 }
 
 #[test]

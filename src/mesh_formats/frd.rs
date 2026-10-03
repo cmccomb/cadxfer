@@ -746,7 +746,7 @@ mod tests {
         for dataset in cases {
             let mut encoded = Vec::new();
             assert_eq!(write(&dataset, &mut encoded).unwrap_err().code, "E_FRD");
-            assert!(encoded.is_empty());
+            assert_eq!(encoded, []);
         }
     }
 }
