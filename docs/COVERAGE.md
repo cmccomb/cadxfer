@@ -17,12 +17,13 @@ Measured on 2026-10-03 with Rust 1.98.1, cargo-llvm-cov 0.8.7, and pyNastran
 
 | Measure | Covered / total | Coverage |
 | --- | ---: | ---: |
-| Rust source lines | 4,598 / 5,519 | 83.3% |
-| Rust source regions | 7,403 / 8,886 | 83.3% |
-| Rust functions | 371 / 518 | 71.6% |
+| Rust source lines | 4,841 / 5,787 | 83.7% |
+| Rust source regions | 7,868 / 9,404 | 83.7% |
+| Rust functions | 388 / 541 | 71.7% |
 
-The run executed 108 Rust tests, the independent CLI interoperability checks,
-and 54 conversion routes across BDF, VTU, legacy VTK, MSH, INP, FRD, and OP2. Doctests run
+The run executed 112 Rust tests, the independent CLI interoperability checks,
+and 68 conversion routes across BDF, VTU, legacy VTK, MSH 4.1/2.2, INP, FRD,
+and OP2. Doctests run
 in the regular CI workflow but are not included in this coverage measurement.
 The Python check scripts and test-only pyNastran invocation are exercised but
 their Python lines are not counted. Branch coverage is not reported; the line
@@ -32,11 +33,12 @@ percentage should not be interpreted as branch coverage or solver validation.
 
 | Rust module | Line coverage | Next useful checks |
 | --- | ---: | --- |
-| `src/main.rs` | 68.9% | More CLI option combinations and error paths. |
+| `src/main.rs` | 70.6% | More CLI option combinations and error paths. |
 | `src/op2.rs` | 78.9% | More malformed field and mesh association cases. |
 | `src/op2_binary.rs` | 88.3% | More malformed or unsupported OP2 records. |
 | `src/bdf/mesh.rs` | 78.6% | Geometry writer edge cases and write failures. |
 | `src/vtk.rs` | 84.1% | More malformed legacy attribute layouts. |
+| `src/msh.rs` | 86.5% | More unusual 2.2 tag and field layouts. |
 
 These gaps are priorities for future tests; the current suite already exercises the
 advertised conversion routes through the CLI. Its fixtures are small, so they

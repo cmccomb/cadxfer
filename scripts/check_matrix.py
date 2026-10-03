@@ -58,6 +58,9 @@ def main() -> None:
             path = folder / f'source.{extension}'
             run('convert', sources['bdf'], path, '--accept-projection')
             sources[extension] = path
+        msh22 = folder / 'source22.msh'
+        run('convert', sources['bdf'], msh22, '--msh-version', '2.2', '--accept-projection')
+        sources['msh22'] = msh22
         if options.op2_check:
             sources['op2'] = ROOT / 'tests/fixtures/solid_bending.op2'
         routes = 0
@@ -97,6 +100,14 @@ def main() -> None:
                         assert abs(first[0] - 0.007644693832844496) < 1e-9
                         assert first[3:] == [0., 0., 0.]
                 routes += 1
+            dialect = folder / f'{source_format}-to-msh22.msh'
+            report = run('convert', source, dialect, '--msh-version', '2.2',
+                         '--accept-projection', *extra)
+            assert dialect.read_text().startswith('$MeshFormat\n2.2 0 8\n')
+            assert (report['points'], report['cells']) == expected
+            assert run('info', dialect)['fields'] == (2 if source_format == 'frd' else
+                                                     1 if source_format == 'op2' else 0)
+            routes += 1
             target = folder / f'{source_format}-to-frd.frd'
             report = run('convert', source, target, '--accept-projection', *extra)
             assert target.is_file() and report['points'] == expected[0]

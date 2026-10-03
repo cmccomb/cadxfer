@@ -160,6 +160,8 @@ pub struct Options {
     pub step: Option<usize>,
     /// Maximum source bytes; the same bound applies to an OP2 companion mesh.
     pub max_bytes: usize,
+    /// Requested MSH output dialect; `None` uses 4.1.
+    pub msh_version: Option<msh::Version>,
     /// Assert that absent OP2 R1/R2/R3 components are known float zero.
     pub zero_missing_rotations: bool,
 }
@@ -174,6 +176,7 @@ impl Default for Options {
             subcase: None,
             step: None,
             max_bytes: ParseOptions::default().max_bytes,
+            msh_version: None,
             zero_missing_rotations: false,
         }
     }
@@ -479,8 +482,8 @@ pub fn read_path(path: &Path, options: &Options) -> Result<ReadResult> {
             let bytes = read_limited(path, options.max_bytes)?;
             let text = std::str::from_utf8(&bytes)
                 .map_err(|_| Error::new("E_MSH", "MSH must be UTF-8 ASCII"))?;
-            let dataset = msh::read(text)?;
-            let omissions = text
+            let projection = msh::read_projection(text)?;
+            let mut omissions = text
                 .lines()
                 .filter_map(|line| line.trim().strip_prefix('$'))
                 .filter(|name| !name.starts_with("End"))
@@ -496,8 +499,17 @@ pub fn read_path(path: &Path, options: &Options) -> Result<ReadResult> {
                         format!("MSH ${section} section is not represented in the projection"),
                     )
                 })
-                .collect();
-            (dataset, omissions, false)
+                .collect::<Vec<_>>();
+            if projection.tagged_elements > 0 {
+                omissions.push(Omission::new(
+                    Stage::Source,
+                    format!(
+                        "{} MSH 2.2 element tag list(s) have no group or entity mapping",
+                        projection.tagged_elements
+                    ),
+                ));
+            }
+            (projection.dataset, omissions, false)
         }
         Format::Inp => {
             let bytes = read_limited(path, options.max_bytes)?;
@@ -744,7 +756,11 @@ pub fn convert(
             for cell in &mut dataset.mesh.cells {
                 cell.property_id = None;
             }
-            msh::write(dataset, &mut writer)?;
+            msh::write_version(
+                dataset,
+                options.msh_version.unwrap_or(msh::Version::V4_1),
+                &mut writer,
+            )?;
         }
         Format::Inp | Format::Bdf => {
             // These writers emit geometry-only solver input, so result fields

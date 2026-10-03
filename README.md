@@ -8,7 +8,8 @@
 **Preserve engineering documents. Transfer the parts another format can represent.**
 
 `caexfer` preserves Nastran BDF source bytes and projects supported linear
-meshes and numeric results between BDF, VTU, legacy VTK, MSH 4.1, INP, FRD, and OP2.
+meshes and numeric results between BDF, VTU, legacy VTK, MSH 4.1/2.2, INP,
+FRD, and OP2.
 Conversions report information the destination cannot carry.
 
 ## Install and try the CLI
@@ -49,12 +50,12 @@ files must be new; the CLI never overwrites an existing path.
 
 The figure shows what each format can carry; the matrix lists `convert` routes:
 
-| From ↓ / To →           | BDF | VTU | VTK | MSH 4.1 | INP | FRD | OP2 (+ optional mesh) |
+| From ↓ / To →           | BDF | VTU | VTK | MSH 4.1/2.2 | INP | FRD | OP2 (+ optional mesh) |
 |-------------------------|-----|-----|-----|---------|-----|-----|-----------------------|
 | **BDF**                 | M   | M   | M   | M       | M   | M†  | Z                     |
 | **VTU**                 | M   | F   | F   | F       | M   | F†  | D‡                    |
 | **VTK legacy**          | M   | F   | F   | F       | M   | F†  | D‡                    |
-| **MSH 4.1**             | M   | F   | F   | F       | M   | F†  | D‡                    |
+| **MSH 4.1/2.2**         | M   | F   | F   | F       | M   | F†  | D‡                    |
 | **INP**                 | M   | M   | M   | M       | M   | M†  | Z                     |
 | **FRD**                 | M   | F   | F   | F       | M   | F†  | D‡                    |
 | **OP2 + matching mesh** | M*  | F*  | F*  | F*      | M*  | F*† | D*‡                   |

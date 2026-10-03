@@ -116,8 +116,12 @@ higher-order cells fail explicitly. CI checks output with VTK 9.6.1 itself.
 
 ### Gmsh MSH
 
-Read/write ASCII MSH 4.1 with nonparametric node blocks, the seven supported
-linear element families, and complete numeric `NodeData`/`ElementData` blocks.
+Read/write ASCII MSH 4.1 and 2.2 with the seven supported linear element
+families and complete numeric `NodeData`/`ElementData` blocks. Input dialect is
+detected from `$MeshFormat`; output defaults to 4.1, and `--msh-version 2.2`
+selects the flat 2.2 dialect. The 2.2 writer requires node/element IDs within
+the signed 32-bit range. 2.2 element tag lists are reported as source omissions;
+they are not interpreted as solver regions.
 Node and element tags remain integer IDs. Binary MSH, high-order types,
 parametric nodes and partial result blocks fail. Extra sections such as physical
 names or entity metadata are reported as omissions by the CLI. MSH field values,

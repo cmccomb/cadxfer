@@ -31,7 +31,7 @@ class Card:
 FORMATS = (
     Card(45, 118, "BDF", "mesh.bdf", "#69dfc0", "bdf", "Solver cards omitted"),
     Card(435, 118, "VTU", "mesh.vtu", "#ffae75", "vtu", "Point and cell arrays"),
-    Card(825, 118, "MSH 4.1", "mesh.msh", "#b9a0ff", "msh", "Component labels can be lost"),
+    Card(825, 118, "MSH 4.1 / 2.2", "mesh.msh", "#b9a0ff", "msh", "Component labels can be lost"),
     Card(45, 373, "INP", "mesh.inp", "#75d2d6", "inp", "Properties and results omitted"),
     Card(435, 373, "FRD", "results.frd", "#f28eaa", "frd", "ASCII values rounded"),
     Card(825, 373, "OP2", "results.op2", "#f6c76d", "op2", "Optional separate mesh export"),

@@ -19,6 +19,11 @@ step, with explicit values and times, to check independent OP2 decoding.
 `vtkUnstructuredGridWriter` from the authored mixed-linear mesh. Its VTK 5.1
 offsets/connectivity layout checks a reader independent of caexfer's writer.
 
+`gmsh-2.2-mixed.msh` was serialized by Gmsh 4.15.2 from the authored mixed
+linear mesh. Gmsh renumbered its elements; the fixture tests independent MSH
+2.2 syntax and all seven linear topologies, not ID preservation across Gmsh's
+own resave operation.
+
 `mixed-linear.expected.json` records independent, explicit topology expectations
 for `mixed-linear.bdf`; it is not output claimed to come from a Rust execution.
 The cells overlap on purpose. They are an I/O fixture, not a simulation model.

@@ -130,7 +130,7 @@ stages no-clobber output. If those attributes matter, check the
 | Geometry-only BDF | `bdf::write_geometry(&mesh, writer)` | `&Mesh` |
 | VTU | `vtu::write(&mesh, writer)` or `vtu::write_data(&dataset, writer)` | `&Mesh` or `&Dataset` |
 | Legacy VTK | `vtk::write(&mesh, writer)` or `vtk::write_data(&dataset, writer)` | `&Mesh` or `&Dataset` |
-| MSH 4.1 | `msh::write(&dataset, writer)` | `&Dataset` |
+| MSH 4.1 / 2.2 | `msh::write(&dataset, writer)` or `msh::write_version(&dataset, version, writer)` | `&Dataset` |
 | Geometry-only INP | `inp::write(&mesh, writer)` | `&Mesh` |
 | FRD | `frd::write(&dataset, writer)` | `&Dataset` with supported nodal fields |
 | OP2 | `op2::write_displacements(...)` | One real displacement field; native Rust writer |

@@ -1,4 +1,5 @@
 //! Opt-in external Gmsh import gate, enabled by `CAEXFER_GMSH=gmsh`.
+use caexfer::bdf::Document;
 use caexfer::core::{Cell, CellKind, Dataset, Mesh, Point};
 use caexfer::msh;
 use std::collections::BTreeMap;
@@ -125,4 +126,46 @@ fn gmsh_import_preserves_mixed_dimensions_and_original_ids() {
         fs::remove_file(source).unwrap();
         fs::remove_file(resaved).unwrap();
     }
+}
+
+#[test]
+fn gmsh_imports_msh22_all_linear_topologies() {
+    let Ok(gmsh) = std::env::var("CAEXFER_GMSH") else {
+        return;
+    };
+    let mut mesh = Document::parse(include_bytes!("fixtures/mixed-linear.bdf"))
+        .unwrap()
+        .geometry()
+        .unwrap()
+        .mesh;
+    for cell in &mut mesh.cells {
+        cell.property_id = None;
+    }
+    let dataset = Dataset {
+        mesh,
+        fields: vec![],
+    };
+    let directory = std::env::temp_dir();
+    let source = directory.join(format!("caexfer-gmsh22-{}.msh", std::process::id()));
+    let output = directory.join(format!("caexfer-gmsh22-{}-resaved.msh", std::process::id()));
+    let mut bytes = Vec::new();
+    msh::write_22(&dataset, &mut bytes).unwrap();
+    fs::write(&source, bytes).unwrap();
+    let result = Command::new(&gmsh)
+        .arg(&source)
+        .args(["-0", "-o"])
+        .arg(&output)
+        .args(["-v", "3"])
+        .output()
+        .expect("launch Gmsh");
+    assert!(
+        result.status.success(),
+        "Gmsh rejected MSH 2.2: {}",
+        String::from_utf8_lossy(&result.stderr)
+    );
+    let reread = msh::read(&fs::read_to_string(&output).unwrap()).unwrap();
+    assert_eq!(reread.mesh.points.len(), 9);
+    assert_eq!(reread.mesh.cells.len(), 7);
+    fs::remove_file(source).unwrap();
+    fs::remove_file(output).unwrap();
 }

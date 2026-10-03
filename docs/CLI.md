@@ -10,6 +10,7 @@ caexfer formats
 caexfer info model.bdf
 caexfer validate model.bdf --json
 caexfer convert model.bdf model.vtu --accept-projection
+caexfer convert model.bdf model.msh --msh-version 2.2 --accept-projection
 caexfer convert results.op2 results.vtu --mesh model.bdf --accept-projection
 caexfer convert results.op2 results.vtu --mesh model.msh \
   --assume-basic-frame --accept-projection
@@ -33,6 +34,9 @@ JSON/human display of non-UTF-8 paths is lossy, not an exact path serialization.
 Input extensions are `.bdf`, `.nas`, `.dat`, `.pch`, `.vtu`, `.vtk`, `.msh`, `.inp`,
 `.frd`, and `.op2` (case-insensitive). `--from FORMAT` overrides the extension;
 this is not content autodetection. Output extension selects the writer.
+MSH input version is detected from `$MeshFormat`; `--msh-version 2.2` selects
+2.2 output, while 4.1 remains the default. The option also applies to an MSH
+companion written through `--mesh-out`.
 `--mesh FILE` supplies geometry when reading OP2. It accepts BDF, VTU, VTK, MSH,
 INP, or FRD with the same node IDs as the displacement table. BDF input
 verifies `GRID CD=0`. The other formats do not carry that check, so

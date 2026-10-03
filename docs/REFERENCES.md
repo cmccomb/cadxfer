@@ -21,7 +21,8 @@ projects is vendored into caexfer.
   comparison for linear vs. higher-order connectivity conventions. File blob
   SHA at inspection: 0e1313c9d71c05eb002b618cf02c412bd5ef64ae.
   https://github.com/nschloe/meshio/blob/main/src/meshio/nastran/_nastran.py
-- Gmsh MSH 4.1 specification: node/element blocks and NodeData/ElementData.
+- Gmsh MSH 4.1 and 2.2 specification: node/element records and
+  NodeData/ElementData.
   https://gmsh.info/doc/texinfo/gmsh.html#MSH-file-format
 - CalculiX GraphiX manual, chapter 11: ASCII FRD node, element and result records.
   https://www.dhondt.de/cgx_2.19.pdf

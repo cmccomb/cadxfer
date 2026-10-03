@@ -1,7 +1,36 @@
-//! ASCII Gmsh MSH 4.1 linear mesh and numeric data blocks.
+//! ASCII Gmsh MSH 4.1 and 2.2 linear mesh and numeric data blocks.
 use crate::core::{Cell, CellKind, Dataset, Error, Field, FieldLocation, Mesh, Point, Result};
 use std::collections::{BTreeMap, BTreeSet};
+use std::fmt::Write as _;
 use std::io::Write;
+
+/// Output dialect for the shared MSH format family.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Version {
+    /// Traditional flat node and element sections.
+    V2_2,
+    /// Entity-block node and element sections.
+    V4_1,
+}
+
+/// Mesh projection and count of ignored 2.2 element tag lists.
+#[derive(Debug)]
+pub struct Projection {
+    /// Complete supported geometry and numeric fields.
+    pub dataset: Dataset,
+    /// Elements with nonzero physical/geometrical or other unmapped tags.
+    pub tagged_elements: usize,
+}
+
+/// One MSH 2.2 element before regrouping into internal 4.1 blocks.
+struct Element22 {
+    /// Original element tag.
+    id: u64,
+    /// Supported linear Gmsh type code.
+    code: u32,
+    /// Original node tags in Gmsh ordering.
+    nodes: Vec<u64>,
+}
 
 /// Attach the MSH-specific diagnostic code to a parsing or writing failure.
 fn err(message: impl Into<String>) -> Error {
@@ -96,7 +125,7 @@ fn data_sections<'a>(source: &'a str, name: &str) -> Result<Vec<&'a str>> {
 /// # Ok::<(), caexfer::core::Error>(())
 /// ```
 #[allow(clippy::too_many_lines)] // MSH section counts and records are validated in one pass.
-pub fn read(source: &str) -> Result<Dataset> {
+fn read_41(source: &str) -> Result<Dataset> {
     // Normalize line endings before looking for exact section delimiters.
     let normalized = source.replace("\r\n", "\n");
     let source = normalized.as_str();
@@ -287,6 +316,170 @@ pub fn read(source: &str) -> Result<Dataset> {
     Ok(dataset)
 }
 
+/// Parse MSH 2.2 flat sections and reuse the common data-block decoder.
+#[allow(clippy::too_many_lines)] // Flat node/element records each require bounded count checks.
+fn read_22(source: &str) -> Result<Projection> {
+    let nodes = section(source, "Nodes")?.ok_or_else(|| err("missing Nodes"))?;
+    let mut tokens = nodes.split_whitespace();
+    let count: usize = number(tokens.next(), "node count")?;
+    if count > tokens.clone().count() / 4 {
+        return Err(err("MSH 2.2 node count exceeds available input"));
+    }
+    let mut points = Vec::with_capacity(count);
+    for _ in 0..count {
+        let id: u64 = number(tokens.next(), "node tag")?;
+        let coords: [f64; 3] = [
+            number(tokens.next(), "x")?,
+            number(tokens.next(), "y")?,
+            number(tokens.next(), "z")?,
+        ];
+        points.push((id, coords));
+    }
+    if tokens.next().is_some() {
+        return Err(err("extra MSH 2.2 node tokens"));
+    }
+
+    let elements = section(source, "Elements")?.ok_or_else(|| err("missing Elements"))?;
+    let mut tokens = elements.split_whitespace();
+    let count: usize = number(tokens.next(), "element count")?;
+    if count > tokens.clone().count() / 4 {
+        return Err(err("MSH 2.2 element count exceeds available input"));
+    }
+    let mut parsed = Vec::with_capacity(count);
+    let mut tagged_elements = 0usize;
+    for _ in 0..count {
+        let id = number(tokens.next(), "element tag")?;
+        let code: u32 = number(tokens.next(), "element type")?;
+        let cell_kind = kind(code)?;
+        let tag_count: usize = number(tokens.next(), "element tag count")?;
+        if tag_count > source.len() / 2 {
+            return Err(err("element tags exceed available input"));
+        }
+        let mut meaningful_tag = false;
+        for _ in 0..tag_count {
+            let tag: i64 = number(tokens.next(), "element metadata tag")?;
+            meaningful_tag |= tag != 0;
+        }
+        if meaningful_tag {
+            tagged_elements += 1;
+        }
+        let mut nodes = Vec::with_capacity(cell_kind.node_count());
+        for _ in 0..cell_kind.node_count() {
+            nodes.push(number(tokens.next(), "element node")?);
+        }
+        parsed.push(Element22 { id, code, nodes });
+    }
+    if tokens.next().is_some() {
+        return Err(err("extra MSH 2.2 element tokens"));
+    }
+
+    // The 4.1 parser already owns node-ID resolution and complete data-block
+    // validation. Translate only the flat geometry grammar, preserving tags.
+    let mut text = String::from("$MeshFormat\n4.1 0 8\n$EndMeshFormat\n$Nodes\n");
+    let min = points.iter().map(|(id, _)| *id).min().unwrap_or(0);
+    let max = points.iter().map(|(id, _)| *id).max().unwrap_or(0);
+    if points.is_empty() {
+        text.push_str("0 0 0 0\n");
+    } else {
+        writeln!(
+            text,
+            "1 {} {min} {max}\n3 1 0 {}",
+            points.len(),
+            points.len()
+        )
+        .expect("String write");
+        for (id, _) in &points {
+            writeln!(text, "{id}").expect("String write");
+        }
+        for (_, xyz) in &points {
+            writeln!(text, "{} {} {}", xyz[0], xyz[1], xyz[2]).expect("String write");
+        }
+    }
+    text.push_str("$EndNodes\n$Elements\n");
+    let mut groups: Vec<Vec<Element22>> = Vec::new();
+    for element in parsed {
+        if groups
+            .last()
+            .is_none_or(|group| group[0].code != element.code)
+        {
+            groups.push(Vec::new());
+        }
+        groups.last_mut().expect("group just created").push(element);
+    }
+    let element_count: usize = groups.iter().map(Vec::len).sum();
+    let min = groups
+        .iter()
+        .flat_map(|group| group.iter().map(|item| item.id))
+        .min()
+        .unwrap_or(0);
+    let max = groups
+        .iter()
+        .flat_map(|group| group.iter().map(|item| item.id))
+        .max()
+        .unwrap_or(0);
+    writeln!(text, "{} {element_count} {min} {max}", groups.len()).expect("String write");
+    for group in groups {
+        let cell_kind = kind(group[0].code)?;
+        writeln!(
+            text,
+            "{} 1 {} {}",
+            code(cell_kind).1,
+            group[0].code,
+            group.len()
+        )
+        .expect("String write");
+        for element in group {
+            write!(text, "{}", element.id).expect("String write");
+            for node in element.nodes {
+                write!(text, " {node}").expect("String write");
+            }
+            text.push('\n');
+        }
+    }
+    text.push_str("$EndElements\n");
+    for name in ["NodeData", "ElementData"] {
+        for body in data_sections(source, name)? {
+            writeln!(text, "${name}\n{}\n$End{name}", body.trim()).expect("String write");
+        }
+    }
+    Ok(Projection {
+        dataset: read_41(&text)?,
+        tagged_elements,
+    })
+}
+
+/// Read ASCII Gmsh MSH 4.1 or 2.2 and report unrepresented 2.2 tags.
+///
+/// # Errors
+///
+/// Returns an error for malformed, binary, unsupported, or incomplete data.
+pub fn read_projection(source: &str) -> Result<Projection> {
+    let normalized = source.replace("\r\n", "\n");
+    let header = section(&normalized, "MeshFormat")?.ok_or_else(|| err("missing MeshFormat"))?;
+    let mut tokens = header.split_whitespace();
+    let version = tokens.next().ok_or_else(|| err("missing MSH version"))?;
+    if tokens.next() != Some("0") || tokens.next() != Some("8") || tokens.next().is_some() {
+        return Err(err("only ASCII MSH with 8-byte data size is supported"));
+    }
+    match version {
+        "4.1" => Ok(Projection {
+            dataset: read_41(&normalized)?,
+            tagged_elements: 0,
+        }),
+        "2.2" => read_22(&normalized),
+        _ => Err(err(format!("unsupported MSH version {version}"))),
+    }
+}
+
+/// Read ASCII Gmsh MSH 4.1 or 2.2 into the common dataset.
+///
+/// # Errors
+///
+/// Returns an error for malformed, binary, unsupported, or incomplete data.
+pub fn read(source: &str) -> Result<Dataset> {
+    Ok(read_projection(source)?.dataset)
+}
+
 /// Write the discrete entities referenced by node and element blocks.
 fn write_entities(mesh: &Mesh, writer: &mut impl Write) -> Result<Option<u32>> {
     let dimensions: BTreeSet<u32> = mesh.cells.iter().map(|cell| code(cell.kind).1).collect();
@@ -425,6 +618,12 @@ pub fn write(dataset: &Dataset, mut writer: impl Write) -> Result<()> {
     }
     writeln!(writer, "$EndElements")?;
 
+    write_fields(dataset, &mut writer)
+}
+
+/// Emit version-independent complete `NodeData` and `ElementData` blocks.
+fn write_fields(dataset: &Dataset, writer: &mut impl Write) -> Result<()> {
+    let mesh = &dataset.mesh;
     // Each field becomes a complete NodeData or ElementData block.
     for field in &dataset.fields {
         let name = match field.location {
@@ -464,6 +663,66 @@ pub fn write(dataset: &Dataset, mut writer: impl Write) -> Result<()> {
         writeln!(writer, "$End{name}")?;
     }
     Ok(())
+}
+
+/// Write ASCII MSH 2.2 geometry and complete numeric fields.
+///
+/// Element metadata tags have no neutral source representation, so the writer
+/// emits zero tags. Node and element IDs must fit the classic signed-int range.
+///
+/// # Errors
+///
+/// Returns an error for invalid data, unrepresentable IDs or properties, or
+/// failure of the caller-owned output stream.
+pub fn write_22(dataset: &Dataset, mut writer: impl Write) -> Result<()> {
+    dataset.validate()?;
+    let mesh = &dataset.mesh;
+    if mesh.cells.iter().any(|cell| cell.property_id.is_some()) {
+        return Err(err(
+            "property IDs have no lossless MSH mapping in this writer",
+        ));
+    }
+    if mesh.points.iter().any(|point| point.id > i32::MAX as u64)
+        || mesh.cells.iter().any(|cell| cell.id > i32::MAX as u64)
+    {
+        return Err(err(
+            "MSH 2.2 node and element IDs must fit signed 32-bit integers",
+        ));
+    }
+    writeln!(
+        writer,
+        "$MeshFormat\n2.2 0 8\n$EndMeshFormat\n$Nodes\n{}",
+        mesh.points.len()
+    )?;
+    for point in &mesh.points {
+        writeln!(
+            writer,
+            "{} {} {} {}",
+            point.id, point.position[0], point.position[1], point.position[2]
+        )?;
+    }
+    writeln!(writer, "$EndNodes\n$Elements\n{}", mesh.cells.len())?;
+    for cell in &mesh.cells {
+        write!(writer, "{} {} 0", cell.id, code(cell.kind).0)?;
+        for &index in &cell.connectivity {
+            write!(writer, " {}", mesh.points[index].id)?;
+        }
+        writeln!(writer)?;
+    }
+    writeln!(writer, "$EndElements")?;
+    write_fields(dataset, &mut writer)
+}
+
+/// Write the selected ASCII MSH dialect. Version 4.1 is the default.
+///
+/// # Errors
+///
+/// Returns a data, representation, or output-stream error.
+pub fn write_version(dataset: &Dataset, version: Version, writer: impl Write) -> Result<()> {
+    match version {
+        Version::V2_2 => write_22(dataset, writer),
+        Version::V4_1 => write(dataset, writer),
+    }
 }
 
 #[cfg(test)]
@@ -517,5 +776,33 @@ mod tests {
         let mut bytes = Vec::new();
         write(&dataset, &mut bytes).unwrap();
         assert_eq!(read(std::str::from_utf8(&bytes).unwrap()).unwrap(), dataset);
+        let mut bytes_22 = Vec::new();
+        write_22(&dataset, &mut bytes_22).unwrap();
+        assert_eq!(
+            read(std::str::from_utf8(&bytes_22).unwrap()).unwrap(),
+            dataset
+        );
+    }
+
+    #[test]
+    fn msh22_tags_are_reported_and_counts_are_bounded() {
+        let source = "$MeshFormat\n2.2 0 8\n$EndMeshFormat\n$Nodes\n2\n10 0 0 0\n20 1 0 0\n$EndNodes\n$Elements\n1\n30 1 2 7 8 10 20\n$EndElements\n";
+        let projection = read_projection(source).unwrap();
+        assert_eq!(projection.tagged_elements, 1);
+        assert_eq!(projection.dataset.mesh.cells[0].id, 30);
+        assert_eq!(projection.dataset.mesh.cells[0].connectivity, [0, 1]);
+        assert!(read(&source.replace("$Nodes\n2", "$Nodes\n999999999")).is_err());
+        assert!(read(&source.replace("30 1 2", "30 1 999999999")).is_err());
+    }
+
+    #[test]
+    fn gmsh_written_msh22_fixture_preserves_all_topologies() {
+        let projection = read_projection(include_str!("../tests/fixtures/gmsh-2.2-mixed.msh")).unwrap();
+        assert_eq!(projection.tagged_elements, 0);
+        let dataset = projection.dataset;
+        assert_eq!(dataset.mesh.points.len(), 9);
+        assert_eq!(dataset.mesh.cells.len(), 7);
+        assert_eq!(dataset.mesh.cells[0].id, 1);
+        assert_eq!(dataset.mesh.cells[6].kind, CellKind::Pyramid5);
     }
 }

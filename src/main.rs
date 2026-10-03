@@ -9,6 +9,7 @@ use std::path::{Path, PathBuf};
 use caexfer::bdf::{Document, ParseOptions};
 use caexfer::conversion::{self, Format, Omission, Options, ReadResult, Stage};
 use caexfer::core::{Error, Field, FieldLocation, Result, Severity, ValidationReport};
+use caexfer::msh;
 use json::{array, object, quote};
 
 const HELP: &str = "caexfer — inspect, preserve, and explicitly project engineering files
@@ -25,6 +26,7 @@ OPTIONS
   --accept-projection         Required for conversion into the supported subset
   --step N                    Zero-based OP2 result step or FRD step number
   --max-bytes N               Input byte limit (default: 268435456)
+  --msh-version 2.2|4.1        MSH output dialect (default: 4.1)
   --json                      Machine-readable output (schema_version=1)
   --                          Treat remaining arguments as file paths
   -h, --help                  Show this help
@@ -62,6 +64,7 @@ struct Args {
     subcase: Option<i64>,
     step: Option<usize>,
     max_bytes: Option<usize>,
+    msh_version: Option<msh::Version>,
 }
 
 /// Wrap a command-line usage failure with the exit-code-selecting `E_USAGE`.
@@ -204,6 +207,13 @@ fn parse_args(raw: &[OsString]) -> Result<Args> {
                     .map_err(|_| usage("--subcase requires an integer"))
             })?;
             index += 1;
+        } else if options && arg == "--msh-version" {
+            set_option(&mut args.msh_version, "--msh-version", || match value(1)? {
+                "2.2" => Ok(msh::Version::V2_2),
+                "4.1" => Ok(msh::Version::V4_1),
+                _ => Err(usage("--msh-version requires 2.2 or 4.1")),
+            })?;
+            index += 1;
         } else if options && arg == "--step" {
             set_option(&mut args.step, "--step", || {
                 value(1)?
@@ -276,6 +286,16 @@ fn parse_args(raw: &[OsString]) -> Result<Args> {
         return Err(usage(
             "conversion projects the supported mesh/field subset; pass --accept-projection to acknowledge omitted information",
         ));
+    }
+    if args.msh_version.is_some() {
+        let msh_target = args.command == "convert"
+            && Format::from_output_path(&args.paths[1]).is_ok_and(|format| format == Format::Msh);
+        let msh_companion = args.mesh_out.as_deref().is_some_and(|path| {
+            Format::from_output_path(path).is_ok_and(|format| format == Format::Msh)
+        });
+        if !msh_target && !msh_companion {
+            return Err(usage("--msh-version applies only to MSH output"));
+        }
     }
     if args.command == "formats"
         && (args.from.is_some()
@@ -368,6 +388,7 @@ fn conversion_options(args: &Args) -> Result<Options> {
         subcase: args.subcase,
         step: args.step,
         max_bytes: args.max_bytes.unwrap_or(ParseOptions::default().max_bytes),
+        msh_version: args.msh_version,
         zero_missing_rotations: args.zero_missing_rotations,
     })
 }
@@ -635,8 +656,8 @@ fn run(args: &Args) -> Result<u8> {
                     ),
                     (
                         "msh",
-                        "ASCII MSH 4.1 linear mesh + complete numeric fields",
-                        "ASCII MSH 4.1 linear mesh + numeric fields",
+                        "ASCII MSH 4.1/2.2 linear mesh + complete numeric fields",
+                        "ASCII MSH 4.1 by default; 2.2 with --msh-version",
                     ),
                     (
                         "inp",
@@ -670,7 +691,7 @@ fn run(args: &Args) -> Result<u8> {
                 ]))?;
             } else {
                 emit(
-                    "bdf  document + linear mesh; geometry export\nvtu  ASCII XML mesh + numeric fields, read/write\nvtk  ASCII legacy unstructured grid + numeric fields, read/write\nmsh  ASCII 4.1 mesh + numeric fields, read/write\ninp  flat mesh subset, read/geometry write\nfrd  ASCII mesh + nodal fields, read/write\nop2  32-bit real OUGV1 displacement, read/write; explicit synthetic-zero option; optional companion mesh",
+                    "bdf  document + linear mesh; geometry export\nvtu  ASCII XML mesh + numeric fields, read/write\nvtk  ASCII legacy unstructured grid + numeric fields, read/write\nmsh  ASCII 4.1/2.2 mesh + numeric fields, read/write (output defaults to 4.1)\ninp  flat mesh subset, read/geometry write\nfrd  ASCII mesh + nodal fields, read/write\nop2  32-bit real OUGV1 displacement, read/write; explicit synthetic-zero option; optional companion mesh",
                 )?;
             }
             return Ok(0);
@@ -846,6 +867,41 @@ mod tests {
     #[test]
     fn irrelevant_flag_rejected() {
         assert!(args(&["info", "x.bdf", "--strict"]).is_err());
+    }
+    #[test]
+    fn msh_dialect_is_selected_only_for_msh_output() {
+        let selected = args(&[
+            "convert",
+            "x.bdf",
+            "x.msh",
+            "--msh-version",
+            "2.2",
+            "--accept-projection",
+        ])
+        .unwrap();
+        assert_eq!(selected.msh_version, Some(msh::Version::V2_2));
+        assert!(
+            args(&[
+                "convert",
+                "x.msh",
+                "x.vtu",
+                "--msh-version",
+                "2.2",
+                "--accept-projection"
+            ])
+            .is_err()
+        );
+        assert!(
+            args(&[
+                "convert",
+                "x.bdf",
+                "x.msh",
+                "--msh-version",
+                "9.9",
+                "--accept-projection"
+            ])
+            .is_err()
+        );
     }
     #[test]
     fn double_dash_supports_dash_path() {
