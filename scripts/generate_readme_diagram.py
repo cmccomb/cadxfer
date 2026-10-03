@@ -143,7 +143,7 @@ def render() -> str:
         f'<stop offset="1" stop-color="{BACKGROUND}"/>'
         '</linearGradient></defs>',
         '<rect width="1240" height="1037" rx="24" fill="url(#background)"/>',
-        text(45, 58, "One mesh, different promises", size=32, weight=700),
+        text(45, 58, "What each format carries", size=32, weight=700),
         text(46, 87, "BDF Document preserves source bytes. Conversions project supported geometry and results.",
              size=16, color=MUTED),
         text(46, 120, "BDF LIBRARY DOCUMENT", size=13, color=SOURCE, weight=700, spacing=1),

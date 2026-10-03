@@ -1,5 +1,6 @@
 /target/
 /dist/
+/Cargo.lock
 *.tmp
 __pycache__/
 .DS_Store

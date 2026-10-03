@@ -15,7 +15,7 @@ Conversions report information the destination cannot carry.
 Requires Rust 1.85 or newer. Install directly from GitHub:
 
 ```sh
-cargo install --git https://github.com/cmccomb/caexfer.git --locked
+cargo install --git https://github.com/cmccomb/caexfer.git
 caexfer --help
 ```
 
@@ -34,7 +34,7 @@ caexfer convert tests/fixtures/linear-results.frd results.op2 --zero-missing-rot
 ```
 
 For a local checkout without installing, replace `caexfer` with
-`cargo run --locked --`. OP2 routes additionally need Python with pyNastran;
+`cargo run --`. OP2 routes additionally need Python with pyNastran;
 the other routes have no non-Rust runtime dependency.
 
 `convert` requires `--accept-projection` to acknowledge projection into the
@@ -95,7 +95,7 @@ The full boundary, including rejected dialects and resource limits, is in
 
 ## Rust library
 
-Add the repository as a Git dependency (Cargo.lock pins the resolved commit):
+Add the repository as a Git dependency (your application's Cargo.lock pins the resolved commit):
 
 ```toml
 [dependencies]
@@ -136,7 +136,7 @@ use caller-owned streams; the CLI stages output files.
 - [Design](docs/DESIGN.md): preservation, projection, and validation decisions.
 - [Implementation references](docs/REFERENCES.md) and [contributing](CONTRIBUTING.md).
 
-Run `cargo test --locked --offline` for Rust tests and `cargo doc --no-deps --open`
+Run `cargo test --offline` for Rust tests and `cargo doc --no-deps --open`
 for API documentation. CI also checks formatting,
 Clippy, rustdoc, the generated diagram, Cargo packaging, and independent
 conversion routes on Linux, macOS, Windows, and Rust 1.85. Regenerate the figure
