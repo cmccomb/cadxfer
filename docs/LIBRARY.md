@@ -23,7 +23,7 @@ same result type for both caexfer and filesystem operations.
 | Need | Start with | Outcome |
 | --- | --- | --- |
 | Inspect or copy a BDF without rewriting its source | `bdf::Document` | Original bytes, indexed cards, typed GRID access |
-| Extract supported BDF geometry | `Document::geometry()` | `GeometryProjection { mesh, omissions }` |
+| Extract supported BDF geometry | `bdf::read_geometry(bytes)` or `Document::geometry()` | `GeometryProjection { mesh, omissions }` |
 | Read a mesh and numeric results | `vtu::read`, `msh::read`, or `frd::read` | `core::Dataset` |
 | Read a flat INP mesh | `inp::read` | `Inspection { mesh, omitted_keywords }` |
 | Read one OP2 displacement result | `op2::read_displacements` | `(Dataset, assumed_zero)`; matching `Mesh` and pyNastran required |
@@ -127,7 +127,7 @@ stages no-clobber output. If those attributes matter, check the
 | Output | Library call | Input |
 | --- | --- | --- |
 | Source-preserving BDF | `Document::write_to(writer)` | `&Document` |
-| Geometry-only BDF | `bdf::mesh::write(&mesh, writer)` | `&Mesh` |
+| Geometry-only BDF | `bdf::write_geometry(&mesh, writer)` | `&Mesh` |
 | VTU | `vtu::write(&mesh, writer)` or `vtu::write_data(&dataset, writer)` | `&Mesh` or `&Dataset` |
 | MSH 4.1 | `msh::write(&dataset, writer)` | `&Dataset` |
 | Geometry-only INP | `inp::write(&mesh, writer)` | `&Mesh` |

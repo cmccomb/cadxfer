@@ -114,7 +114,8 @@ fn main() -> Result<()> {
 ```
 
 `Document` keeps the native BDF; `geometry()` explicitly projects it and
-returns omissions to inspect. [`conversion::convert_path`](docs/LIBRARY.md)
+returns omissions to inspect. For geometry exchange, `bdf::read_geometry` and
+`bdf::write_geometry` offer matching functions. [`conversion::convert_path`](docs/LIBRARY.md)
 provides format-aware conversion and a typed omission report. Library writers
 use caller-owned streams; the CLI stages output files.
 

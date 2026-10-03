@@ -683,7 +683,7 @@ pub fn convert(
                         format!("{missing} BDF element(s) use placeholder PID 1; no property cards are emitted"),
                     ));
                 }
-                bdf::mesh::write(&dataset.mesh, &mut writer)?;
+                bdf::write_geometry(&dataset.mesh, &mut writer)?;
             }
         }
         Format::Frd => {

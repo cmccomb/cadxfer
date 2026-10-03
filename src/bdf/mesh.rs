@@ -22,12 +22,12 @@ fn name(kind: CellKind) -> &'static str {
 /// # Examples
 ///
 /// ```
-/// use caexfer::bdf::{mesh, Document};
+/// use caexfer::bdf::{write_geometry, Document};
 /// let source = Document::parse(
 ///     "GRID,10,,0,0,0\nGRID,20,,1,0,0\nCROD,30,7,10,20\n"
 /// )?;
 /// let mut bytes = Vec::new();
-/// mesh::write(&source.geometry()?.mesh, &mut bytes)?;
+/// write_geometry(&source.geometry()?.mesh, &mut bytes)?;
 /// let exported = Document::parse(&bytes)?;
 /// assert_eq!(exported.geometry()?.mesh.cells[0].id, 30);
 /// assert_ne!(exported.to_bytes(), source.to_bytes()); // projection is not a byte copy
