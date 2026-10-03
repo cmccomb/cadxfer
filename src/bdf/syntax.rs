@@ -10,10 +10,15 @@ use crate::core::{Error, Result};
 /// Resource limits apply before semantic interpretation. No INCLUDE is opened.
 #[derive(Debug, Clone, Copy)]
 pub struct ParseOptions {
+    /// Maximum input bytes (default: 256 MiB).
     pub max_bytes: usize,
+    /// Maximum bytes in one physical line (default: 1 MiB).
     pub max_line_bytes: usize,
+    /// Maximum physical lines (default: two million).
     pub max_lines: usize,
+    /// Maximum parsed cards (default: two million).
     pub max_cards: usize,
+    /// Maximum data fields in one card (default: 65,536).
     pub max_fields_per_card: usize,
 }
 
@@ -37,19 +42,23 @@ pub(crate) struct Field {
     pub(crate) line: usize,
 }
 
+/// Indexed BDF card; source data remains owned by its [`Document`].
 #[derive(Debug, Clone)]
 pub struct Card {
     name: String,
+    /// One-based physical line where the card begins.
     pub line: usize,
     pub(crate) fields: Vec<Field>,
 }
 
 impl Card {
+    /// Normalized card keyword.
     pub fn name(&self) -> &str {
         &self.name
     }
 }
 
+/// Source-preserving BDF document with indexed cards and narrow typed access.
 #[derive(Debug, Clone)]
 pub struct Document {
     pub(crate) source: Vec<u8>,
@@ -236,10 +245,12 @@ fn physical(source: &[u8], line: &Line, content_end: usize) -> Result<Physical> 
 }
 
 impl Document {
+    /// Parse bytes using default resource limits; no INCLUDE path is opened.
     pub fn parse(input: impl AsRef<[u8]>) -> Result<Self> {
         Self::parse_with_options(input, ParseOptions::default())
     }
 
+    /// Parse bytes under explicit resource limits.
     pub fn parse_with_options(input: impl AsRef<[u8]>, options: ParseOptions) -> Result<Self> {
         let input = input.as_ref();
         if input.len() > options.max_bytes {
@@ -440,10 +451,12 @@ impl Document {
         })
     }
 
+    /// Open and parse a BDF file using default resource limits.
     pub fn open(path: impl AsRef<Path>) -> Result<Self> {
         Self::read_with_options(File::open(path)?, ParseOptions::default())
     }
 
+    /// Read a bounded byte stream, then parse it under the supplied limits.
     pub fn read_with_options(reader: impl Read, options: ParseOptions) -> Result<Self> {
         let limit = options
             .max_bytes
@@ -454,15 +467,20 @@ impl Document {
         Self::parse_with_options(source, options)
     }
 
+    /// Indexed cards in source order. Use [`Self::card_text`] to inspect fields.
     pub fn cards(&self) -> &[Card] {
         &self.cards
     }
+    /// Current document bytes, unchanged unless a supported edit succeeded.
     pub fn to_bytes(&self) -> &[u8] {
         &self.source
     }
+    /// Whether the input contained a supported full-deck wrapper.
     pub fn is_full_deck(&self) -> bool {
         self.full_deck
     }
+    /// Write current bytes to a caller-owned stream.
+    /// An I/O failure can leave a partial output; stage files if needed.
     pub fn write_to(&self, mut writer: impl Write) -> Result<()> {
         writer.write_all(&self.source)?;
         Ok(())
@@ -487,6 +505,7 @@ impl Document {
             .unwrap_or("")
     }
 
+    /// Count indexed cards by normalized keyword.
     pub fn card_counts(&self) -> BTreeMap<String, usize> {
         let mut counts = BTreeMap::new();
         for card in &self.cards {

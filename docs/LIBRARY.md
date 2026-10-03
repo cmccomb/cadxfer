@@ -1,0 +1,144 @@
+# Rust library guide
+
+`caexfer` is one Rust package with a library and a CLI. It has no Rust crate
+dependencies and requires Rust 1.85 or newer. It is available from GitHub, not
+yet from crates.io:
+
+```toml
+[dependencies]
+caexfer = { git = "https://github.com/cmccomb/caexfer.git" }
+```
+
+Cargo.lock records the resolved Git revision. For a local checkout, use
+`caexfer = { path = "../caexfer" }`. Run `cargo doc --no-deps --open` in the
+checkout to browse every public type and method.
+
+## Choose the right representation
+
+| Need | Start with | Outcome |
+| --- | --- | --- |
+| Inspect, copy, or edit a BDF without rewriting unrelated source | `bdf::Document` | Original bytes, indexed cards, typed GRID access |
+| Extract supported BDF geometry | `Document::geometry()` | `GeometryProjection { mesh, omissions }` |
+| Read a mesh and numeric results | `vtu::read`, `msh::read`, or `frd::read` | `core::Dataset` |
+| Read a flat INP mesh | `inp::read` | `Inspection { mesh, omitted_keywords }` |
+| Read one OP2 displacement result | `op2::read_displacements` | `(Dataset, assumed_zero)`; matching BDF mesh and pyNastran required |
+
+`core::Mesh` contains original positive point and cell IDs. Cell connectivity
+contains **zero-based indices into `mesh.points`**, not point IDs. A
+`core::Dataset` adds `Field`s; their values are ordered by entity, then by
+component. A field's `location` identifies whether those entities are points
+or cells. `Mesh::validate()` and `Dataset::validate()` check structural
+invariants, not solver correctness or whether a specific output format can
+represent every field.
+
+## Copy, edit, and project BDF
+
+```rust
+use caexfer::bdf::Document;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let mut doc = Document::open("model.bdf")?;
+    for grid in doc.grids() {
+        println!("GRID {}: {:?}", grid?.id, grid?.coordinates);
+    }
+    doc.set_grid_coordinates(20, [1.2, 0.0, 0.0])?;
+    let output = std::fs::OpenOptions::new()
+        .write(true).create_new(true).open("edited.bdf")?;
+    doc.write_to(output)?;
+    Ok(())
+}
+```
+
+GRID coordinates are in the card's native CP frame. The edit changes only
+the requested coordinate fields, fails rather than rounding values to fit,
+and leaves the document unchanged on failure. For byte-identical copying,
+skip the edit and call `write_to`. For conversion, call `geometry()` and inspect
+`omissions` before writing its mesh. The executable
+[`edit_grid.rs`](../examples/edit_grid.rs) and
+[`project_geometry.rs`](../examples/project_geometry.rs) examples can be run
+with `cargo run --example edit_grid` and `cargo run --example project_geometry`.
+
+## Convert a dataset with numeric fields
+
+Read a supported ASCII VTU piece and write its mesh and fields as Gmsh MSH 4.1:
+
+```rust
+use caexfer::{msh, vtu};
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let source = std::fs::read_to_string("results.vtu")?;
+    let mut dataset = vtu::read(&source)?;
+    dataset.validate()?;
+    let omitted_properties = dataset.mesh.cells.iter()
+        .filter(|cell| cell.property_id.is_some()).count();
+    if omitted_properties > 0 {
+        eprintln!("Omitting {omitted_properties} property IDs: MSH has no mapping");
+        for cell in &mut dataset.mesh.cells {
+            cell.property_id = None;
+        }
+    }
+    let output = std::fs::OpenOptions::new()
+        .write(true).create_new(true).open("results.msh")?;
+    msh::write(&dataset, output)?;
+    Ok(())
+}
+```
+
+This calls the format writers directly. The MSH writer rejects property IDs
+until the caller explicitly removes them. It also cannot retain component
+labels. The CLI performs supported projections, reports these omissions, and
+stages no-clobber output. If those attributes matter, check the
+[`SUPPORT.md`](SUPPORT.md) contract and preserve the source file.
+
+| Output | Library call | Input |
+| --- | --- | --- |
+| Source-preserving BDF | `Document::write_to(writer)` | `&Document` |
+| Geometry-only BDF | `bdf::mesh::write(&mesh, writer)` | `&Mesh` |
+| VTU | `vtu::write(&mesh, writer)` or `vtu::write_data(&dataset, writer)` | `&Mesh` or `&Dataset` |
+| MSH 4.1 | `msh::write(&dataset, writer)` | `&Dataset` |
+| Geometry-only INP | `inp::write(&mesh, writer)` | `&Mesh` |
+| FRD | `frd::write(&dataset, writer)` | `&Dataset` with supported nodal fields |
+| OP2 | `op2::write_displacements(...)` | One real displacement field plus pyNastran |
+
+The BDF and INP exporters emit mesh exchange decks, not runnable solver
+models. FRD rounds ASCII values. Each writer can reject a dataset that is
+structurally valid but outside that format's supported subset.
+
+## OP2 and I/O boundaries
+
+The OP2 adapter invokes a Python interpreter with pyNastran installed. Pass
+its path explicitly as the `python` argument. To read, first project the
+matching BDF into a basic-frame mesh, then pass that mesh to
+`op2::read_displacements`:
+
+```rust
+use caexfer::{bdf::Document, op2};
+use std::path::Path;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let doc = Document::open("model.bdf")?;
+    let mesh = doc.geometry()?.mesh;
+    let (dataset, assumed_zero) = op2::read_displacements(
+        Path::new("results.op2"), &mesh, Path::new("python3"), None, None,
+    )?;
+    println!("{} fields; assumed zero: {assumed_zero}", dataset.fields.len());
+    Ok(())
+}
+```
+
+All GRID CD values in the BDF must be zero because OP2 displacements in
+nonbasic output frames are not transformed. Check `doc.grids()` before calling
+the adapter; the CLI performs this check for you. The returned boolean marks
+an explicitly assumed all-zero table. The OP2 file contains results but no
+mesh. The write function returns bytes; the caller chooses how to persist them
+and must keep a matching BDF separately. See [`SUPPORT.md`](SUPPORT.md) for
+subcase, step, component, precision, and synthetic-result limits.
+
+All `read` functions report `core::Error` with a stable `code` and optional
+one-based source `line`. Human-readable `message` wording is not a stable
+interface. BDF reads have configurable [`ParseOptions`](../src/bdf/syntax.rs)
+limits. Other format readers accept source text or bytes supplied by the caller;
+bound file reads yourself. Library writers use caller-owned streams and can
+leave partial output after an I/O error. Use a temporary file and rename or
+another persistence policy appropriate to your application, or use the CLI's
+staged output behavior.

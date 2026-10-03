@@ -9,13 +9,16 @@ use std::fmt;
 /// An actionable failure with a stable machine-readable code.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Error {
+    /// Stable diagnostic identifier; callers should branch on this, not `message`.
     pub code: &'static str,
+    /// Human-readable explanation; wording may change between releases.
     pub message: String,
     /// One-based physical source line, when available.
     pub line: Option<usize>,
 }
 
 impl Error {
+    /// Build an error without a source location.
     pub fn new(code: &'static str, message: impl Into<String>) -> Self {
         Self {
             code,
@@ -24,6 +27,7 @@ impl Error {
         }
     }
 
+    /// Attach a one-based physical source line.
     pub fn at(mut self, line: usize) -> Self {
         self.line = Some(line);
         self
@@ -48,19 +52,28 @@ impl From<std::io::Error> for Error {
     }
 }
 
+/// Result returned by caexfer operations.
 pub type Result<T> = std::result::Result<T, Error>;
 
+/// Severity of a scoped validation finding.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Severity {
+    /// Information was omitted or could not be validated in this scope.
     Warning,
+    /// The requested scoped operation cannot proceed.
     Error,
 }
 
+/// One finding from scoped validation.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Diagnostic {
+    /// Whether the finding blocks the scoped operation.
     pub severity: Severity,
+    /// Stable diagnostic identifier.
     pub code: &'static str,
+    /// Human-readable explanation.
     pub message: String,
+    /// One-based physical source line, when available.
     pub line: Option<usize>,
 }
 
@@ -75,8 +88,10 @@ impl From<Error> for Diagnostic {
     }
 }
 
+/// Findings from validation of a documented subset, not solver correctness.
 #[derive(Debug, Default, Clone)]
 pub struct ValidationReport {
+    /// Findings in source order.
     pub diagnostics: Vec<Diagnostic>,
 }
 
@@ -89,6 +104,7 @@ impl ValidationReport {
             .any(|d| d.severity == Severity::Error)
     }
 
+    /// Number of warning findings.
     pub fn warning_count(&self) -> usize {
         self.diagnostics
             .iter()
@@ -96,6 +112,7 @@ impl ValidationReport {
             .count()
     }
 
+    /// Number of error findings.
     pub fn error_count(&self) -> usize {
         self.diagnostics
             .iter()
@@ -104,25 +121,36 @@ impl ValidationReport {
     }
 }
 
+/// One mesh point with its original, positive identifier.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Point {
+    /// Original node ID; never an index into the points array.
     pub id: u64,
     /// Coordinates in the BDF basic frame. No inferred physical units.
     pub position: [f64; 3],
 }
 
+/// Supported linear cell topology.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CellKind {
+    /// Two-node line.
     Line2,
+    /// Three-node triangle.
     Triangle3,
+    /// Four-node quadrilateral.
     Quad4,
+    /// Four-node tetrahedron.
     Tet4,
+    /// Eight-node hexahedron.
     Hex8,
+    /// Six-node wedge.
     Wedge6,
+    /// Five-node pyramid.
     Pyramid5,
 }
 
 impl CellKind {
+    /// Required number of point indices for this topology.
     pub fn node_count(self) -> usize {
         match self {
             Self::Line2 => 2,
@@ -135,19 +163,25 @@ impl CellKind {
     }
 }
 
+/// One linear element connected to points in its parent [`Mesh`].
 #[derive(Debug, Clone, PartialEq)]
 pub struct Cell {
+    /// Original positive element ID.
     pub id: u64,
+    /// Linear element topology.
     pub kind: CellKind,
     /// Zero-based indices into `Mesh::points`, not Nastran grid IDs.
     pub connectivity: Vec<usize>,
+    /// Source property ID if present; no property definition is stored.
     pub property_id: Option<u64>,
 }
 
 /// Geometry only. Original IDs are retained; physical units are unspecified.
 #[derive(Debug, Default, Clone, PartialEq)]
 pub struct Mesh {
+    /// Points indexed by each cell's `connectivity`.
     pub points: Vec<Point>,
+    /// Linear cells in this mesh.
     pub cells: Vec<Cell>,
 }
 
@@ -207,29 +241,41 @@ impl Mesh {
 /// Association of a numeric field with mesh entities.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FieldLocation {
+    /// One value tuple per mesh point.
     Point,
+    /// One value tuple per mesh cell.
     Cell,
 }
 
 /// One field at one step. Values are interleaved by entity and component.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Field {
+    /// Field name, such as `DISP`.
     pub name: String,
+    /// Entity type to which values belong.
     pub location: FieldLocation,
+    /// Ordered component names, such as `T1`, `T2`, `T3`.
     pub components: Vec<String>,
+    /// Entity-major values: all components for entity 0, then entity 1, etc.
     pub values: Vec<f64>,
+    /// Optional source step number; interpretation depends on the format.
     pub step: Option<i64>,
+    /// Optional source time; units are not inferred.
     pub time: Option<f64>,
 }
 
 /// Mesh plus fields. Solver loads, constraints and material laws are outside this type.
 #[derive(Debug, Default, Clone, PartialEq)]
 pub struct Dataset {
+    /// Geometry and original node/element identifiers.
     pub mesh: Mesh,
+    /// Complete numeric fields associated with points or cells.
     pub fields: Vec<Field>,
 }
 
 impl Dataset {
+    /// Check mesh invariants, field lengths, and finite numeric values.
+    /// This does not validate solver physics or format-specific representability.
     pub fn validate(&self) -> Result<()> {
         self.mesh.validate()?;
         for field in &self.fields {

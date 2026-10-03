@@ -29,7 +29,7 @@ USAGE
 COMMON OPTIONS
   --from FORMAT    bdf, vtu, msh, inp, frd, or op2; otherwise infer extension
   --mesh BDF       Required BDF geometry for OP2 results
-  --python PATH    Python with pyNastran installed for OP2 (default: python3)
+  --python PATH    Python with pyNastran installed for OP2 (or CAEXFER_PYTHON; default: python3)
   --zero-missing-rotations  Confirm absent R1/R2/R3 are known float 0.0 for OP2 output
   --assume-zero-displacement  Create a synthetic all-zero OP2 displacement table from BDF/INP
   --subcase N      OP2 displacement subcase if more than one exists
@@ -45,7 +45,14 @@ SCOPE
   validate is scoped, not full solver validation. Conversion reports omissions.
   OP2 needs pyNastran; reading needs a matching BDF; output contains no mesh.
   Assumed-zero OP2 values are hypothetical, not solver results.
-  Output paths must be new. See docs/SUPPORT.md for precise format limits.
+  Output paths must be new.
+
+EXAMPLES
+  caexfer info model.bdf
+  caexfer convert model.bdf model.vtu --geometry-only
+  caexfer convert results.op2 results.vtu --mesh model.bdf --geometry-only
+
+Format limits: https://github.com/cmccomb/caexfer/blob/main/docs/SUPPORT.md
 ";
 
 #[derive(Debug, Default)]

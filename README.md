@@ -10,12 +10,20 @@
 projects supported linear meshes and numeric results between BDF, VTU, MSH 4.1,
 INP, FRD, and OP2. Conversions report information the destination cannot carry.
 
-## Quick start
+## Install and try the CLI
 
-Requires Rust 1.85 or newer. This is a source repository, not a crates.io release:
+Requires Rust 1.85 or newer. Install directly from GitHub:
 
 ```sh
-cargo install --path . --locked --offline
+cargo install --git https://github.com/cmccomb/caexfer.git --locked
+caexfer --help
+```
+
+To run the included examples, clone the repository first:
+
+```sh
+git clone https://github.com/cmccomb/caexfer.git
+cd caexfer
 
 caexfer formats
 caexfer info examples/plate.bdf
@@ -23,6 +31,10 @@ caexfer roundtrip examples/plate.bdf plate-copy.bdf
 caexfer set-grid examples/plate.bdf edited.bdf --id 20 --xyz 1.2 0 0
 caexfer convert examples/plate.bdf plate.vtu --geometry-only
 ```
+
+For a local checkout without installing, replace `caexfer` with
+`cargo run --locked --`. OP2 routes additionally need Python with pyNastran;
+the other routes have no non-Rust runtime dependency.
 
 `roundtrip` writes a byte-identical copy. `set-grid` changes only the requested
 native-frame coordinates. `convert` requires `--geometry-only` to acknowledge
@@ -79,12 +91,17 @@ The full boundary, including rejected dialects and resource limits, is in
 
 ## Rust library
 
-Use this checkout as a path dependency:
+Add the repository as a Git dependency (Cargo.lock pins the resolved commit):
 
 ```toml
 [dependencies]
-caexfer = { path = "../caexfer" }
+caexfer = { git = "https://github.com/cmccomb/caexfer.git" }
 ```
+
+For a local checkout, use `caexfer = { path = "../caexfer" }` instead.
+The package has not been published to crates.io.
+
+Preserve a BDF while explicitly exporting its supported geometry:
 
 ```rust
 use caexfer::{bdf::Document, vtu};
@@ -102,19 +119,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-`Document` keeps the native BDF; `geometry()` explicitly projects it. The
-library also exposes `vtu`, `msh`, `inp`, `frd`, and `op2` modules, with shared
-mesh and field types in `caexfer::core`. Library writers use caller-owned
-streams; the CLI handles staged output files.
+`Document` keeps the native BDF; `geometry()` explicitly projects it and
+returns omissions to inspect. Other readers return a `Dataset` or mesh
+inspection. Library writers use caller-owned streams; the CLI stages output
+files. The library guide below maps each format to its read/write calls.
 
 ## Documentation and development
 
 - [CLI reference](docs/CLI.md): commands, flags, JSON output, and exit codes.
+- [Library guide](docs/LIBRARY.md): dependencies, API map, examples, and I/O contracts.
 - [Support contract](docs/SUPPORT.md): format subsets and conversion limits.
 - [Design](docs/DESIGN.md): preservation, projection, and validation decisions.
 - [Implementation references](docs/REFERENCES.md) and [contributing](CONTRIBUTING.md).
 
-Run `cargo test --locked --offline` for Rust tests. CI also checks formatting,
+Run `cargo test --locked --offline` for Rust tests and `cargo doc --no-deps --open`
+for API documentation. CI also checks formatting,
 Clippy, rustdoc, the generated diagram, Cargo packaging, and independent
 conversion routes on Linux, macOS, Windows, and Rust 1.85. Regenerate the figure
 with `python3 scripts/generate_readme_diagram.py` after changing format support.

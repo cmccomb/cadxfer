@@ -29,9 +29,12 @@ fn name(kind: CellKind) -> &'static str {
         CellKind::Hex8 => "C3D8",
     }
 }
+/// Supported INP mesh plus solver keywords omitted during inspection.
 #[derive(Debug, Clone)]
 pub struct Inspection {
+    /// Global nodes and linear elements from supported blocks.
     pub mesh: Mesh,
+    /// Other recognized keyword names whose contents were not interpreted.
     pub omitted_keywords: BTreeSet<String>,
 }
 

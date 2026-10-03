@@ -1,5 +1,24 @@
 # CLI contract
 
+Install with `cargo install --git https://github.com/cmccomb/caexfer.git --locked`
+(Rust 1.85+). In a checkout, `cargo run --locked -- COMMAND ...` runs the same
+CLI without installation. Routes that do not read or write OP2 need no Python.
+
+```sh
+caexfer formats
+caexfer info model.bdf
+caexfer validate model.bdf --json
+caexfer roundtrip model.bdf model-copy.bdf
+caexfer set-grid model.bdf edited.bdf --id 20 --xyz 1.2 0 0
+caexfer convert model.bdf model.vtu --geometry-only
+caexfer convert results.op2 results.vtu --mesh model.bdf --geometry-only
+```
+
+The OP2 example requires pyNastran in the selected Python interpreter.
+Install it in that interpreter (for example, `python3 -m pip install pyNastran`),
+then pass `--python PATH` if `python3` is not the right environment.
+Use a fresh output filename for each command.
+
 `caexfer --help` lists all commands. Paths can occur before or after options; use
 `--` for paths beginning with a hyphen. `--xyz` consumes three values, so negative
 coordinates do not need escaping. Filenames use OS-native strings internally;
