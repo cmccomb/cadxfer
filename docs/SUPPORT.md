@@ -2,8 +2,8 @@
 
 ## Three different promises
 
-1. **Source preservation.** For input that `Document::parse` accepts, writing an
-   unchanged document reproduces its bytes exactly. This includes unknown card
+1. **Source preservation.** For input that `Document::parse` accepts, writing the
+   parsed document reproduces its bytes exactly. This includes unknown card
    contents, comments, CRLF/LF mixtures, and an absent final newline. It does not
    mean every dialect or malformed file is accepted.
 2. **Typed access.** GRID records have a typed view. Blank coordinate fields
@@ -182,7 +182,7 @@ load, constraint or case-control cards are generated. Use the native BDF
 The BDF document and its indices are resident in memory. This is not streaming,
 lazy, zero-copy-from-disk, or mmap I/O. The original bytes are retained rather
 than duplicated into per-field strings, but the parser creates a line index and
-field index, and parsing/edits can temporarily duplicate the source buffer.
+field index, and parsing can temporarily duplicate the source buffer.
 Defaults: 256 MiB input, 1 MiB per line, two million physical lines, two million
 cards, and 65,536 indexed fields per card. These are rejection thresholds, not
 a hard total-memory budget. Use OS process limits for hostile or very large data.

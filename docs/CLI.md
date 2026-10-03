@@ -19,8 +19,7 @@ then pass `--python PATH` if `python3` is not the right environment.
 Use a fresh output filename for each command.
 
 `caexfer --help` lists all commands. Paths can occur before or after options; use
-`--` for paths beginning with a hyphen. `--xyz` consumes three values, so negative
-coordinates do not need escaping. Filenames use OS-native strings internally;
+`--` for paths beginning with a hyphen. Filenames use OS-native strings internally;
 JSON/human display of non-UTF-8 paths is lossy, not an exact path serialization.
 
 | Command | Result |

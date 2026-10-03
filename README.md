@@ -7,8 +7,8 @@
 **Preserve engineering documents. Transfer the parts another format can represent.**
 
 `caexfer` preserves Nastran BDF source bytes and projects supported linear
-meshes and numeric results between BDF, VTU, MSH 4.1,
-INP, FRD, and OP2. Conversions report information the destination cannot carry.
+meshes and numeric results between BDF, VTU, MSH 4.1, INP, FRD, and OP2.
+Conversions report information the destination cannot carry.
 
 ## Install and try the CLI
 
@@ -35,9 +35,9 @@ For a local checkout without installing, replace `caexfer` with
 `cargo run --locked --`. OP2 routes additionally need Python with pyNastran;
 the other routes have no non-Rust runtime dependency.
 
-`roundtrip` writes a byte-identical copy. `convert` requires `--geometry-only` to acknowledge
-projection into the supported mesh and field subset. Output files must be new;
-the CLI never overwrites an existing path.
+`roundtrip` writes a byte-identical copy. `convert` requires `--geometry-only`
+to acknowledge projection into the supported mesh and field subset. Output
+files must be new; the CLI never overwrites an existing path.
 
 ## Conversion routes
 
