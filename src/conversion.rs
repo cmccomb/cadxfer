@@ -14,7 +14,7 @@ use std::path::{Path, PathBuf};
 
 use crate::bdf::{self, Document, ParseOptions};
 use crate::core::{Dataset, Error, FieldLocation, Mesh, Result};
-use crate::{frd, inp, msh, op2, vtk, vtu};
+use crate::{frd, inp, msh, op2, pch, vtk, vtu};
 
 /// Supported conversion format.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -33,6 +33,8 @@ pub enum Format {
     Frd,
     /// Nastran displacement result file.
     Op2,
+    /// Nastran text punch displacement results (read only).
+    Pch,
 }
 
 impl Format {
@@ -47,6 +49,7 @@ impl Format {
             Self::Inp => "inp",
             Self::Frd => "frd",
             Self::Op2 => "op2",
+            Self::Pch => "pch",
         }
     }
 
@@ -73,6 +76,7 @@ impl Format {
             "inp" => Ok(Self::Inp),
             "frd" => Ok(Self::Frd),
             "op2" => Ok(Self::Op2),
+            "pch" => Ok(Self::Pch),
             _ => Err(Error::new(
                 "E_FORMAT",
                 format!("unknown input format {name}"),
@@ -81,7 +85,7 @@ impl Format {
     }
 
     /// Infer a source format from its case-insensitive extension.
-    /// `.nas`, `.dat`, and `.pch` are accepted BDF input aliases.
+    /// `.nas` and `.dat` are accepted BDF input aliases.
     ///
     /// # Errors
     ///
@@ -97,8 +101,8 @@ impl Format {
     pub fn from_input_path(path: &Path) -> Result<Self> {
         let extension = extension(path);
         match extension.as_str() {
-            "bdf" | "nas" | "dat" | "pch" => Ok(Self::Bdf),
-            "vtu" | "vtk" | "msh" | "inp" | "frd" | "op2" => Self::parse(&extension),
+            "bdf" | "nas" | "dat" => Ok(Self::Bdf),
+            "vtu" | "vtk" | "msh" | "inp" | "frd" | "op2" | "pch" => Self::parse(&extension),
             _ => Err(Error::new(
                 "E_FORMAT",
                 format!("no reader for extension {extension:?}; use --from"),
@@ -107,7 +111,7 @@ impl Format {
     }
 
     /// Infer a writable destination from its extension. Only `.bdf` and `.nas`
-    /// are BDF output aliases; `.dat` and `.pch` are input-only.
+    /// are BDF output aliases; `.dat` and `.pch` have no writer.
     ///
     /// # Errors
     ///
@@ -144,21 +148,21 @@ fn extension(path: &Path) -> String {
 
 /// Source selection, limits, and explicit result assumptions.
 /// Defaults detect the input format from its extension, bound reads to the BDF
-/// parser's default byte limit, and do not silently assert an OP2 result frame
+/// parser's default byte limit, and do not silently assert a Nastran result frame
 /// or missing rotation values.
 #[derive(Debug, Clone)]
 pub struct Options {
     /// Override source extension detection.
     pub input_format: Option<Format>,
-    /// Matching BDF, VTU, VTK, MSH, INP, or FRD mesh required when reading OP2.
+    /// Matching BDF, VTU, VTK, MSH, INP, or FRD mesh for OP2/PCH input.
     pub mesh: Option<PathBuf>,
-    /// Assert basic-frame coordinates and displacements for a non-BDF OP2 mesh.
+    /// Assert basic-frame coordinates and displacements for a non-BDF result mesh.
     pub assume_basic_frame: bool,
-    /// OP2 displacement subcase, if more than one exists.
+    /// OP2/PCH displacement subcase, if more than one exists.
     pub subcase: Option<i64>,
-    /// Zero-based OP2 result step, or FRD step number.
+    /// Zero-based OP2/PCH result step, or FRD step number.
     pub step: Option<usize>,
-    /// Maximum source bytes; the same bound applies to an OP2 companion mesh.
+    /// Maximum source bytes; the same bound applies to a result companion mesh.
     pub max_bytes: usize,
     /// Requested MSH output dialect; `None` uses 4.1.
     pub msh_version: Option<msh::Version>,
@@ -290,10 +294,14 @@ fn read_limited(path: &Path, max_bytes: usize) -> Result<Vec<u8>> {
     Ok(bytes)
 }
 
-/// Load an OP2 companion mesh and report any source-side projection losses.
+/// Load a Nastran result companion mesh and report source projection losses.
 /// BDF grid output frames are checked; other formats require the caller's
 /// explicit basic-frame assertion because that metadata is unavailable.
-fn read_op2_mesh(path: &Path, options: &Options) -> Result<(Mesh, Vec<Omission>)> {
+fn read_result_mesh(
+    path: &Path,
+    options: &Options,
+    result: Format,
+) -> Result<(Mesh, Vec<Omission>)> {
     let format = Format::from_input_path(path)?;
     match format {
         Format::Bdf => {
@@ -302,7 +310,11 @@ fn read_op2_mesh(path: &Path, options: &Options) -> Result<(Mesh, Vec<Omission>)
             for grid in document.grids() {
                 if grid?.cd != 0 {
                     return Err(Error::new(
-                        "E_OP2",
+                        if result == Format::Pch {
+                            "E_PCH"
+                        } else {
+                            "E_OP2"
+                        },
                         "nonbasic GRID CD requires displacement frame transformation",
                     ));
                 }
@@ -323,21 +335,21 @@ fn read_op2_mesh(path: &Path, options: &Options) -> Result<(Mesh, Vec<Omission>)
                 .collect();
             Ok((projection.mesh, omissions))
         }
-        Format::Op2 => Err(Error::new(
+        Format::Op2 | Format::Pch => Err(Error::new(
             "E_USAGE",
-            "OP2 companion mesh must be a mesh-bearing format",
+            "result companion mesh must be a mesh-bearing format",
         )),
         _ => {
             // Other mesh formats carry no GRID CD, requiring an explicit
-            // caller assertion before pairing them with OP2 displacements.
+            // caller assertion before pairing them with Nastran displacements.
             if !options.assume_basic_frame {
                 return Err(Error::new(
                     "E_USAGE",
-                    "non-BDF OP2 mesh lacks GRID CD; pass --assume-basic-frame to assert basic-frame coordinates and displacements",
+                    "non-BDF result mesh lacks GRID CD; pass --assume-basic-frame to assert basic-frame coordinates and displacements",
                 ));
             }
 
-            // A companion supplies geometry only; OP2 result-selection options
+            // A companion supplies geometry only; result-selection options
             // must not be reapplied while reading its mesh-bearing file.
             let mesh_options = Options {
                 input_format: None,
@@ -371,7 +383,7 @@ fn read_op2_mesh(path: &Path, options: &Options) -> Result<(Mesh, Vec<Omission>)
             }
             omissions.push(Omission::new(
                 Stage::Assumption,
-                format!("companion {} has no GRID CD; basic-frame coordinates and OP2 displacements asserted by caller", format.name()),
+                format!("companion {} has no GRID CD; basic-frame coordinates and {} displacements asserted by caller", format.name(), result.name().to_ascii_uppercase()),
             ));
             Ok((read.dataset.mesh, omissions))
         }
@@ -379,7 +391,7 @@ fn read_op2_mesh(path: &Path, options: &Options) -> Result<(Mesh, Vec<Omission>)
 }
 
 /// Read a supported source file into a mesh and fields, reporting omitted data.
-/// OP2 input requires `options.mesh`. A non-BDF
+/// OP2/PCH input requires `options.mesh`. A non-BDF
 /// companion additionally requires `options.assume_basic_frame`.
 ///
 /// # Errors
@@ -409,22 +421,24 @@ pub fn read_path(path: &Path, options: &Options) -> Result<ReadResult> {
 
     // Reject result-selection and frame options on formats that cannot use
     // them before opening or parsing any source file.
-    if format != Format::Op2 && (options.mesh.is_some() || options.subcase.is_some()) {
+    if !matches!(format, Format::Op2 | Format::Pch)
+        && (options.mesh.is_some() || options.subcase.is_some())
+    {
         return Err(Error::new(
             "E_USAGE",
-            "mesh and subcase apply only to OP2 input",
+            "mesh and subcase apply only to OP2/PCH input",
         ));
     }
-    if format != Format::Op2 && options.assume_basic_frame {
+    if !matches!(format, Format::Op2 | Format::Pch) && options.assume_basic_frame {
         return Err(Error::new(
             "E_USAGE",
-            "basic-frame assertion applies only to OP2 input",
+            "basic-frame assertion applies only to OP2/PCH input",
         ));
     }
-    if !matches!(format, Format::Op2 | Format::Frd) && options.step.is_some() {
+    if !matches!(format, Format::Op2 | Format::Pch | Format::Frd) && options.step.is_some() {
         return Err(Error::new(
             "E_USAGE",
-            "step applies only to OP2 or FRD input",
+            "step applies only to OP2, PCH, or FRD input",
         ));
     }
     let (dataset, omissions, assumed_zero) = match format {
@@ -562,7 +576,7 @@ pub fn read_path(path: &Path, options: &Options) -> Result<ReadResult> {
                 .mesh
                 .as_deref()
                 .ok_or_else(|| Error::new("E_USAGE", "OP2 requires --mesh matching mesh file"))?;
-            let (mesh, mut omissions) = read_op2_mesh(mesh_path, options)?;
+            let (mesh, mut omissions) = read_result_mesh(mesh_path, options, Format::Op2)?;
             let bytes = read_limited(path, options.max_bytes)?;
             let (dataset, assumed_zero) =
                 op2::read_displacements(&bytes, &mesh, options.subcase, options.step)?;
@@ -580,6 +594,36 @@ pub fn read_path(path: &Path, options: &Options) -> Result<ReadResult> {
                 "OP2 result tables other than the selected real displacement table are not exported",
             ));
             (dataset, omissions, assumed_zero)
+        }
+        Format::Pch => {
+            let mesh_path = options
+                .mesh
+                .as_deref()
+                .ok_or_else(|| Error::new("E_USAGE", "PCH requires --mesh matching mesh file"))?;
+            let (mesh, mut omissions) = read_result_mesh(mesh_path, options, Format::Pch)?;
+            let bytes = read_limited(path, options.max_bytes)?;
+            let source = std::str::from_utf8(&bytes)
+                .map_err(|_| Error::new("E_PCH", "PCH must be ASCII text"))?;
+            let projection = pch::read(source, &mesh, options.subcase, options.step)?;
+            if projection.skipped_blocks > 0 {
+                omissions.push(Omission::new(
+                    Stage::Source,
+                    format!(
+                        "{} other PCH result block header(s) were not projected",
+                        projection.skipped_blocks
+                    ),
+                ));
+            }
+            if source.contains("$TITLE")
+                || source.contains("$SUBTITLE")
+                || source.contains("$LABEL")
+            {
+                omissions.push(Omission::new(
+                    Stage::Source,
+                    "PCH title, subtitle, and label metadata are not represented",
+                ));
+            }
+            (projection.dataset, omissions, false)
         }
     };
     Ok(ReadResult {
@@ -934,6 +978,7 @@ pub fn convert(
             )?;
             writer.write_all(&bytes)?;
         }
+        Format::Pch => return Err(Error::new("E_FORMAT", "PCH writing is not supported")),
     }
     Ok(ConversionReport {
         points: dataset.mesh.points.len(),

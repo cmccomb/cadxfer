@@ -27,6 +27,7 @@ same result type for both caexfer and filesystem operations.
 | Read a mesh and numeric results | `vtu::read`, `msh::read`, or `frd::read` | `core::Dataset` |
 | Read a flat INP mesh | `inp::read` | `Inspection { mesh, omitted_keywords }` |
 | Read one OP2 displacement result | `op2::read_displacements` | `(Dataset, assumed_zero)`; matching `Mesh` required |
+| Read one PCH displacement result | `pch::read` | `Projection { dataset, skipped_blocks }`; matching `Mesh` required |
 | Convert a file and inspect losses | `conversion::convert_path` | Caller-owned output stream and `ConversionReport` |
 
 `core::Mesh` contains original positive point and cell IDs. Cell connectivity
@@ -83,10 +84,10 @@ fn main() -> Result<()> {
 }
 ```
 
-`Options` sets source format, result selection, and byte limits. For OP2 input,
+`Options` sets source format, result selection, and byte limits. For OP2 or PCH input,
 set `mesh` to a matching BDF, VTU, VTK, MSH,
 INP, or FRD file. Set `assume_basic_frame` for a non-BDF companion only when
-its coordinates and the OP2 displacements are known to use the basic frame.
+its coordinates and the result displacements are known to use the basic frame.
 `read_path` returns a `ReadResult` if an application needs
 to inspect or modify the dataset before calling `conversion::convert`. The
 caller owns the output stream and handles incomplete output on failure; use
@@ -139,7 +140,7 @@ The BDF and INP exporters emit mesh exchange decks, not runnable solver
 models. FRD rounds ASCII values. Each writer can reject a dataset that is
 structurally valid but outside that format's supported subset.
 
-## OP2 and I/O boundaries
+## Nastran results and I/O boundaries
 
 The OP2 adapter reads a bounded 32-bit real OUGV1 subset directly. To read,
 first project the matching BDF into a basic-frame mesh, then pass the OP2 bytes
@@ -169,6 +170,11 @@ an explicitly assumed all-zero table. The OP2 file contains results but no
 mesh. The write function returns bytes; the caller chooses how to persist them
 and must keep a matching mesh separately. See [`SUPPORT.md`](SUPPORT.md) for
 subcase, step, component, precision, and synthetic-result limits.
+
+For text results, call `pch::read(&source, &mesh, subcase, step)` with a
+matching mesh. Its `Projection` contains one normalized displacement field
+and the number of other result block headers skipped. The file-level API
+enforces the same BDF frame check as OP2. PCH has no writer.
 
 All `read` functions report `core::Error` with a stable `code` and optional
 one-based source `line`. Human-readable `message` wording is not a stable

@@ -36,6 +36,7 @@ FORMATS = (
     Card(435, 373, "FRD", "results.frd", "#f28eaa", "frd", "ASCII values rounded"),
     Card(825, 373, "OP2", "results.op2", "#f6c76d", "op2", "Optional separate mesh export"),
     Card(45, 628, "VTK legacy", "mesh.vtk", "#9fdaa5", "vtk", "ASCII point and cell arrays"),
+    Card(435, 628, "PCH", "results.pch", "#daa8f5", "op2", "Read-only; matching mesh required"),
 )
 
 
@@ -135,17 +136,17 @@ def render() -> str:
     parts = [
         '<svg xmlns="http://www.w3.org/2000/svg" width="1240" height="892" '
         'viewBox="0 0 1240 892" role="img" aria-labelledby="title description">',
-        '<title id="title">Seven engineering format representations</title>',
+        '<title id="title">Eight engineering format representations</title>',
         '<desc id="description">The cards show BDF and INP geometry decks; '
         'VTU, legacy VTK, and MSH meshes with numeric fields; '
-        'FRD mesh with nodal fields; and an OP2 displacement table with an optional separate mesh. '
+        'FRD mesh with nodal fields; and OP2 and PCH displacement tables requiring separate meshes. '
         'Mesh-bearing representations share the same topology.</desc>',
         '<defs><linearGradient id="background" x1="0" y1="0" x2="1" y2="1">'
         '<stop offset="0" stop-color="#122238"/>'
         f'<stop offset="1" stop-color="{BACKGROUND}"/>'
         '</linearGradient></defs>',
         '<rect width="1240" height="892" rx="24" fill="url(#background)"/>',
-        text(45, 49, "SEVEN FORMAT REPRESENTATIONS", size=22, weight=700),
+        text(45, 49, "EIGHT FORMAT REPRESENTATIONS", size=22, weight=700),
         text(46, 76, "Mesh-bearing outputs retain cell topology; carried fields depend on the input.",
              size=15, color=MUTED),
         text(46, 97, "Routes and conditions are specified in the matrix below.",
@@ -154,7 +155,7 @@ def render() -> str:
     parts.extend(card(item) for item in FORMATS)
     parts.extend((
         '<path d="M45 868H1190" stroke="#304761"/>',
-        text(46, 885, "Schematic only: field availability depends on the source; OP2 needs a matching mesh for reading.",
+        text(46, 885, "Schematic only: field availability depends on the source; OP2 and PCH need matching meshes.",
              size=12, color=MUTED),
         '</svg>',
     ))

@@ -17,13 +17,13 @@ Measured on 2026-10-03 with Rust 1.98.1, cargo-llvm-cov 0.8.7, and pyNastran
 
 | Measure | Covered / total | Coverage |
 | --- | ---: | ---: |
-| Rust source lines | 4,841 / 5,787 | 83.7% |
-| Rust source regions | 7,868 / 9,404 | 83.7% |
-| Rust functions | 388 / 541 | 71.7% |
+| Rust source lines | 5,170 / 6,185 | 83.6% |
+| Rust source regions | 8,360 / 10,012 | 83.5% |
+| Rust functions | 408 / 581 | 70.2% |
 
-The run executed 112 Rust tests, the independent CLI interoperability checks,
-and 68 conversion routes across BDF, VTU, legacy VTK, MSH 4.1/2.2, INP, FRD,
-and OP2. Doctests run
+The run executed 118 Rust tests, the independent CLI interoperability checks,
+and 76 conversion routes across BDF, VTU, legacy VTK, MSH 4.1/2.2, INP, FRD,
+OP2, and PCH. Doctests run
 in the regular CI workflow but are not included in this coverage measurement.
 The Python check scripts and test-only pyNastran invocation are exercised but
 their Python lines are not counted. Branch coverage is not reported; the line
@@ -39,6 +39,7 @@ percentage should not be interpreted as branch coverage or solver validation.
 | `src/bdf/mesh.rs` | 78.6% | Geometry writer edge cases and write failures. |
 | `src/vtk.rs` | 84.1% | More malformed legacy attribute layouts. |
 | `src/msh.rs` | 86.5% | More unusual 2.2 tag and field layouts. |
+| `src/pch.rs` | 81.7% | More independent solver-produced punch files and malformed header cases. |
 
 These gaps are priorities for future tests; the current suite already exercises the
 advertised conversion routes through the CLI. Its fixtures are small, so they

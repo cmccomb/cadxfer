@@ -203,6 +203,20 @@ format projections report that provenance but do not encode it in their fields.
 CI also checks the included solver-produced fixture and separately authored
 multiple-subcase and multiple-step fixtures.
 
+### Nastran PCH
+
+The native Rust PCH reader accepts ASCII real SORT1 `$DISPLACEMENTS` GRID rows
+with three translations and optional three rotations. It accepts one selected
+positive subcase and zero-based step; multiple unselected subcases or steps
+fail. `$TIME` supplies transient time metadata. A matching companion mesh is
+required and GRID IDs must match exactly. The same BDF `GRID CD=0` check and
+non-BDF `--assume-basic-frame` assertion as OP2 apply. Titles, subtitles,
+labels, and other result blocks are reported as omitted. Complex, modal,
+SORT2, superelement, unsupported row layouts, and malformed results fail.
+PCH does not embed mesh geometry and has no writer in this release. The
+fixture from the MSC reference manual checks the supported row layout; it is
+an excerpt, not a complete solver-generated PCH qualification file.
+
 ### Geometry-only BDF output
 
 `convert` can emit basic-frame GRID and linear element cards. It preserves known

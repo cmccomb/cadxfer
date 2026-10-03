@@ -24,6 +24,11 @@ linear mesh. Gmsh renumbered its elements; the fixture tests independent MSH
 2.2 syntax and all seven linear topologies, not ID preservation across Gmsh's
 own resave operation.
 
+`msc-reference-displacement.pch` is a minimal displacement block transcribed
+from the published MSC Nastran 2021.4 Reference Guide's punch-format example
+(grid 101, T2 = 9.994075E-04). Its header sequence and continuation layout are
+independent of caexfer. `pch-multiple.pch` is an authored selection fixture.
+
 `mixed-linear.expected.json` records independent, explicit topology expectations
 for `mixed-linear.bdf`; it is not output claimed to come from a Rust execution.
 The cells overlap on purpose. They are an I/O fixture, not a simulation model.

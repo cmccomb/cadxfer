@@ -1,9 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1240" height="892" viewBox="0 0 1240 892" role="img" aria-labelledby="title description">
-<title id="title">Seven engineering format representations</title>
-<desc id="description">The cards show BDF and INP geometry decks; VTU, legacy VTK, and MSH meshes with numeric fields; FRD mesh with nodal fields; and an OP2 displacement table with an optional separate mesh. Mesh-bearing representations share the same topology.</desc>
+<title id="title">Eight engineering format representations</title>
+<desc id="description">The cards show BDF and INP geometry decks; VTU, legacy VTK, and MSH meshes with numeric fields; FRD mesh with nodal fields; and OP2 and PCH displacement tables requiring separate meshes. Mesh-bearing representations share the same topology.</desc>
 <defs><linearGradient id="background" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#122238"/><stop offset="1" stop-color="#0b1423"/></linearGradient></defs>
 <rect width="1240" height="892" rx="24" fill="url(#background)"/>
-<text x="45" y="49" fill="#f5f8ff" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="700" letter-spacing="0">SEVEN FORMAT REPRESENTATIONS</text>
+<text x="45" y="49" fill="#f5f8ff" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="700" letter-spacing="0">EIGHT FORMAT REPRESENTATIONS</text>
 <text x="46" y="76" fill="#b6c7d9" font-family="Arial, Helvetica, sans-serif" font-size="15" font-weight="400" letter-spacing="0">Mesh-bearing outputs retain cell topology; carried fields depend on the input.</text>
 <text x="46" y="97" fill="#758ba3" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="400" letter-spacing="0">Routes and conditions are specified in the matrix below.</text>
 <rect x="45" y="118" width="365" height="218" rx="20" fill="#17283e" stroke="#3c5875" stroke-width="1.3"/>
@@ -307,6 +307,34 @@
 <text x="289" y="804" fill="#9fdaa5" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="400" letter-spacing="0">numeric</text>
 <path d="M69 817H386" stroke="#38516b"/>
 <text x="69" y="838" fill="#b6c7d9" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="400" letter-spacing="0">ASCII point and cell arrays</text>
+<rect x="435" y="628" width="365" height="218" rx="20" fill="#17283e" stroke="#3c5875" stroke-width="1.3"/>
+<rect x="459" y="638" width="317" height="5" rx="2.5" fill="#daa8f5"/>
+<text x="459" y="665" fill="#daa8f5" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="700" letter-spacing="1">PCH</text>
+<text x="459" y="696" fill="#f5f8ff" font-family="Arial, Helvetica, sans-serif" font-size="23" font-weight="700" letter-spacing="0">results.pch</text>
+<rect x="460" y="711" width="195" height="104" rx="10" fill="#21344b" stroke="#49627b"/>
+<g font-family="Menlo, Consolas, monospace" font-size="11" text-anchor="middle">
+<text x="486" y="733" fill="#b6c7d9">ID</text>
+<g fill="#daa8f5">
+<text x="518" y="733">T1</text><text x="542" y="733">T2</text><text x="566" y="733">T3</text>
+<text x="590" y="733">R1</text><text x="614" y="733">R2</text><text x="638" y="733">R3</text>
+</g>
+<path d="M470 740H645" stroke="#49627b"/>
+<g fill="#f5f8ff">
+<text x="486" y="764">10</text>
+<text x="518" y="764">0</text><text x="542" y="764">0</text><text x="566" y="764">0</text>
+<text x="590" y="764">0</text><text x="614" y="764">0</text><text x="638" y="764">0</text>
+<text x="486" y="790">20</text>
+<text x="518" y="790">0</text><text x="542" y="790">0</text><text x="566" y="790">0</text>
+<text x="590" y="790">0</text><text x="614" y="790">0</text><text x="638" y="790">0</text>
+</g>
+</g>
+<path d="M666 710V809" stroke="#3c5875"/>
+<text x="679" y="734" fill="#758ba3" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="700" letter-spacing="1">TOPOLOGY</text>
+<text x="679" y="756" fill="#f5f8ff" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="400" letter-spacing="0">not stored</text>
+<text x="679" y="782" fill="#758ba3" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="700" letter-spacing="1">DATA</text>
+<text x="679" y="804" fill="#daa8f5" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="400" letter-spacing="0">DISP only</text>
+<path d="M459 817H776" stroke="#38516b"/>
+<text x="459" y="838" fill="#b6c7d9" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="400" letter-spacing="0">Read-only; matching mesh required</text>
 <path d="M45 868H1190" stroke="#304761"/>
-<text x="46" y="885" fill="#b6c7d9" font-family="Arial, Helvetica, sans-serif" font-size="12" font-weight="400" letter-spacing="0">Schematic only: field availability depends on the source; OP2 needs a matching mesh for reading.</text>
+<text x="46" y="885" fill="#b6c7d9" font-family="Arial, Helvetica, sans-serif" font-size="12" font-weight="400" letter-spacing="0">Schematic only: field availability depends on the source; OP2 and PCH need matching meshes.</text>
 </svg>

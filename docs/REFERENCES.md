@@ -33,6 +33,11 @@ projects is vendored into caexfer.
 - pyNastran result-object documentation: static/transient real table creation and
   OP2 writing interfaces used for independent test fixtures.
   https://pynastran-git.readthedocs.io/en/latest/reference/op2/result_objects/pyNastran.op2.result_objects.html
+- MSC Nastran 2021.4 Reference Guide: real GRID displacement PCH example used
+  for the transcribed minimal reader fixture.
+  https://documentation-be.hexagon.com/bundle/MSC_Nastran_2021.4_Reference_Guide/raw/resource/enus/MSC_Nastran_2021.4_Reference_Guide.pdf
+- Altair Punch File documentation: PCH result block and table context.
+  https://2025.help.altair.com/2025.1/hwsolvers/os/topics/solvers/os/punch_files_r.htm
 
 Vendor dialects differ. These references establish the intended subset; they do
 not justify claiming complete MSC/NX/OptiStruct interoperability. Revisit the

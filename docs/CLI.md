@@ -12,6 +12,7 @@ caexfer validate model.bdf --json
 caexfer convert model.bdf model.vtu --accept-projection
 caexfer convert model.bdf model.msh --msh-version 2.2 --accept-projection
 caexfer convert results.op2 results.vtu --mesh model.bdf --accept-projection
+caexfer convert results.pch results.vtu --mesh model.bdf --subcase 1 --accept-projection
 caexfer convert results.op2 results.vtu --mesh model.msh \
   --assume-basic-frame --accept-projection
 caexfer convert results.frd results.op2 --zero-missing-rotations \
@@ -33,19 +34,20 @@ JSON/human display of non-UTF-8 paths is lossy, not an exact path serialization.
 
 Input extensions are `.bdf`, `.nas`, `.dat`, `.pch`, `.vtu`, `.vtk`, `.msh`, `.inp`,
 `.frd`, and `.op2` (case-insensitive). `--from FORMAT` overrides the extension;
-this is not content autodetection. Output extension selects the writer.
+this is not content autodetection. `.pch` selects the read-only PCH results
+adapter. Output extension selects the writer.
 MSH input version is detected from `$MeshFormat`; `--msh-version 2.2` selects
 2.2 output, while 4.1 remains the default. The option also applies to an MSH
 companion written through `--mesh-out`.
-`--mesh FILE` supplies geometry when reading OP2. It accepts BDF, VTU, VTK, MSH,
+`--mesh FILE` supplies geometry when reading OP2 or PCH. It accepts BDF, VTU, VTK, MSH,
 INP, or FRD with the same node IDs as the displacement table. BDF input
 verifies `GRID CD=0`. The other formats do not carry that check, so
-`--assume-basic-frame` explicitly asserts that both mesh coordinates and OP2
+`--assume-basic-frame` explicitly asserts that both mesh coordinates and result
 displacements use the basic frame. Any fields in the companion file are ignored.
 OP2 output carries one displacement table and needs a separately retained
 matching mesh. `--mesh-out FILE` optionally writes a geometry-only companion
 in BDF, VTU, VTK, MSH, INP, or FRD format. `--subcase N` and
-zero-based `--step N` select an OP2 result. For FRD, `--step N` selects the
+zero-based `--step N` select an OP2 or PCH displacement result. For FRD, `--step N` selects the
 step number. These selection options also work with `info` and `validate`.
 `--zero-missing-rotations` is an OP2-output-only assertion that absent
 R1/R2/R3 in a three-component displacement are known float zero. Without it,

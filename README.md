@@ -9,7 +9,7 @@
 
 `caexfer` preserves Nastran BDF source bytes and projects supported linear
 meshes and numeric results between BDF, VTU, legacy VTK, MSH 4.1/2.2, INP,
-FRD, and OP2.
+FRD, OP2, and read-only PCH.
 Conversions report information the destination cannot carry.
 
 ## Install and try the CLI
@@ -38,7 +38,7 @@ caexfer convert tests/fixtures/linear-results.frd results.op2 --zero-missing-rot
 ```
 
 For a local checkout without installing, replace `caexfer` with
-`cargo run --`. OP2 routes run in Rust without a Python installation.
+`cargo run --`. OP2 and PCH routes run in Rust without a Python installation.
 
 `convert` requires `--accept-projection` to acknowledge projection into the
 supported mesh and field subset. Output
@@ -46,7 +46,7 @@ files must be new; the CLI never overwrites an existing path.
 
 ## Conversion routes
 
-[![Schematic of BDF, VTU, VTK, MSH, INP, FRD, and OP2 representations](assets/conversion-flow.svg)](assets/conversion-flow.svg)
+[![Schematic of BDF, VTU, VTK, MSH, INP, FRD, OP2, and PCH representations](assets/conversion-flow.svg)](assets/conversion-flow.svg)
 
 The figure shows what each format can carry; the matrix lists `convert` routes:
 
@@ -59,6 +59,7 @@ The figure shows what each format can carry; the matrix lists `convert` routes:
 | **INP**                 | M   | M   | M   | M       | M   | M†  | Z                     |
 | **FRD**                 | M   | F   | F   | F       | M   | F†  | D‡                    |
 | **OP2 + matching mesh** | M*  | F*  | F*  | F*      | M*  | F*† | D*‡                   |
+| **PCH + matching mesh** | M*  | F*  | F*  | F*      | M*  | F*† | D*‡                   |
 
 | Key   | Result                                                                                                                                                                                                                                                                                                                                              |
 |-------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -66,7 +67,7 @@ The figure shows what each format can carry; the matrix lists `convert` routes:
 | **F** | Mesh plus supported numeric fields.                                                                                                                                                                                                                                                                                                                 |
 | **D** | One real displacement table written to OP2 in Rust.                                                                                                                                                                                                                                                                                                    |
 | **Z** | Synthetic OP2 with six float-zero displacement components per node; requires `--assume-zero-displacement` and labels its values as assumed, not solver results.                                                                                                                                                                                        |
-| `*`   | Reading OP2 requires `--mesh` with a matching BDF, VTU, VTK, MSH, INP, or FRD mesh. Node IDs must match; OP2 cannot verify companion coordinates or cells. BDF verifies `GRID CD=0`. Other formats cannot verify the OP2 displacement frame and require `--assume-basic-frame`.                                                                          |
+| `*`   | Reading OP2 or PCH requires `--mesh` with a matching BDF, VTU, VTK, MSH, INP, or FRD mesh. Node IDs must match; results cannot verify companion coordinates or cells. BDF verifies `GRID CD=0`. Other formats require `--assume-basic-frame`.                                                                          |
 | `†`   | FRD does not support five-node pyramids; its output can carry nodal fields and rounds ASCII values to six significant digits. `‡` OP2 writing requires one selected three- or six-component `DISP` field. If rotations are absent, `--zero-missing-rotations` explicitly asserts they are float zero; otherwise the conversion fails. |
 
 See [format limits](docs/SUPPORT.md) for other omissions and conditions.
@@ -80,6 +81,8 @@ See [format limits](docs/SUPPORT.md) for other omissions and conditions.
   higher-order geometry is rejected.
 - BDF and INP exports are geometry-only decks, not runnable solver models. OP2
   exports results only and needs a matching mesh for later reading.
+- PCH imports real SORT1 GRID displacement results with explicit subcase and
+  step selection. PCH writing is not supported.
 - `validate` checks the supported geometry or mesh/field subset, not full solver
   validity. No format adapter launches Python.
 

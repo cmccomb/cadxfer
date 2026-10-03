@@ -32,7 +32,10 @@ they do not encode CD. Writing OP2 emits no geometry; the CLI can optionally
 write a separate companion mesh. A recognized three-component displacement has
 unknown rotations and fails by default; an explicit assertion can set them to
 float zero, and the fill is reported. Format modules are part of one Rust
-package; the CLI has no Python runtime dependency.
+package; the CLI has no Python runtime dependency. PCH projects a bounded
+real SORT1 ASCII displacement block through the same normalized nodal field
+path as OP2. Its read route uses the same companion mesh and frame checks;
+PCH writing is not yet supported.
 
 A result-free BDF or INP can deliberately produce a synthetic all-zero OP2
 through `--assume-zero-displacement`. This is an explicit hypothetical field,

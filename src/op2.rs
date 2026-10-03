@@ -2,6 +2,7 @@
 //! A matching mesh with original node IDs is required. Coordinates and
 //! displacements must be in the basic frame; unsupported tables fail explicitly.
 use crate::core::{Dataset, Error, Field, FieldLocation, Mesh, Result};
+use crate::nastran_result;
 use crate::op2_binary;
 
 /// Decode one real six-component OUGV1 displacement table from OP2 bytes.
@@ -24,44 +25,16 @@ pub fn read_displacements(
     subcase: Option<i64>,
     step: Option<usize>,
 ) -> Result<(Dataset, bool)> {
-    mesh.validate()?;
     let selected = op2_binary::decode(bytes, subcase, step)?;
-    if selected.rows.len() != mesh.points.len() {
-        return Err(Error::new(
-            "E_OP2",
-            "displacement nodes do not match mesh nodes",
-        ));
-    }
-
-    // Produce entity-major field values in mesh point order.
-    let capacity = mesh
-        .points
-        .len()
-        .checked_mul(6)
-        .ok_or_else(|| Error::new("E_OP2", "displacement value count overflows"))?;
-    let mut values = Vec::with_capacity(capacity);
-    for point in &mesh.points {
-        values.extend(selected.rows.get(&point.id).ok_or_else(|| {
-            Error::new("E_OP2", format!("no displacement for GRID {}", point.id))
-        })?);
-    }
-    let dataset = Dataset {
-        mesh: mesh.clone(),
-        fields: vec![Field {
-            name: format!("DISPLACEMENT_SUBCASE_{}", selected.subcase),
-            location: FieldLocation::Point,
-            components: ["T1", "T2", "T3", "R1", "R2", "R3"]
-                .map(str::to_owned)
-                .to_vec(),
-            values,
-            step: Some(
-                i64::try_from(selected.step)
-                    .map_err(|_| Error::new("E_OP2", "result step exceeds Int64"))?,
-            ),
-            time: Some(selected.time),
-        }],
-    };
-    dataset.validate()?;
+    let dataset = nastran_result::displacement_dataset(
+        mesh,
+        &selected.rows,
+        6,
+        selected.subcase,
+        selected.step,
+        Some(selected.time),
+        "E_OP2",
+    )?;
     Ok((dataset, selected.assumed_zero))
 }
 

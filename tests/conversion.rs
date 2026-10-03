@@ -58,3 +58,77 @@ fn op2_non_bdf_companion_requires_explicit_frame_assertion() {
     assert_eq!(error.code, "E_USAGE");
     assert!(error.message.contains("--assume-basic-frame"));
 }
+
+#[test]
+fn pch_read_requires_matching_mesh_and_explicit_selection() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let source = root.join("tests/fixtures/pch-multiple.pch");
+    assert_eq!(Format::from_input_path(&source).unwrap(), Format::Pch);
+    assert_eq!(
+        conversion::read_path(&source, &Options::default())
+            .unwrap_err()
+            .code,
+        "E_USAGE"
+    );
+    let mut options = Options {
+        mesh: Some(root.join("tests/fixtures/pch-companion.bdf")),
+        ..Options::default()
+    };
+    assert_eq!(
+        conversion::read_path(&source, &options).unwrap_err().code,
+        "E_PCH"
+    );
+    options.subcase = Some(2);
+    assert_eq!(
+        conversion::read_path(&source, &options).unwrap_err().code,
+        "E_PCH"
+    );
+    options.step = Some(1);
+    let read = conversion::read_path(&source, &options).unwrap();
+    assert_eq!(
+        (read.dataset.mesh.points.len(), read.dataset.fields.len()),
+        (2, 1)
+    );
+    assert_eq!(read.dataset.fields[0].time, Some(0.5));
+    assert!((read.dataset.fields[0].values[0] - 3.0).abs() < f64::EPSILON);
+    assert_eq!(
+        conversion::convert(read, Format::Pch, &Options::default(), Vec::new())
+            .unwrap_err()
+            .code,
+        "E_FORMAT"
+    );
+}
+
+#[test]
+fn pch_non_bdf_companion_requires_basic_frame_assertion() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let source = root.join("tests/fixtures/pch-multiple.pch");
+    let companion = root.join("tests/fixtures/pch-companion.bdf");
+    let mesh = conversion::read_path(&companion, &Options::default())
+        .unwrap()
+        .dataset
+        .mesh;
+    let folder = std::env::temp_dir().join(format!("caexfer-pch-{}", std::process::id()));
+    std::fs::create_dir_all(&folder).unwrap();
+    let path = folder.join("mesh.vtu");
+    let file = std::fs::File::create(&path).unwrap();
+    caexfer::vtu::write(&mesh, file).unwrap();
+    let mut options = Options {
+        mesh: Some(path.clone()),
+        subcase: Some(1),
+        ..Options::default()
+    };
+    let error = conversion::read_path(&source, &options).unwrap_err();
+    assert_eq!(error.code, "E_USAGE");
+    assert!(error.message.contains("--assume-basic-frame"));
+    options.assume_basic_frame = true;
+    let read = conversion::read_path(&source, &options).unwrap();
+    assert_eq!(read.dataset.fields.len(), 1);
+    assert!(
+        read.omissions
+            .iter()
+            .any(|item| item.stage == Stage::Assumption)
+    );
+    std::fs::remove_file(path).unwrap();
+    std::fs::remove_dir(folder).unwrap();
+}

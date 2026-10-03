@@ -21,10 +21,10 @@ USAGE
   caexfer convert INPUT OUTPUT --accept-projection [--json]
 
 OPTIONS
-  --from FORMAT               bdf, vtu, vtk, msh, inp, frd, op2; else infer extension
+  --from FORMAT               bdf, vtu, vtk, msh, inp, frd, op2, pch; else infer extension
   --strict                    Fail validation on warnings or omissions
   --accept-projection         Required for conversion into the supported subset
-  --step N                    Zero-based OP2 result step or FRD step number
+  --step N                    Zero-based OP2/PCH result step or FRD step number
   --max-bytes N               Input byte limit (default: 268435456)
   --msh-version 2.2|4.1        MSH output dialect (default: 4.1)
   --json                      Machine-readable output (schema_version=1)
@@ -32,10 +32,11 @@ OPTIONS
   -h, --help                  Show this help
   -V, --version               Show version
 
-OP2 OPTIONS
-  --mesh FILE                 Matching BDF, VTU, VTK, MSH, INP, or FRD mesh for input
-  --assume-basic-frame        Assert basic frame for non-BDF mesh and OP2 results
+NASTRAN RESULT OPTIONS
+  --mesh FILE                 Matching BDF, VTU, VTK, MSH, INP, or FRD mesh for OP2/PCH input
+  --assume-basic-frame        Assert basic frame for non-BDF mesh and result
   --subcase N                 Select a displacement subcase when reading
+OP2 OUTPUT OPTIONS
   --mesh-out FILE             Also write a separate mesh with OP2 output
   --zero-missing-rotations    Assert absent R1/R2/R3 are zero when writing
   --assume-zero-displacement  Synthesize zero OP2 from BDF/INP (no solver)
@@ -267,7 +268,9 @@ fn parse_args(raw: &[OsString]) -> Result<Args> {
         return Err(usage("--mesh-out applies only to OP2 output"));
     }
     if args.assume_basic_frame && args.mesh.is_none() {
-        return Err(usage("--assume-basic-frame requires --mesh for OP2 input"));
+        return Err(usage(
+            "--assume-basic-frame requires --mesh for OP2/PCH input",
+        ));
     }
     if args.zero_missing_rotations && !op2_output {
         return Err(usage("--zero-missing-rotations applies only to OP2 output"));
@@ -674,6 +677,11 @@ fn run(args: &Args) -> Result<u8> {
                         "32-bit real OUGV1 displacement and matching mesh",
                         "32-bit real OUGV1 displacement; optional companion mesh export; no embedded mesh",
                     ),
+                    (
+                        "pch",
+                        "ASCII real SORT1 displacement and matching mesh",
+                        "read-only; no PCH writer",
+                    ),
                 ];
                 emit(&object([
                     ("schema_version", "1".into()),
@@ -684,6 +692,7 @@ fn run(args: &Args) -> Result<u8> {
                                 ("format", quote(name)),
                                 ("read", "true".into()),
                                 ("read_scope", quote(read)),
+                                ("writable", (name != &"pch").to_string()),
                                 ("write", quote(write)),
                             ])
                         })),
@@ -691,7 +700,7 @@ fn run(args: &Args) -> Result<u8> {
                 ]))?;
             } else {
                 emit(
-                    "bdf  document + linear mesh; geometry export\nvtu  ASCII XML mesh + numeric fields, read/write\nvtk  ASCII legacy unstructured grid + numeric fields, read/write\nmsh  ASCII 4.1/2.2 mesh + numeric fields, read/write (output defaults to 4.1)\ninp  flat mesh subset, read/geometry write\nfrd  ASCII mesh + nodal fields, read/write\nop2  32-bit real OUGV1 displacement, read/write; explicit synthetic-zero option; optional companion mesh",
+                    "bdf  document + linear mesh; geometry export\nvtu  ASCII XML mesh + numeric fields, read/write\nvtk  ASCII legacy unstructured grid + numeric fields, read/write\nmsh  ASCII 4.1/2.2 mesh + numeric fields, read/write (output defaults to 4.1)\ninp  flat mesh subset, read/geometry write\nfrd  ASCII mesh + nodal fields, read/write\nop2  32-bit real OUGV1 displacement, read/write; explicit synthetic-zero option; optional companion mesh\npch  ASCII real SORT1 displacement, read-only; matching mesh required",
                 )?;
             }
             return Ok(0);
@@ -714,7 +723,7 @@ fn run(args: &Args) -> Result<u8> {
         || args.step.is_some()
     {
         return Err(usage(
-            "OP2 mesh, frame, subcase, and step options do not apply to BDF inspection",
+            "result mesh, frame, subcase, and step options do not apply to BDF inspection",
         ));
     }
     let doc = read_bdf(

@@ -61,6 +61,7 @@ def main() -> None:
         msh22 = folder / 'source22.msh'
         run('convert', sources['bdf'], msh22, '--msh-version', '2.2', '--accept-projection')
         sources['msh22'] = msh22
+        sources['pch'] = ROOT / 'tests/fixtures/pch-multiple.pch'
         if options.op2_check:
             sources['op2'] = ROOT / 'tests/fixtures/solid_bending.op2'
         routes = 0
@@ -68,18 +69,20 @@ def main() -> None:
             extra = []
             if source_format == 'op2':
                 extra = ['--mesh', ROOT / 'tests/fixtures/solid_bending.bdf']
+            elif source_format == 'pch':
+                extra = ['--mesh', ROOT / 'tests/fixtures/pch-companion.bdf', '--subcase', '1']
             for target_format in ('bdf', 'vtu', 'vtk', 'msh', 'inp'):
                 target = folder / f'{source_format}-to-{target_format}.{target_format}'
                 report = run('convert', source, target, '--accept-projection', *extra)
                 assert target.is_file() and report['points'] > 0 and report['cells'] > 0
-                expected = (72, 186) if source_format == 'op2' else ((3, 1) if source_format == 'frd' else (4, 1))
+                expected = (72, 186) if source_format == 'op2' else ((3, 1) if source_format == 'frd' else (2, 1) if source_format == 'pch' else (4, 1))
                 assert (report['points'], report['cells']) == expected, (source_format, target_format, report)
                 if target_format == 'bdf':
                     assert run('validate', target)['passed']
                 else:
                     info = run('info', target)
                     assert (info['points'], info['cells']) == expected
-                    expected_fields = 2 if source_format == 'frd' else (1 if source_format == 'op2' else 0)
+                    expected_fields = 2 if source_format == 'frd' else (1 if source_format in ('op2', 'pch') else 0)
                     if target_format == 'inp':
                         expected_fields = 0
                     assert info['fields'] == expected_fields, (source_format, target_format, info)
@@ -106,7 +109,7 @@ def main() -> None:
             assert dialect.read_text().startswith('$MeshFormat\n2.2 0 8\n')
             assert (report['points'], report['cells']) == expected
             assert run('info', dialect)['fields'] == (2 if source_format == 'frd' else
-                                                     1 if source_format == 'op2' else 0)
+                                                     1 if source_format in ('op2', 'pch') else 0)
             routes += 1
             target = folder / f'{source_format}-to-frd.frd'
             report = run('convert', source, target, '--accept-projection', *extra)
@@ -114,7 +117,7 @@ def main() -> None:
             info = run('info', target)
             assert (info['points'], info['cells']) == expected
             assert info['fields'] == (2 if source_format == 'frd' else
-                                      1 if source_format == 'op2' else 0)
+                                      1 if source_format in ('op2', 'pch') else 0)
             routes += 1
 
             if source_format == 'frd':
@@ -182,6 +185,16 @@ def main() -> None:
                         assert any('synthetic all-zero' in item for item in reread_report['omissions'])
                     routes += 1
         if options.op2_check:
+            pch_mesh = ROOT / 'tests/fixtures/pch-companion.bdf'
+            pch_op2 = folder / 'pch-to-op2.op2'
+            run('convert', sources['pch'], pch_op2, '--mesh', pch_mesh,
+                '--subcase', '1', '--accept-projection')
+            independent_op2(pch_op2, expected_rows={
+                10: [1., 2., 3., 4., 5., 6.],
+                20: [7., 8., 9., 10., 11., 12.],
+            })
+            assert run('info', pch_op2, '--mesh', pch_mesh)['fields'] == 1
+            routes += 1
             op2_source = sources['op2']
             op2_mesh = ROOT / 'tests/fixtures/solid_bending.bdf'
             for extension in ('vtu', 'msh', 'inp', 'frd'):
