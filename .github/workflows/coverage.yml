@@ -21,6 +21,8 @@ jobs:
       - name: Fetch Rust dependencies
         run: cargo fetch
       - uses: taiki-e/install-action@cargo-llvm-cov
+      - name: Install badge JSON reader
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq jq
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
@@ -32,7 +34,7 @@ jobs:
       - name: Render measured coverage badge
         id: badge
         if: ${{ always() && hashFiles('target/coverage.json') != '' }}
-        run: python scripts/coverage_badge.py target/coverage.json target/coverage.svg
+        run: bash scripts/coverage_badge.sh target/coverage.json target/coverage.svg
       - uses: actions/upload-artifact@v4
         if: ${{ always() && steps.badge.outcome == 'success' }}
         with:

@@ -44,8 +44,9 @@ do not establish compatibility with every real solver file.
 
 ## Reproduce
 
-Install `cargo-llvm-cov` and the Rust toolchain's `llvm-tools-preview`
-component, then use a Python interpreter with `pyNastran==1.4.1`:
+Install `cargo-llvm-cov`, `jq`, and the Rust toolchain's `llvm-tools-preview`
+component, then use a Python interpreter with `pyNastran==1.4.1` for the OP2
+checks:
 
 ```sh
 bash scripts/coverage.sh python3
