@@ -2,8 +2,8 @@
 
 Install with `cargo install --git https://github.com/cmccomb/caexfer.git`
 (Rust 2024 edition, toolchain 1.85+). In a checkout,
-`cargo run -- COMMAND ...` runs the same CLI without installation. Routes that
-do not read or write OP2 need no Python.
+`cargo run -- COMMAND ...` runs the same CLI without installation. All routes
+run without Python.
 
 ```sh
 caexfer formats
@@ -17,9 +17,6 @@ caexfer convert results.frd results.op2 --zero-missing-rotations \
   --mesh-out results-mesh.bdf --accept-projection
 ```
 
-The OP2 example requires pyNastran in the selected Python interpreter.
-Install it in that interpreter (for example, `python3 -m pip install pyNastran`),
-then pass `--python PATH` if `python3` is not the right environment.
 Use a fresh output filename for each command.
 
 `caexfer --help` lists all commands. Paths can occur before or after options; use
@@ -43,8 +40,7 @@ verifies `GRID CD=0`. The other formats do not carry that check, so
 displacements use the basic frame. Any fields in the companion file are ignored.
 OP2 output carries one displacement table and needs a separately retained
 matching mesh. `--mesh-out FILE` optionally writes a geometry-only companion
-in BDF, VTU, MSH, INP, or FRD format. `--python PATH` selects an interpreter
-with pyNastran installed; `CAEXFER_PYTHON` is the fallback. `--subcase N` and
+in BDF, VTU, MSH, INP, or FRD format. `--subcase N` and
 zero-based `--step N` select an OP2 result. For FRD, `--step N` selects the
 step number. These selection options also work with `info` and `validate`.
 `--zero-missing-rotations` is an OP2-output-only assertion that absent
@@ -52,7 +48,7 @@ R1/R2/R3 in a three-component displacement are known float zero. Without it,
 that conversion fails rather than filling unknown results.
 `--assume-zero-displacement` accepts BDF or INP input and creates a synthetic
 static OP2 displacement table with six float zeros per node. It requires
-pyNastran, labels the OP2 title as assumed data, and never runs a solver.
+no external adapter, labels the OP2 title as assumed data, and never runs a solver.
 For INP, retain the source mesh or use `--mesh-out` to export a companion.
 
 `--json` produces one JSON object on stdout, with schema_version=1. Human-readable

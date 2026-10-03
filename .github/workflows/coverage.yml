@@ -26,7 +26,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Install pyNastran for OP2 checks
+      - name: Install pyNastran for independent OP2 output checks
         run: python -m pip install pyNastran==1.4.1
       - name: Measure Rust line coverage
         run: bash scripts/coverage.sh python

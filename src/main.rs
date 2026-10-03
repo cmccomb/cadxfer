@@ -34,7 +34,6 @@ OP2 OPTIONS
   --mesh FILE                 Matching BDF, VTU, MSH, INP, or FRD mesh for input
   --assume-basic-frame        Assert basic frame for non-BDF mesh and OP2 results
   --subcase N                 Select a displacement subcase when reading
-  --python PATH               Python with pyNastran (or CAEXFER_PYTHON)
   --mesh-out FILE             Also write a separate mesh with OP2 output
   --zero-missing-rotations    Assert absent R1/R2/R3 are zero when writing
   --assume-zero-displacement  Synthesize zero OP2 from BDF/INP (no solver)
@@ -60,7 +59,6 @@ struct Args {
     mesh: Option<PathBuf>,
     mesh_out: Option<PathBuf>,
     assume_basic_frame: bool,
-    python: Option<PathBuf>,
     subcase: Option<i64>,
     step: Option<usize>,
     max_bytes: Option<usize>,
@@ -112,15 +110,6 @@ fn is_op2_output(args: &Args) -> bool {
             .and_then(|path| path.extension())
             .and_then(OsStr::to_str)
             .is_some_and(|extension| extension.eq_ignore_ascii_case("op2"))
-}
-
-/// Select pyNastran's interpreter: explicit option, environment, then default.
-fn python(args: &Args) -> PathBuf {
-    // CLI selection takes precedence over the environment fallback.
-    args.python
-        .clone()
-        .or_else(|| std::env::var_os("CAEXFER_PYTHON").map(PathBuf::from))
-        .unwrap_or_else(|| PathBuf::from("python3"))
 }
 
 /// Parse commands and options, then reject contradictory or irrelevant flags.
@@ -205,11 +194,6 @@ fn parse_args(raw: &[OsString]) -> Result<Args> {
             index += 1;
         } else if options && arg == "--mesh-out" {
             set_option(&mut args.mesh_out, "--mesh-out", || {
-                Ok(PathBuf::from(value(1)?))
-            })?;
-            index += 1;
-        } else if options && arg == "--python" {
-            set_option(&mut args.python, "--python", || {
                 Ok(PathBuf::from(value(1)?))
             })?;
             index += 1;
@@ -299,7 +283,6 @@ fn parse_args(raw: &[OsString]) -> Result<Args> {
             || args.mesh.is_some()
             || args.mesh_out.is_some()
             || args.assume_basic_frame
-            || args.python.is_some()
             || args.subcase.is_some()
             || args.step.is_some())
     {
@@ -376,18 +359,12 @@ fn format_of(args: &Args) -> Result<Format> {
 }
 
 /// Translate validated CLI flags into the library's typed conversion options.
-/// Reject an explicit Python override on routes that cannot use OP2.
 fn conversion_options(args: &Args) -> Result<Options> {
-    // Python is meaningful only when reading or writing OP2.
     let format = format_of(args)?;
-    if args.python.is_some() && format != Format::Op2 && !is_op2_output(args) {
-        return Err(usage("--python applies only to OP2 input or output"));
-    }
     Ok(Options {
         input_format: Some(format),
         mesh: args.mesh.clone(),
         assume_basic_frame: args.assume_basic_frame,
-        python: python(args),
         subcase: args.subcase,
         step: args.step,
         max_bytes: args.max_bytes.unwrap_or(ParseOptions::default().max_bytes),
@@ -668,8 +645,8 @@ fn run(args: &Args) -> Result<u8> {
                     ),
                     (
                         "op2",
-                        "real displacement via pyNastran and matching mesh",
-                        "real displacement via pyNastran; optional companion mesh export; no embedded mesh",
+                        "32-bit real OUGV1 displacement and matching mesh",
+                        "32-bit real OUGV1 displacement; optional companion mesh export; no embedded mesh",
                     ),
                 ];
                 emit(&object([
@@ -688,7 +665,7 @@ fn run(args: &Args) -> Result<u8> {
                 ]))?;
             } else {
                 emit(
-                    "bdf  document + linear mesh; geometry export\nvtu  ASCII mesh + numeric fields, read/write\nmsh  ASCII 4.1 mesh + numeric fields, read/write\ninp  flat mesh subset, read/geometry write\nfrd  ASCII mesh + nodal fields, read/write\nop2  real displacement via pyNastran, read/write; explicit synthetic-zero option; optional companion mesh",
+                    "bdf  document + linear mesh; geometry export\nvtu  ASCII mesh + numeric fields, read/write\nmsh  ASCII 4.1 mesh + numeric fields, read/write\ninp  flat mesh subset, read/geometry write\nfrd  ASCII mesh + nodal fields, read/write\nop2  32-bit real OUGV1 displacement, read/write; explicit synthetic-zero option; optional companion mesh",
                 )?;
             }
             return Ok(0);
@@ -707,12 +684,11 @@ fn run(args: &Args) -> Result<u8> {
     }
     if args.mesh.is_some()
         || args.assume_basic_frame
-        || args.python.is_some()
         || args.subcase.is_some()
         || args.step.is_some()
     {
         return Err(usage(
-            "OP2 mesh, frame, subcase, step and Python options do not apply to BDF inspection",
+            "OP2 mesh, frame, subcase, and step options do not apply to BDF inspection",
         ));
     }
     let doc = read_bdf(

@@ -65,10 +65,10 @@ jobs:
         run: python scripts/check_interop.py
       - name: Check supported conversion matrix
         run: python scripts/check_matrix.py
-      # The optional OP2 route needs pyNastran on the stable Linux runner.
+      # pyNastran independently reads Rust-written OP2 only on stable Linux.
       - name: Install pyNastran for OP2 interoperability
         if: matrix.os == 'ubuntu-latest' && matrix.rust == 'stable'
         run: python -m pip install pyNastran==1.4.1
       - name: Check OP2 conversion matrix
         if: matrix.os == 'ubuntu-latest' && matrix.rust == 'stable'
-        run: python scripts/check_matrix.py --op2-python python
+        run: python scripts/check_matrix.py --op2-check

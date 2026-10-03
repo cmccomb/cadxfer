@@ -31,14 +31,13 @@ caexfer formats
 caexfer info examples/plate.bdf
 caexfer convert examples/plate.bdf plate.vtu --accept-projection
 
-# With pyNastran and a source containing displacement results:
+# With a source containing displacement results:
 caexfer convert tests/fixtures/linear-results.frd results.op2 --zero-missing-rotations \
   --mesh-out results-mesh.bdf --accept-projection
 ```
 
 For a local checkout without installing, replace `caexfer` with
-`cargo run --`. OP2 routes additionally need Python with pyNastran;
-the other routes have no non-Rust runtime dependency.
+`cargo run --`. OP2 routes run in Rust without a Python installation.
 
 `convert` requires `--accept-projection` to acknowledge projection into the
 supported mesh and field subset. Output
@@ -63,10 +62,10 @@ The figure shows what each format can carry; the matrix lists `convert` routes:
 |-------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | **M** | Linear mesh projection with original node and element IDs.                                                                                                                                                                                                                                                                                          |
 | **F** | Mesh plus supported numeric fields.                                                                                                                                                                                                                                                                                                                 |
-| **D** | One real displacement table written to OP2 via pyNastran.                                                                                                                                                                                                                                                                                           |
-| **Z** | Synthetic OP2 with six float-zero displacement components per node; requires `--assume-zero-displacement`. Requires pyNastran and labels its values as assumed, not solver results.                                                                                                                                                                 |
+| **D** | One real displacement table written to OP2 in Rust.                                                                                                                                                                                                                                                                                                    |
+| **Z** | Synthetic OP2 with six float-zero displacement components per node; requires `--assume-zero-displacement` and labels its values as assumed, not solver results.                                                                                                                                                                                        |
 | `*`   | Reading OP2 requires `--mesh` with a matching BDF, VTU, MSH, INP, or FRD mesh. Node IDs must match; OP2 cannot verify companion coordinates or cells. BDF verifies `GRID CD=0`. Other formats cannot verify the OP2 displacement frame and require `--assume-basic-frame`.                                                                          |
-| `†`   | FRD does not support five-node pyramids; its output can carry nodal fields and rounds ASCII values to six significant digits. `‡` OP2 writing requires pyNastran and one selected three- or six-component `DISP` field. If rotations are absent, `--zero-missing-rotations` explicitly asserts they are float zero; otherwise the conversion fails. |
+| `†`   | FRD does not support five-node pyramids; its output can carry nodal fields and rounds ASCII values to six significant digits. `‡` OP2 writing requires one selected three- or six-component `DISP` field. If rotations are absent, `--zero-missing-rotations` explicitly asserts they are float zero; otherwise the conversion fails. |
 
 See [format limits](docs/SUPPORT.md) for other omissions and conditions.
 
@@ -80,7 +79,7 @@ See [format limits](docs/SUPPORT.md) for other omissions and conditions.
 - BDF and INP exports are geometry-only decks, not runnable solver models. OP2
   exports results only and needs a matching mesh for later reading.
 - `validate` checks the supported geometry or mesh/field subset, not full solver
-  validity. OP2 is the only adapter that calls external Python software.
+  validity. No format adapter launches Python.
 
 The full boundary, including rejected dialects and resource limits, is in
 [SUPPORT.md](docs/SUPPORT.md).

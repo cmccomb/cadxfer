@@ -22,16 +22,17 @@ are never inferred from a mesh. Every CLI conversion needs an explicit
 `--accept-projection` acknowledgement and reports source/destination omissions.
 
 FRD and OP2 have different boundaries. The FRD adapter reads and writes a
-documented ASCII subset directly. OP2 reads and writes one real displacement
-table through pyNastran because record framing alone is not displacement data.
+documented ASCII subset directly. OP2 reads and writes a bounded 32-bit real
+SORT1 OUGV1 displacement subset in Rust, validating record framing and table
+metadata before interpreting values. CI uses pyNastran as an independent reader.
 Reading OP2 requires a matching mesh and checks node identity. A BDF also
 supplies GRID CD, so the reader can reject nonbasic displacement frames.
 Other supported mesh formats require an explicit basic-frame assertion because
 they do not encode CD. Writing OP2 emits no geometry; the CLI can optionally
 write a separate companion mesh. A recognized three-component displacement has
 unknown rotations and fails by default; an explicit assertion can set them to
-float zero, and the fill is reported. All format modules are part of the one
-dependency-free Rust package.
+float zero, and the fill is reported. Format modules are part of one Rust
+package; the CLI has no Python runtime dependency.
 
 A result-free BDF or INP can deliberately produce a synthetic all-zero OP2
 through `--assume-zero-displacement`. This is an explicit hypothetical field,
@@ -58,8 +59,7 @@ valid simply because they survived lexical parsing.
 ## Safe file operations
 
 Input reads are bounded. INCLUDE is an inert native record, not permission to
-traverse the filesystem. The BDF parser does not spawn tools. The optional OP2 adapter explicitly launches
-a user-selected Python interpreter with pyNastran installed.
+traverse the filesystem. Format adapters do not spawn tools.
 Outputs use a new filename; the CLI stages writes and refuses an existing path.
 The library writes to caller-provided streams and documents partial-I/O behavior.
 

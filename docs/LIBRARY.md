@@ -26,7 +26,7 @@ same result type for both caexfer and filesystem operations.
 | Extract supported BDF geometry | `bdf::read_geometry(bytes)` or `Document::geometry()` | `GeometryProjection { mesh, omissions }` |
 | Read a mesh and numeric results | `vtu::read`, `msh::read`, or `frd::read` | `core::Dataset` |
 | Read a flat INP mesh | `inp::read` | `Inspection { mesh, omitted_keywords }` |
-| Read one OP2 displacement result | `op2::read_displacements` | `(Dataset, assumed_zero)`; matching `Mesh` and pyNastran required |
+| Read one OP2 displacement result | `op2::read_displacements` | `(Dataset, assumed_zero)`; matching `Mesh` required |
 | Convert a file and inspect losses | `conversion::convert_path` | Caller-owned output stream and `ConversionReport` |
 
 `core::Mesh` contains original positive point and cell IDs. Cell connectivity
@@ -83,8 +83,8 @@ fn main() -> Result<()> {
 }
 ```
 
-`Options` sets source format, result selection, byte limits, and the Python
-interpreter for OP2. For OP2 input, set `mesh` to a matching BDF, VTU, MSH,
+`Options` sets source format, result selection, and byte limits. For OP2 input,
+set `mesh` to a matching BDF, VTU, MSH,
 INP, or FRD file. Set `assume_basic_frame` for a non-BDF companion only when
 its coordinates and the OP2 displacements are known to use the basic frame.
 `read_path` returns a `ReadResult` if an application needs
@@ -132,7 +132,7 @@ stages no-clobber output. If those attributes matter, check the
 | MSH 4.1 | `msh::write(&dataset, writer)` | `&Dataset` |
 | Geometry-only INP | `inp::write(&mesh, writer)` | `&Mesh` |
 | FRD | `frd::write(&dataset, writer)` | `&Dataset` with supported nodal fields |
-| OP2 | `op2::write_displacements(...)` | One real displacement field plus pyNastran |
+| OP2 | `op2::write_displacements(...)` | One real displacement field; native Rust writer |
 
 The BDF and INP exporters emit mesh exchange decks, not runnable solver
 models. FRD rounds ASCII values. Each writer can reject a dataset that is
@@ -140,20 +140,18 @@ structurally valid but outside that format's supported subset.
 
 ## OP2 and I/O boundaries
 
-The OP2 adapter invokes a Python interpreter with pyNastran installed. Pass
-its path explicitly as the `python` argument. To read, first project the
-matching BDF into a basic-frame mesh, then pass that mesh to
-`op2::read_displacements`:
+The OP2 adapter reads a bounded 32-bit real OUGV1 subset directly. To read,
+first project the matching BDF into a basic-frame mesh, then pass the OP2 bytes
+and mesh to `op2::read_displacements`:
 
 ```rust
 use caexfer::{bdf::Document, core::Result, op2};
-use std::path::Path;
-
 fn main() -> Result<()> {
     let doc = Document::open("model.bdf")?;
     let mesh = doc.geometry()?.mesh;
+    let bytes = std::fs::read("results.op2")?;
     let (dataset, assumed_zero) = op2::read_displacements(
-        Path::new("results.op2"), &mesh, Path::new("python3"), None, None,
+        &bytes, &mesh, None, None,
     )?;
     println!("{} fields; assumed zero: {assumed_zero}", dataset.fields.len());
     Ok(())

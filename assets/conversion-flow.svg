@@ -263,5 +263,5 @@
 <path d="M849 562H1166" stroke="#38516b"/>
 <text x="849" y="583" fill="#b6c7d9" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="400" letter-spacing="0">Optional separate mesh export</text>
 <path d="M45 613H1190" stroke="#304761"/>
-<text x="46" y="630" fill="#b6c7d9" font-family="Arial, Helvetica, sans-serif" font-size="12" font-weight="400" letter-spacing="0">Schematic only: field availability depends on the source; OP2 needs pyNastran and a matching mesh for reading.</text>
+<text x="46" y="630" fill="#b6c7d9" font-family="Arial, Helvetica, sans-serif" font-size="12" font-weight="400" letter-spacing="0">Schematic only: field availability depends on the source; OP2 needs a matching mesh for reading.</text>
 </svg>

@@ -153,7 +153,7 @@ def render() -> str:
     parts.extend(card(item) for item in FORMATS)
     parts.extend((
         '<path d="M45 613H1190" stroke="#304761"/>',
-        text(46, 630, "Schematic only: field availability depends on the source; OP2 needs pyNastran and a matching mesh for reading.",
+        text(46, 630, "Schematic only: field availability depends on the source; OP2 needs a matching mesh for reading.",
              size=12, color=MUTED),
         '</svg>',
     ))

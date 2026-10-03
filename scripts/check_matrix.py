@@ -2,6 +2,8 @@
 """Execute every advertised conversion route; optionally include real OP2 decoding."""
 from __future__ import annotations
 import argparse
+import contextlib
+import io
 import json
 from pathlib import Path
 import subprocess
@@ -15,10 +17,32 @@ BINARY = ROOT / 'target' / 'debug' / ('caexfer.exe' if sys.platform == 'win32' e
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument('--op2-python', type=Path, help='Python interpreter with pyNastran')
+    parser.add_argument('--op2-check', action='store_true', help='exercise native OP2 routes')
     options = parser.parse_args()
     if not BINARY.is_file():
         raise SystemExit('Build caexfer before running this check')
+
+    def independent_op2(path: Path, *, assumed_zero: bool = False,
+                        expected_rows: dict[int, list[float]] | None = None) -> None:
+        """Check Rust-written bytes with pyNastran, which is CI-only tooling."""
+        from pyNastran.op2.op2 import read_op2
+        with contextlib.redirect_stdout(io.StringIO()):
+            external = read_op2(str(path), build_dataframe=False, debug=False,
+                                include_results=['displacements'])
+        assert list(external.displacements) == [1]
+        result = external.displacements[1]
+        assert result.data.shape[0] == 1 and result.data.shape[2] == 6
+        assert all(int(kind) == 1 for kind in result.node_gridtype[:, 1])
+        if expected_rows is not None:
+            actual_rows = {int(node): row.tolist() for node, row in
+                           zip(result.node_gridtype[:, 0], result.data[0])}
+            assert actual_rows.keys() == expected_rows.keys()
+            for node, expected in expected_rows.items():
+                assert all(abs(actual - wanted) < 1e-6 for actual, wanted in
+                           zip(actual_rows[node], expected))
+        if assumed_zero:
+            assert 'CAEXFER ASSUMED ZERO DISPLACEMENT' in result.title
+            assert (result.data == 0).all()
 
     def run(*args: object, code: int = 0) -> dict:
         result = subprocess.run([str(BINARY), *map(str, args), '--json'],
@@ -34,14 +58,13 @@ def main() -> None:
             path = folder / f'source.{extension}'
             run('convert', sources['bdf'], path, '--accept-projection')
             sources[extension] = path
-        if options.op2_python:
+        if options.op2_check:
             sources['op2'] = ROOT / 'tests/fixtures/solid_bending.op2'
         routes = 0
         for source_format, source in sources.items():
             extra = []
             if source_format == 'op2':
-                extra = ['--mesh', ROOT / 'tests/fixtures/solid_bending.bdf',
-                         '--python', options.op2_python]
+                extra = ['--mesh', ROOT / 'tests/fixtures/solid_bending.bdf']
             for target_format in ('bdf', 'vtu', 'msh', 'inp'):
                 target = folder / f'{source_format}-to-{target_format}.{target_format}'
                 report = run('convert', source, target, '--accept-projection', *extra)
@@ -89,12 +112,12 @@ def main() -> None:
                 assert refused['error']['code'] == 'E_OP2' and not result.exists()
                 assert 'unknown rotations' in refused['error']['message']
 
-            if options.op2_python and source_format in ('frd', 'op2'):
+            if options.op2_check and source_format in ('frd', 'op2'):
                 result = folder / f'{source_format}-to-op2.op2'
                 if source_format == 'frd':
                     mesh = folder / 'frd-for-op2.bdf'
                     report = run('convert', source, result, '--accept-projection',
-                                 '--zero-missing-rotations', '--python', options.op2_python,
+                                 '--zero-missing-rotations',
                                  '--mesh-out', mesh)
                     assert report['mesh_output']['path'] == str(mesh)
                     assert report['mesh_output']['format'] == 'bdf'
@@ -103,14 +126,18 @@ def main() -> None:
                 else:
                     report = run('convert', source, result, '--accept-projection', *extra)
                 assert result.is_file() and report['fields'] >= 1
+                independent_op2(result, expected_rows={
+                    1: [0., 0., 0., 0., 0., 0.],
+                    2: [0.1, 0., 0., 0., 0., 0.],
+                    3: [0., 0.2, 0., 0., 0., 0.],
+                } if source_format == 'frd' else None)
                 mesh = (ROOT / 'tests/fixtures/solid_bending.bdf' if source_format == 'op2'
                         else folder / 'frd-for-op2.bdf')
                 if source_format == 'frd':
                     assert mesh.is_file() and run('validate', mesh)['passed']
                     assert any('typed float 0.0' in item['detail'] for item in report['omissions'])
                 reread = folder / f'{source_format}-op2-reread.vtu'
-                run('convert', result, reread, '--mesh', mesh,
-                    '--python', options.op2_python, '--accept-projection')
+                run('convert', result, reread, '--mesh', mesh, '--accept-projection')
                 piece = ET.parse(reread).find('./UnstructuredGrid/Piece')
                 field = piece.find("./PointData/DataArray[@Name='DISPLACEMENT_SUBCASE_1']")
                 assert field is not None
@@ -121,17 +148,17 @@ def main() -> None:
                 target = folder / f'{source_format}-to-op2.op2'
                 result = run('convert', source, target, '--accept-projection', code=1)
                 assert result['error']['code'] == 'E_OP2' and not target.exists()
-                if options.op2_python and source_format in ('bdf', 'inp'):
+                if options.op2_check and source_format in ('bdf', 'inp'):
                     report = run('convert', source, target, '--accept-projection',
-                                 '--assume-zero-displacement', '--python', options.op2_python)
+                                 '--assume-zero-displacement')
                     assert target.is_file()
+                    independent_op2(target, assumed_zero=True)
                     assert any('SYNTHETIC ASSUMPTION' in item['detail']
                                for item in report['omissions'])
                     mesh = (source if source_format == 'bdf'
                             else folder / 'inp-to-bdf.bdf')
                     reread = folder / f'{source_format}-zero-reread.vtu'
-                    loaded = run('convert', target, reread, '--mesh', mesh,
-                                 '--python', options.op2_python, '--accept-projection')
+                    loaded = run('convert', target, reread, '--mesh', mesh, '--accept-projection')
                     assert any('synthetic all-zero' in item['detail']
                                for item in loaded['omissions'])
                     piece = ET.parse(reread).find('./UnstructuredGrid/Piece')
@@ -139,13 +166,11 @@ def main() -> None:
                     assert field is not None and all(float(x) == 0.0 for x in field.text.split())
                     if source_format == 'bdf':
                         rewritten = folder / 'synthetic-op2-rewritten.op2'
-                        run('convert', target, rewritten, '--mesh', mesh,
-                            '--python', options.op2_python, '--accept-projection')
-                        reread_report = run('info', rewritten, '--mesh', mesh,
-                                            '--python', options.op2_python)
+                        run('convert', target, rewritten, '--mesh', mesh, '--accept-projection')
+                        reread_report = run('info', rewritten, '--mesh', mesh)
                         assert any('synthetic all-zero' in item for item in reread_report['omissions'])
                     routes += 1
-        if options.op2_python:
+        if options.op2_check:
             op2_source = sources['op2']
             op2_mesh = ROOT / 'tests/fixtures/solid_bending.bdf'
             for extension in ('vtu', 'msh', 'inp', 'frd'):
@@ -153,10 +178,10 @@ def main() -> None:
                 run('convert', op2_mesh, companion, '--accept-projection')
                 destination = folder / f'op2-with-{extension}-mesh.vtu'
                 refused = run('convert', op2_source, destination, '--mesh', companion,
-                              '--python', options.op2_python, '--accept-projection', code=2)
+                              '--accept-projection', code=2)
                 assert refused['error']['code'] == 'E_USAGE' and not destination.exists()
                 report = run('convert', op2_source, destination, '--mesh', companion,
-                             '--assume-basic-frame', '--python', options.op2_python,
+                             '--assume-basic-frame',
                              '--accept-projection')
                 assert (report['points'], report['cells'], report['fields']) == (72, 186, 1)
                 assert any(item['stage'] == 'assumption' and 'basic-frame' in item['detail']
@@ -164,24 +189,24 @@ def main() -> None:
                 routes += 1
             enriched_mesh = folder / 'op2-enriched-companion.vtu'
             run('convert', op2_source, enriched_mesh, '--mesh', op2_mesh,
-                '--python', options.op2_python, '--accept-projection')
+                '--accept-projection')
             enriched_result = folder / 'op2-with-enriched-mesh.vtu'
             enriched_report = run('convert', op2_source, enriched_result,
                                   '--mesh', enriched_mesh, '--assume-basic-frame',
-                                  '--python', options.op2_python, '--accept-projection')
+                                  '--accept-projection')
             assert any('numeric field(s) in companion mesh ignored' in item['detail']
                        for item in enriched_report['omissions'])
             routes += 1
             mismatched = folder / 'op2-mismatched-mesh.vtu'
             refused = run('convert', op2_source, mismatched,
                           '--mesh', sources['vtu'], '--assume-basic-frame',
-                          '--python', options.op2_python, '--accept-projection', code=1)
+                          '--accept-projection', code=1)
             assert refused['error']['code'] == 'E_OP2' and not mismatched.exists()
             existing = folder / 'existing-companion.bdf'
             existing.write_text('already here')
             failed_pair = folder / 'no-partial-pair.op2'
             refused = run('convert', sources['frd'], failed_pair, '--mesh-out', existing,
-                          '--zero-missing-rotations', '--python', options.op2_python,
+                          '--zero-missing-rotations',
                           '--accept-projection', code=1)
             assert refused['error']['code'] == 'E_EXISTS' and not failed_pair.exists()
             assert existing.read_text() == 'already here'
@@ -189,13 +214,13 @@ def main() -> None:
             paired_vtu = folder / 'paired-mesh.vtu'
             paired_report = run('convert', sources['frd'], paired_op2,
                                 '--mesh-out', paired_vtu, '--zero-missing-rotations',
-                                '--python', options.op2_python, '--accept-projection')
+                                '--accept-projection')
             assert paired_report['mesh_output']['format'] == 'vtu'
             assert run('info', paired_vtu)['fields'] == 0
             paired_readback = folder / 'paired-vtu-readback.msh'
             readback_report = run('convert', paired_op2, paired_readback,
                                   '--mesh', paired_vtu, '--assume-basic-frame',
-                                  '--python', options.op2_python, '--accept-projection')
+                                  '--accept-projection')
             assert readback_report['fields'] == 1
             routes += 1
             mesh = folder / 'result-carrier-mesh.bdf'
@@ -204,12 +229,11 @@ def main() -> None:
                 enriched = folder / f'frd-fields.{carrier}'
                 run('convert', sources['frd'], enriched, '--accept-projection')
                 target = folder / f'{carrier}-fields-to-op2.op2'
-                report = run('convert', enriched, target, '--python', options.op2_python,
+                report = run('convert', enriched, target,
                              '--zero-missing-rotations', '--accept-projection')
                 assert target.is_file()
                 assert any('typed float 0.0' in item['detail'] for item in report['omissions'])
-                assert run('info', target, '--mesh', mesh,
-                           '--python', options.op2_python)['fields'] == 1
+                assert run('info', target, '--mesh', mesh)['fields'] == 1
                 routes += 1
         print(json.dumps({'routes_checked': routes,
                           'sources': sorted(sources)}))

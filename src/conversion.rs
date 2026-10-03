@@ -150,8 +150,6 @@ pub struct Options {
     pub mesh: Option<PathBuf>,
     /// Assert basic-frame coordinates and displacements for a non-BDF OP2 mesh.
     pub assume_basic_frame: bool,
-    /// Python interpreter with pyNastran for OP2 reads and writes.
-    pub python: PathBuf,
     /// OP2 displacement subcase, if more than one exists.
     pub subcase: Option<i64>,
     /// Zero-based OP2 result step, or FRD step number.
@@ -169,7 +167,6 @@ impl Default for Options {
             input_format: None,
             mesh: None,
             assume_basic_frame: false,
-            python: PathBuf::from("python3"),
             subcase: None,
             step: None,
             max_bytes: ParseOptions::default().max_bytes,
@@ -375,7 +372,7 @@ fn read_op2_mesh(path: &Path, options: &Options) -> Result<(Mesh, Vec<Omission>)
 }
 
 /// Read a supported source file into a mesh and fields, reporting omitted data.
-/// OP2 input requires `options.mesh` and a pyNastran interpreter. A non-BDF
+/// OP2 input requires `options.mesh`. A non-BDF
 /// companion additionally requires `options.assume_basic_frame`.
 ///
 /// # Errors
@@ -530,16 +527,9 @@ pub fn read_path(path: &Path, options: &Options) -> Result<ReadResult> {
                 .as_deref()
                 .ok_or_else(|| Error::new("E_USAGE", "OP2 requires --mesh matching mesh file"))?;
             let (mesh, mut omissions) = read_op2_mesh(mesh_path, options)?;
-            if std::fs::metadata(path)?.len() > options.max_bytes as u64 {
-                return Err(Error::new("E_LIMIT", "OP2 exceeds input byte limit"));
-            }
-            let (dataset, assumed_zero) = op2::read_displacements(
-                path,
-                &mesh,
-                &options.python,
-                options.subcase,
-                options.step,
-            )?;
+            let bytes = read_limited(path, options.max_bytes)?;
+            let (dataset, assumed_zero) =
+                op2::read_displacements(&bytes, &mesh, options.subcase, options.step)?;
 
             // Preserve both explicit synthetic provenance and the results
             // omitted by the selected displacement-table projection.
@@ -601,8 +591,8 @@ pub fn convert_path(
 
 /// Write a previously read source in another supported format.
 ///
-/// OP2 output requires exactly one nodal displacement field and a pyNastran
-/// interpreter. A caller may supply a synthetic field, but must set
+/// OP2 output requires exactly one nodal displacement field. A caller may
+/// supply a synthetic field, but must set
 /// `source.assumed_zero` to mark that provenance in the OP2 title.
 ///
 /// # Errors
@@ -873,7 +863,6 @@ pub fn convert(
             let bytes = op2::write_displacements(
                 dataset,
                 field,
-                &options.python,
                 subcase,
                 options.zero_missing_rotations,
                 source.assumed_zero,

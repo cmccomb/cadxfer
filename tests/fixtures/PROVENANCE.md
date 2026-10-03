@@ -11,6 +11,10 @@ ASCII fixture following the CalculiX GraphiX result-format documentation.
 actual OP2 displacement decoding and mesh association. They retain the
 upstream three-clause BSD terms in `pyNastran-LICENSE.md`.
 
+`two-subcases.op2` and `two-steps.op2` are small authored fixtures generated
+with pyNastran 1.4.1. They contain only two GRID displacement rows per result
+step, with explicit values and times, to check independent OP2 decoding.
+
 `mixed-linear.expected.json` records independent, explicit topology expectations
 for `mixed-linear.bdf`; it is not output claimed to come from a Rust execution.
 The cells overlap on purpose. They are an I/O fixture, not a simulation model.

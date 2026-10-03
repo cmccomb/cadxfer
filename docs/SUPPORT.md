@@ -146,10 +146,11 @@ does not assert that a solver computed any included values.
 
 ### Nastran OP2
 
-The OP2 adapter uses an installed pyNastran Python interpreter to decode one
-real six-component displacement table. Pass `--mesh FILE` with a matching BDF,
-VTU, MSH, INP, or FRD mesh and, if needed, `--python PATH`, `--subcase N`, and
-zero-based `--step N`. Result node IDs must match the companion mesh exactly;
+The native Rust OP2 adapter decodes one real six-component SORT1 OUGV1
+displacement table from 32-bit Fortran records. The tested solver and
+independently generated fixtures use little endian records. Pass
+`--mesh FILE` with a matching BDF, VTU, MSH, INP, or FRD mesh and, if needed,
+`--subcase N` and zero-based `--step N`. Result node IDs must match the companion mesh exactly;
 the OP2 result table cannot verify companion coordinates or connectivity.
 A BDF must project to a basic-frame mesh and all GRID CD values must be zero.
 The other formats do not encode GRID CD; they require `--assume-basic-frame`,
@@ -162,8 +163,8 @@ field with three or six real components. Three-component displacements have
 unknown rotations and fail by default. `--zero-missing-rotations` sets R1/R2/R3
 to typed float `0.0` only when the caller asserts they are known zero, and
 reports the fill. OP2 has six numeric slots, not a typed null marker. The writer
-emits a single static or one-time transient MSC-style real displacement table through
-pyNastran, then rereads it before committing the file. Values use float32;
+emits a single static or one-time transient MSC-style real displacement table
+in Rust. CI independently rereads written files with pyNastran. Values use float32;
 nonzero values that would underflow to zero, overflowing values, and node IDs
 outside signed 32-bit range fail. The output OP2 contains no mesh, so retain a
 matching mesh or use `--mesh-out FILE` to create a geometry-only companion in
@@ -182,7 +183,8 @@ motions in the input. INP users may retain the source mesh or export a companion
 BDF synthetic output requires basic-frame GRID CD=0 so caexfer can reread it
 with that BDF. A rewritten synthetic OP2 retains its provenance title; other
 format projections report that provenance but do not encode it in their fields.
-CI checks the included real fixture with pyNastran.
+CI also checks the included solver-produced fixture and separately authored
+multiple-subcase and multiple-step fixtures.
 
 ### Geometry-only BDF output
 

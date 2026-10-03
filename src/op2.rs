@@ -1,107 +1,32 @@
-//! Optional pyNastran-backed OP2 displacement adapter.
+//! Native 32-bit OP2 real displacement adapter.
 //! A matching mesh with original node IDs is required. Coordinates and
-//! displacements must be in the basic frame; no binary record guesswork.
+//! displacements must be in the basic frame; unsupported tables fail explicitly.
 use crate::core::{Dataset, Error, Field, FieldLocation, Mesh, Result};
-use std::collections::BTreeMap;
-use std::fmt::Write as _;
-use std::io::Write;
-use std::path::Path;
-use std::process::{Command, Stdio};
+use crate::op2_binary;
 
-/// Decode one real six-component displacement table using the installed
-/// pyNastran Python package. `step` is a zero-based index within the subcase.
+/// Decode one real six-component OUGV1 displacement table from OP2 bytes.
+/// `step` is a zero-based index within the subcase.
 /// `mesh` must match the result node IDs; its coordinates and the result
 /// components must be in the basic frame. This function does not transform
 /// frames or verify mesh coordinates against OP2. The bool reports whether the
 /// OP2 title marks a synthetic all-zero table.
 ///
-/// Returns `E_OP2` when pyNastran cannot run, when the selected table is
-/// unsupported, or when its node IDs do not exactly match `mesh`. The returned
-/// [`Dataset`] uses the supplied mesh and the selected displacement values.
+/// The returned [`Dataset`] uses the supplied mesh and selected displacement
+/// values. Only 32-bit Fortran records and real SORT1 OUGV1 tables are decoded.
 ///
 /// # Errors
 ///
-/// Returns an error for invalid mesh data, an unavailable adapter, malformed
-/// adapter output, or a displacement table that does not match the mesh.
+/// Returns an error for invalid mesh data, malformed or unsupported OP2 records,
+/// or a displacement table that does not match the mesh.
 pub fn read_displacements(
-    path: &Path,
+    bytes: &[u8],
     mesh: &Mesh,
-    python: &Path,
     subcase: Option<i64>,
     step: Option<usize>,
 ) -> Result<(Dataset, bool)> {
-    // The caller supplies geometry; pyNastran extracts only the selected
-    // displacement table from the binary OP2.
     mesh.validate()?;
-    let output = Command::new(python)
-        .arg("-c")
-        .arg(include_str!("op2_extract.py"))
-        .arg(path)
-        .arg(subcase.map_or_else(|| "-".into(), |v| v.to_string()))
-        .arg(step.map_or_else(|| "-".into(), |v| v.to_string()))
-        .output()
-        .map_err(|e| Error::new("E_OP2", format!("cannot launch Python: {e}")))?;
-    if !output.status.success() {
-        let detail = String::from_utf8_lossy(&output.stderr);
-        let last = detail
-            .lines()
-            .last()
-            .unwrap_or("pyNastran extraction failed");
-        return Err(Error::new("E_OP2", last));
-    }
-
-    // The Python adapter uses tab-delimited rows with a fixed header so Rust
-    // can validate counts, provenance, and numeric values independently.
-    let text = std::str::from_utf8(&output.stdout)
-        .map_err(|_| Error::new("E_OP2", "extractor returned non-UTF-8"))?;
-    let mut lines = text.lines();
-    let header = lines
-        .next()
-        .ok_or_else(|| Error::new("E_OP2", "empty extractor output"))?;
-    let parts: Vec<&str> = header.split('\t').collect();
-    if parts.len() != 6 || parts[0] != "OK" {
-        return Err(Error::new("E_OP2", "invalid extractor header"));
-    }
-    let assumed_zero = match parts.get(5).copied() {
-        Some("0") => false,
-        Some("1") => true,
-        _ => return Err(Error::new("E_OP2", "invalid assumed-zero provenance flag")),
-    };
-    let count: usize = parts[1]
-        .parse()
-        .map_err(|_| Error::new("E_OP2", "invalid result count"))?;
-    let result_subcase: i64 = parts[2]
-        .parse()
-        .map_err(|_| Error::new("E_OP2", "invalid subcase"))?;
-    let result_step: i64 = parts[3]
-        .parse()
-        .map_err(|_| Error::new("E_OP2", "invalid result step"))?;
-    let time: f64 = parts[4]
-        .parse()
-        .map_err(|_| Error::new("E_OP2", "invalid result time"))?;
-
-    // Key rows by original GRID ID because OP2 row order can differ from the
-    // companion mesh's point order.
-    let mut rows = BTreeMap::<u64, [f64; 6]>::new();
-    for line in lines {
-        let cols: Vec<&str> = line.split('\t').collect();
-        if cols.len() != 7 {
-            return Err(Error::new("E_OP2", "invalid result row"));
-        }
-        let id: u64 = cols[0]
-            .parse()
-            .map_err(|_| Error::new("E_OP2", "invalid node ID"))?;
-        let mut vals = [0.; 6];
-        for i in 0..6 {
-            vals[i] = cols[i + 1]
-                .parse()
-                .map_err(|_| Error::new("E_OP2", "invalid displacement"))?;
-        }
-        if rows.insert(id, vals).is_some() {
-            return Err(Error::new("E_OP2", "duplicate result node"));
-        }
-    }
-    if rows.len() != count || rows.len() != mesh.points.len() {
+    let selected = op2_binary::decode(bytes, subcase, step)?;
+    if selected.rows.len() != mesh.points.len() {
         return Err(Error::new(
             "E_OP2",
             "displacement nodes do not match mesh nodes",
@@ -109,69 +34,71 @@ pub fn read_displacements(
     }
 
     // Produce entity-major field values in mesh point order.
-    let mut values = Vec::with_capacity(6 * count);
+    let capacity = mesh
+        .points
+        .len()
+        .checked_mul(6)
+        .ok_or_else(|| Error::new("E_OP2", "displacement value count overflows"))?;
+    let mut values = Vec::with_capacity(capacity);
     for point in &mesh.points {
-        values.extend(rows.get(&point.id).ok_or_else(|| {
+        values.extend(selected.rows.get(&point.id).ok_or_else(|| {
             Error::new("E_OP2", format!("no displacement for GRID {}", point.id))
         })?);
     }
     let dataset = Dataset {
         mesh: mesh.clone(),
         fields: vec![Field {
-            name: format!("DISPLACEMENT_SUBCASE_{result_subcase}"),
+            name: format!("DISPLACEMENT_SUBCASE_{}", selected.subcase),
             location: FieldLocation::Point,
             components: ["T1", "T2", "T3", "R1", "R2", "R3"]
                 .map(str::to_owned)
                 .to_vec(),
             values,
-            step: Some(result_step),
-            time: Some(time),
+            step: Some(
+                i64::try_from(selected.step)
+                    .map_err(|_| Error::new("E_OP2", "result step exceeds Int64"))?,
+            ),
+            time: Some(selected.time),
         }],
     };
     dataset.validate()?;
-    Ok((dataset, assumed_zero))
+    Ok((dataset, selected.assumed_zero))
 }
 
-/// Emit one real Nastran displacement table through pyNastran. A recognized
+/// Emit one real Nastran displacement table in native Rust. A recognized
 /// three-component displacement is promoted to six components with typed 0.0
 /// rotations only when `zero_missing_rotations` is true. The OP2 carries no mesh.
 /// `assumed_zero` marks a synthetic, non-solver table in the OP2 title.
 ///
-/// The returned bytes have been reread by pyNastran before return. A malformed
-/// field or empty mesh is rejected before Python is launched. The caller must
-/// save both the OP2 and a matching mesh for later reading.
+/// A malformed field or empty mesh is rejected before encoding. The caller
+/// must save both the OP2 and a matching mesh for later reading.
 ///
 /// # Examples
 ///
 /// ```
 /// use caexfer::{core::{Dataset, Field, FieldLocation}, op2};
-/// use std::path::Path;
 /// let field = Field {
 ///     name: "DISP".into(), location: FieldLocation::Point,
 ///     components: vec!["T1".into(), "T2".into(), "T3".into()],
 ///     values: vec![], step: None, time: None,
 /// };
-/// let error = op2::write_displacements(
-///     &Dataset::default(), &field, Path::new("python3"), 1, false, false,
-/// ).unwrap_err();
+/// let error = op2::write_displacements(&Dataset::default(), &field, 1, false, false).unwrap_err();
 /// assert_eq!(error.code, "E_OP2"); // A complete mesh and values are required.
 /// ```
 ///
 /// # Errors
 ///
 /// Returns an error for invalid or unrepresentable displacement data, an
-/// unavailable adapter, or a failed OP2 write.
+/// a count or value outside the supported 32-bit OP2 representation.
 #[allow(clippy::cast_possible_truncation)] // OP2 stores float32; range and underflow are checked.
-#[allow(clippy::too_many_lines)] // Adapter input is checked before subprocess output is accepted.
 pub fn write_displacements(
     dataset: &Dataset,
     field: &Field,
-    python: &Path,
     subcase: i64,
     zero_missing_rotations: bool,
     assumed_zero: bool,
 ) -> Result<Vec<u8>> {
-    // Validate shape and numeric representability before launching Python.
+    // Validate shape and numeric representability before encoding.
     dataset.mesh.validate()?;
     if dataset.mesh.points.is_empty()
         || field.values.len()
@@ -236,26 +163,20 @@ pub fn write_displacements(
         ));
     }
 
-    // Send one tab-delimited row per mesh node to the pyNastran writer.
-    let mut source = format!(
-        "{}\t{}\t{}\t{}\t{}\n",
-        dataset.mesh.points.len(),
-        subcase,
-        field
-            .time
-            .map_or("-".to_string(), |value| value.to_string()),
-        field.components.len(),
-        i32::from(assumed_zero)
-    );
+    let mut rows = Vec::with_capacity(dataset.mesh.points.len());
     for (i, point) in dataset.mesh.points.iter().enumerate() {
-        if point.id > i32::MAX as u64 {
+        // The low decimal digit stores the OP2 device code.
+        if point.id > ((i32::MAX - 2) / 10) as u64 {
             return Err(Error::new(
                 "E_OP2",
-                "OP2 node IDs must fit signed 32-bit integers",
+                "OP2 node ID exceeds 32-bit encoded range",
             ));
         }
-        source.push_str(&point.id.to_string());
-        for value in &field.values[i * field.components.len()..(i + 1) * field.components.len()] {
+        let mut values = [0_f32; 6];
+        for (slot, value) in values
+            .iter_mut()
+            .zip(&field.values[i * field.components.len()..(i + 1) * field.components.len()])
+        {
             // Float32 overflow and underflow would alter result meaning.
             if !(*value as f32).is_finite() {
                 return Err(Error::new(
@@ -269,39 +190,16 @@ pub fn write_displacements(
                     "nonzero displacement would underflow to zero in OP2 float32",
                 ));
             }
-            source.push('\t');
-            write!(source, "{value:.17e}").expect("formatting into String cannot fail");
+            *slot = *value as f32;
         }
-        source.push('\n');
+        rows.push((point.id, values));
     }
-
-    // Only the adapter writes OP2 records; capture its complete output in
-    // memory before returning bytes to the caller's chosen destination.
-    let mut child = Command::new(python)
-        .arg("-c")
-        .arg(include_str!("op2_write.py"))
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .map_err(|e| Error::new("E_OP2", format!("cannot launch Python: {e}")))?;
-    child
-        .stdin
-        .take()
-        .ok_or_else(|| Error::new("E_OP2", "adapter stdin unavailable"))?
-        .write_all(source.as_bytes())?;
-    let output = child.wait_with_output()?;
-    if !output.status.success() {
-        let detail = String::from_utf8_lossy(&output.stderr);
-        return Err(Error::new(
-            "E_OP2",
-            detail.lines().last().unwrap_or("pyNastran writing failed"),
-        ));
-    }
-    if output.stdout.is_empty() {
-        return Err(Error::new("E_OP2", "pyNastran produced an empty OP2"));
-    }
-    Ok(output.stdout)
+    op2_binary::encode(
+        &rows,
+        i32::try_from(subcase).map_err(|_| Error::new("E_OP2", "subcase exceeds 32-bit range"))?,
+        field.time.map(|value| value as f32),
+        assumed_zero,
+    )
 }
 
 #[cfg(test)]
@@ -334,17 +232,16 @@ mod tests {
     #[test]
     fn unknown_rotations_are_not_filled_implicitly() {
         let (dataset, field) = sample();
-        let error = write_displacements(&dataset, &field, Path::new("python3"), 1, false, false)
-            .unwrap_err();
+        let error = write_displacements(&dataset, &field, 1, false, false).unwrap_err();
         assert!(error.message.contains("unknown rotations"));
     }
 
     #[test]
-    fn malformed_public_field_fails_before_launch() {
+    fn malformed_public_field_fails_before_encoding() {
         let (dataset, mut field) = sample();
         field.values.pop();
         assert_eq!(
-            write_displacements(&dataset, &field, Path::new("python3"), 1, true, false)
+            write_displacements(&dataset, &field, 1, true, false)
                 .unwrap_err()
                 .code,
             "E_OP2"
@@ -359,7 +256,7 @@ mod tests {
             .extend(["R1".into(), "R2".into(), "R3".into()]);
         field.values.extend([0.0, 0.0, 0.0]);
         assert_eq!(
-            write_displacements(&dataset, &field, Path::new("python3"), 1, false, true)
+            write_displacements(&dataset, &field, 1, false, true)
                 .unwrap_err()
                 .code,
             "E_OP2"
