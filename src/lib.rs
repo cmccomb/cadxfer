@@ -31,12 +31,21 @@
 pub mod bdf;
 pub mod conversion;
 pub mod core;
+#[path = "mesh_formats/frd.rs"]
 pub mod frd;
+#[path = "mesh_formats/inp.rs"]
 pub mod inp;
+#[path = "mesh_formats/msh.rs"]
 pub mod msh;
+#[path = "nastran_results/nastran_result.rs"]
 mod nastran_result;
+#[path = "nastran_results/op2.rs"]
 pub mod op2;
+#[path = "nastran_results/op2_binary.rs"]
 mod op2_binary;
+#[path = "nastran_results/pch.rs"]
 pub mod pch;
+#[path = "mesh_formats/vtk.rs"]
 pub mod vtk;
+#[path = "mesh_formats/vtu.rs"]
 pub mod vtu;

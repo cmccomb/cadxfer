@@ -1,5 +1,17 @@
 # Design decisions
 
+## Source layout
+
+`src/core.rs` defines mesh, fields, validation, and errors. `src/conversion.rs`
+owns format dispatch and projection reports. `src/bdf/` holds the native BDF
+document, parser, and geometry projection. `src/mesh_formats/` groups adapters
+that carry mesh geometry (VTU, legacy VTK, MSH, INP, and FRD).
+`src/nastran_results/` groups OP2 and PCH with their shared displacement
+projection and OP2 record codec. `src/cli/` contains JSON rendering and staged
+output; `src/main.rs` handles commands. Public module paths such as
+`caexfer::vtu` and `caexfer::op2` remain unchanged through explicit paths in
+`src/lib.rs`.
+
 ## Decode first. Interpret second. Project deliberately.
 
 A document is not a mesh. Keeping a BDF source buffer and an index of its native

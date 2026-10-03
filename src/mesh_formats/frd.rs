@@ -652,7 +652,7 @@ mod tests {
 
     #[test]
     fn ascii_writer_preserves_mesh_and_nodal_values_with_continuation() {
-        let mut dataset = read(include_bytes!("../tests/fixtures/linear-results.frd")).unwrap();
+        let mut dataset = read(include_bytes!("../../tests/fixtures/linear-results.frd")).unwrap();
         dataset.fields.push(Field {
             name: "EXTRA".into(),
             location: FieldLocation::Point,

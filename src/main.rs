@@ -1,4 +1,6 @@
+#[path = "cli/json.rs"]
 mod json;
+#[path = "cli/output.rs"]
 mod output;
 
 use std::ffi::{OsStr, OsString};

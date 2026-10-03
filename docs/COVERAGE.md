@@ -34,12 +34,12 @@ percentage should not be interpreted as branch coverage or solver validation.
 | Rust module | Line coverage | Next useful checks |
 | --- | ---: | --- |
 | `src/main.rs` | 70.6% | More CLI option combinations and error paths. |
-| `src/op2.rs` | 78.9% | More malformed field and mesh association cases. |
-| `src/op2_binary.rs` | 88.3% | More malformed or unsupported OP2 records. |
+| `src/nastran_results/op2.rs` | 78.9% | More malformed field and mesh association cases. |
+| `src/nastran_results/op2_binary.rs` | 88.3% | More malformed or unsupported OP2 records. |
 | `src/bdf/mesh.rs` | 78.6% | Geometry writer edge cases and write failures. |
-| `src/vtk.rs` | 84.1% | More malformed legacy attribute layouts. |
-| `src/msh.rs` | 86.5% | More unusual 2.2 tag and field layouts. |
-| `src/pch.rs` | 81.7% | More independent solver-produced punch files and malformed header cases. |
+| `src/mesh_formats/vtk.rs` | 84.1% | More malformed legacy attribute layouts. |
+| `src/mesh_formats/msh.rs` | 86.5% | More unusual 2.2 tag and field layouts. |
+| `src/nastran_results/pch.rs` | 81.7% | More independent solver-produced punch files and malformed header cases. |
 
 These gaps are priorities for future tests; the current suite already exercises the
 advertised conversion routes through the CLI. Its fixtures are small, so they

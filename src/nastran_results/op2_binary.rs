@@ -481,7 +481,7 @@ mod tests {
 
     #[test]
     fn externally_written_subcases_require_selection() {
-        let bytes = include_bytes!("../tests/fixtures/two-subcases.op2");
+        let bytes = include_bytes!("../../tests/fixtures/two-subcases.op2");
         assert!(
             decode(bytes, None, None)
                 .unwrap_err()
@@ -496,7 +496,7 @@ mod tests {
 
     #[test]
     fn externally_written_transient_steps_require_selection() {
-        let bytes = include_bytes!("../tests/fixtures/two-steps.op2");
+        let bytes = include_bytes!("../../tests/fixtures/two-steps.op2");
         assert!(
             decode(bytes, Some(3), None)
                 .unwrap_err()
