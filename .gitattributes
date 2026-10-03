@@ -7,3 +7,5 @@
 *.svg text eol=lf
 # Byte-sensitive fixtures must not be rewritten by Git on Windows.
 *.bdf -text
+*.frd -text
+*.pch -text
