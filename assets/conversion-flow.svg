@@ -239,13 +239,22 @@
 <text x="849" y="410" fill="#f6c76d" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="700" letter-spacing="1">OP2</text>
 <text x="849" y="441" fill="#f5f8ff" font-family="Arial, Helvetica, sans-serif" font-size="23" font-weight="700" letter-spacing="0">results.op2</text>
 <rect x="850" y="456" width="195" height="104" rx="10" fill="#21344b" stroke="#49627b"/>
-<text x="862" y="478" fill="#b6c7d9" font-family="Menlo, Consolas, monospace" font-size="11" font-weight="400" letter-spacing="0">ID</text>
-<text x="896" y="478" fill="#f6c76d" font-family="Menlo, Consolas, monospace" font-size="11" font-weight="400" letter-spacing="0">T1 T2 T3 R1 R2 R3</text>
+<g font-family="Menlo, Consolas, monospace" font-size="11" text-anchor="middle">
+<text x="876" y="478" fill="#b6c7d9">ID</text>
+<g fill="#f6c76d">
+<text x="908" y="478">T1</text><text x="932" y="478">T2</text><text x="956" y="478">T3</text>
+<text x="980" y="478">R1</text><text x="1004" y="478">R2</text><text x="1028" y="478">R3</text>
+</g>
 <path d="M860 485H1035" stroke="#49627b"/>
-<text x="862" y="509" fill="#f5f8ff" font-family="Menlo, Consolas, monospace" font-size="11" font-weight="400" letter-spacing="0">10</text>
-<text x="896" y="509" fill="#f5f8ff" font-family="Menlo, Consolas, monospace" font-size="11" font-weight="400" letter-spacing="0">0  0  0  0  0  0</text>
-<text x="862" y="535" fill="#f5f8ff" font-family="Menlo, Consolas, monospace" font-size="11" font-weight="400" letter-spacing="0">20</text>
-<text x="896" y="535" fill="#f5f8ff" font-family="Menlo, Consolas, monospace" font-size="11" font-weight="400" letter-spacing="0">0  0  0  0  0  0</text>
+<g fill="#f5f8ff">
+<text x="876" y="509">10</text>
+<text x="908" y="509">0</text><text x="932" y="509">0</text><text x="956" y="509">0</text>
+<text x="980" y="509">0</text><text x="1004" y="509">0</text><text x="1028" y="509">0</text>
+<text x="876" y="535">20</text>
+<text x="908" y="535">0</text><text x="932" y="535">0</text><text x="956" y="535">0</text>
+<text x="980" y="535">0</text><text x="1004" y="535">0</text><text x="1028" y="535">0</text>
+</g>
+</g>
 <path d="M1056 455V554" stroke="#3c5875"/>
 <text x="1069" y="479" fill="#758ba3" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="700" letter-spacing="1">TOPOLOGY</text>
 <text x="1069" y="501" fill="#f5f8ff" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="400" letter-spacing="0">not stored</text>
