@@ -274,6 +274,7 @@ impl Document {
                 },
                 "INCLUDE" => report.diagnostics.push(Error::new("E_INCLUDE_UNRESOLVED", "INCLUDE is preserved but never followed; flatten the deck with a trusted tool before geometry projection").at(card.line).into()),
                 "GRDSET" => report.diagnostics.push(Error::new("E_GRDSET", "GRID defaults from GRDSET are not implemented; no coordinate defaults will be guessed").at(card.line).into()),
+                "ENDDATA" => {},
                 name if element_kind(name).is_some() => {
                     // Guard above establishes the match; no user input can make this None.
                     if let Some(kind) = element_kind(name) {

@@ -19,7 +19,11 @@ workspace = true
 default = []
 bdf = ["dep:caexfer-bdf"]
 vtu = ["dep:caexfer-vtu"]
-all-formats = ["bdf", "vtu"]
+msh = []
+inp = []
+frd = []
+op2 = []
+all-formats = ["bdf", "vtu", "msh", "inp", "frd", "op2"]
 
 [dependencies]
 caexfer-core = { path = "../caexfer-core", version = "0.1.0" }

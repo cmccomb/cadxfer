@@ -9,15 +9,18 @@ JSON/human display of non-UTF-8 paths is lossy, not an exact path serialization.
 | --- | --- |
 | `formats` | Actual read/write capabilities, not a roadmap |
 | `info INPUT` | Record counts and whether geometry projection is available |
-| `validate INPUT` | Geometry-subset diagnostics |
-| `roundtrip INPUT OUTPUT` | Accepted source bytes reproduced unchanged |
+| `validate INPUT` | BDF geometry diagnostics or supported mesh/field subset checks |
+| `roundtrip INPUT OUTPUT` | Source bytes reproduced unchanged (only BDF parses first) |
 | `set-grid INPUT OUTPUT --id ID --xyz X Y Z` | Native-frame GRID coordinate edit |
-| `convert INPUT OUTPUT.vtu --geometry-only` | Explicit geometry projection |
+| `convert INPUT OUTPUT --geometry-only` | Explicit mesh/field projection to BDF, VTU, MSH or INP |
 
-Native BDF input extensions are `.bdf`, `.nas`, `.dat`, `.pch`, case-insensitive.
-`--from bdf` permits another filename. This is explicit selection, not reliable
-file-content autodetection. A `.dat` extension alone does not prove a file is BDF.
-There is no OP2/FRD reader or VTU reader in this version.
+Input extensions are `.bdf`, `.nas`, `.dat`, `.pch`, `.vtu`, `.msh`, `.inp`,
+`.frd`, and `.op2` (case-insensitive). `--from FORMAT` overrides the extension;
+this is not content autodetection. Output extension selects the writer.
+`--mesh BDF` supplies geometry for OP2. `--python PATH` selects an interpreter
+with pyNastran installed; `CAEXFER_PYTHON` is the fallback. `--subcase N` and
+zero-based `--step N` select an OP2 result. For FRD, `--step N` selects the
+step number. These selection options also work with `info` and `validate`.
 
 `--json` produces one JSON object on stdout, with schema_version=1. Human-readable
 conversion omission reports go to stderr; JSON conversion reports place them in

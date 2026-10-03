@@ -45,6 +45,16 @@ feature-isolation, formatting, Clippy, rustdoc, source-package, diagram, and CLI
 interoperability checks. The [caexfer CI run](https://github.com/cmccomb/caexfer/actions/runs/37081354637)
 passed all four Linux, macOS, and Windows jobs, including Rust 1.85.0 on Linux.
 
+## Expanded conversion matrix verification on macOS
+
+The six-format work passed 95 workspace Rust tests and one doctest, source-package check,
+formatting and Clippy. `scripts/check_matrix.py` exercised 20 mesh routes and
+five native copies. With pyNastran 1.4.1 in Python 3.12, it exercised all 24
+mesh routes and six native copies using a real upstream OP2/BDF pair. The
+emitted MSH, VTU and INP files were also read by independent meshio 5.3.5.
+The new GitHub CI workflow has not yet been observed here; its status should
+be checked after push.
+
 ## Cross-platform CI
 
 The [initial GitHub Actions run](https://github.com/cmccomb/caxifer/actions/runs/37034376490)
@@ -55,9 +65,9 @@ their own CI runs.
 
 ## Verification still needed
 
-The optional interoperability check using Python VTK has not run, and the
-bundled synthetic fixtures do not establish broad compatibility with vendor
-decks or solver results. This is a source candidate, not a production-readiness
+The optional interoperability check using Python VTK has not run. One real
+OP2/BDF fixture plus synthetic FRD and mesh fixtures do not establish broad
+compatibility with vendor decks or solver results. This is a source candidate, not a production-readiness
 claim. See [RELEASING.md](RELEASING.md) before any registry publication or
 release tag.
 

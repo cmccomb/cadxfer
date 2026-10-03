@@ -18,23 +18,33 @@ original IDs but omits nongeometry records and reports those omissions.
 
 ## From/to matrix
 
-| From ↓ / To → | BDF | VTU | OP2 | FRD |
-| --- | --- | --- | --- | --- |
-| **BDF** | Exact source copy, or a GRID coordinate edit | Linear geometry and original IDs; omissions reported | — | — |
-| **VTU** | — | — | — | — |
-| **OP2** | — | — | — | — |
-| **FRD** | — | — | — | — |
+| From ↓ / To → | BDF | VTU | MSH 4.1 | INP | FRD | OP2 |
+| --- | --- | --- | --- | --- | --- | --- |
+| **BDF** | C / M | M | M | M | — | — |
+| **VTU** | M | C / F | F | M | — | — |
+| **MSH 4.1** | M | F | C / F | M | — | — |
+| **INP** | M | M | M | C / M | — | — |
+| **FRD** | M | F | F | M | C | — |
+| **OP2 + BDF mesh** | M* | F* | F* | M* | — | C |
 
-An em dash means **no supported route** in 0.1.0. BDF → BDF preserves the
-source document; it is not a general BDF generator. BDF → VTU requires
-`--geometry-only` because materials, loads, constraints, and other solver data
-are omitted. VTU, OP2, and FRD readers are not implemented.
+**C** is `roundtrip`, a byte-identical source copy. BDF additionally supports
+`set-grid`. **M** is a linear mesh projection with original node and element IDs.
+**F** carries the mesh plus supported numeric point/cell fields. `*` requires
+`--mesh model.bdf`; OP2 currently extracts one real six-component displacement
+table through pyNastran. An em dash means there is no writer for that format.
+Every `convert` route requires `--geometry-only` and reports omissions. This
+flag acknowledges projection into the supported mesh/field subset; it does not
+mean numeric fields are discarded on **F** routes.
 
-This is the **0.1.0 source repository**, not a crates.io publication. The Rust
-compiler was unavailable in the original authoring environment. See the
-[build status](docs/BUILD-STATUS.md) for subsequent local verification and run
-the verification commands below.
-Do not mistake the version number for a production-readiness claim.
+BDF and INP outputs from `convert` are **geometry-only decks**, not runnable
+solver models. FRD and OP2 may be copied verbatim but cannot be generated.
+MSH/VTU preserve supported numeric values; MSH has no component-label slot,
+and BDF property IDs have no mapping in this MSH/INP exporter. Those losses are
+reported. See [the precise format limits](docs/SUPPORT.md).
+
+This is the **0.1.0 source repository**, not a crates.io publication. The
+[build status](docs/BUILD-STATUS.md) records local verification. The version
+number is not a production-readiness claim.
 
 ## Start here
 
@@ -51,6 +61,10 @@ caexfer validate examples/plate.bdf
 caexfer roundtrip examples/plate.bdf plate-copy.bdf
 caexfer set-grid examples/plate.bdf edited.bdf --id 20 --xyz 1.2 0 0
 caexfer convert examples/plate.bdf plate.vtu --geometry-only
+caexfer convert examples/plate.bdf plate.msh --geometry-only
+caexfer convert tests/fixtures/linear-results.frd results.vtu --geometry-only
+# OP2 example, with pyNastran in a Python 3.12 environment:
+caexfer convert model.op2 displacement.vtu --mesh model.bdf --python /path/to/python3.12 --geometry-only
 ```
 
 Output paths must be new. `plate-copy.bdf` preserves the original file bytes.
@@ -68,12 +82,12 @@ adjacent continuations. It retains original source bytes, including comments,
 unknown cards, line endings, and control-section text. Semantic access covers
 GRID records and a documented subset of linear element connectivity.
 
-The native writer is a **document-preserving writer**, not a general BDF model
-generator. Coordinate edits patch existing fields transactionally. A value that
+The native BDF writer is a **document-preserving writer**. A separate
+geometry-only BDF exporter produces mesh cards, not a solver model. Coordinate edits patch existing fields transactionally. A value that
 cannot fit a fixed-width field without rounding is rejected rather than
 silently shortened.
 
-The VTU writer produces ASCII VTK XML UnstructuredGrid geometry with UInt64
+The VTU writer produces ASCII VTK XML UnstructuredGrid mesh and numeric fields with UInt64
 `nastran_node_id`, `nastran_element_id`, and `nastran_property_id` arrays.
 Absent property IDs, for CONROD, use the reserved value zero. Coordinates are
 Float64. Original IDs are not confused with zero-based connectivity indices.
@@ -83,11 +97,11 @@ CHEXA, CPENTA, and CPYRAM. Bars/beams become their node-to-node centerline only;
 section data, orientations, and offsets are not projected. Higher-order solids
 are rejected, not reduced to their corner nodes.
 
-**Not implemented:** OP2/FRD readers, result fields, INCLUDE expansion, coordinate
-system resolution, GRDSET defaults, general BDF generation, mesh repair, unit
-conversion, Python bindings, automatic format detection, binary VTU, or lazy
-multi-gigabyte result access. Unsupported data stays in a native document;
-unsupported geometry does not get silently skipped during conversion.
+**Not implemented:** FRD/OP2 generation, binary/compressed VTU or MSH,
+INCLUDE expansion, coordinate-system resolution, GRDSET defaults, solver-ready
+BDF/INP generation, mesh repair, unit conversion, Python bindings, or lazy
+multi-gigabyte result access. OP2 decoding requires an external pyNastran
+installation. Unsupported geometry is rejected rather than silently skipped.
 
 The exact boundary is in [SUPPORT.md](docs/SUPPORT.md).
 
@@ -144,8 +158,8 @@ A caller writing to its own stream owns output durability/error handling. The
 CLI additionally stages its file output before installing a new destination.
 
 For only BDF, depend directly on `crates/caexfer-bdf`. The umbrella crate defaults
-to **no format features**. It conditionally re-exports independent format crates;
-it does not contain a second implementation.
+to **no format features**. It conditionally exposes the BDF and VTU crates plus the MSH, INP, FRD,
+and OP2 adapters. The OP2 adapter calls pyNastran only when used.
 
 The public BDF interface centers on `Document`, its card and GRID views,
 geometry projection, scoped diagnostics, and coordinate edits. Inspect a card's
@@ -158,9 +172,9 @@ format classification are implementation details.
 | --- | --- |
 | `caexfer` | CLI, JSON reporting, staged no-clobber output |
 | `caexfer-bdf` | Native BDF document, field indexing, edits, geometry projection |
-| `caexfer-vtu` | ASCII VTU geometry writer |
-| `caexfer-formats` | Feature-selected facade (`bdf`, `vtu`, `all-formats`) |
-| `caexfer-core` | Diagnostics and the minimal geometry types shared by adapters |
+| `caexfer-vtu` | ASCII VTU mesh and field reader/writer |
+| `caexfer-formats` | Feature-selected BDF, VTU, MSH, INP, FRD, OP2 adapters |
+| `caexfer-core` | Diagnostics, linear mesh and located numeric field types |
 
 No universal solver IR, runtime plugin registry, AI interface, or empty format
 crate is included. Those are not prerequisites for reading a file correctly.
@@ -172,17 +186,21 @@ cargo test --workspace --all-features --locked --offline
 cargo check -p caexfer-formats --no-default-features --locked --offline
 cargo check -p caexfer-formats --no-default-features --features bdf --locked --offline
 cargo check -p caexfer-formats --no-default-features --features vtu --locked --offline
+for feature in msh inp frd op2; do cargo check -p caexfer-formats --no-default-features --features "$feature" --locked --offline; done
 cargo fmt --all -- --check
 cargo clippy --workspace --all-targets --all-features --locked --offline -- -D warnings
 RUSTDOCFLAGS='-D warnings' cargo doc --workspace --all-features --no-deps --locked --offline
 python3 scripts/check_source.py
 python3 scripts/check_interop.py --build
+python3 scripts/check_matrix.py
 python3 scripts/generate_readme_diagram.py --check
 ```
 
-The last script executes the built CLI, checks its JSON and XML with independent
-Python parsers, verifies byte-for-byte round trips, and checks all linear cell
-families against an explicit fixture. With Python VTK installed, add `--vtk` for
+The interoperability scripts execute every advertised conversion route, check
+JSON and XML, verify native copies, and check linear cell families against an
+explicit fixture. Run `python3 scripts/check_matrix.py --op2-python PATH` with
+a Python 3.11/3.12 interpreter containing pyNastran to check the OP2 routes
+against the included real result fixture. With Python VTK installed, add `--vtk` for
 an independent VTK reader check. The Python scripts require Python 3.11+.
 
 CI covers Linux, macOS, Windows, and the intended minimum Rust version. The
@@ -197,4 +215,5 @@ semantics. [ROADMAP.md](docs/ROADMAP.md) describes the next format milestones.
 Regenerate the diagram with `python3 scripts/generate_readme_diagram.py` after
 changing the supported outputs.
 
-Licensed under MIT OR Apache-2.0. Synthetic fixtures use the same license.
+Licensed under MIT OR Apache-2.0. The imported pyNastran OP2/BDF fixtures
+retain their upstream BSD license; see `tests/fixtures/PROVENANCE.md`.

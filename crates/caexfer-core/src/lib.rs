@@ -1,4 +1,4 @@
-//! Shared diagnostics and a deliberately small *geometry* representation.
+//! Shared diagnostics, mesh geometry, and explicitly located numeric fields.
 //!
 //! This is not a universal solver model. Materials, loads, constraints, units,
 //! and result fields do not silently become properties of a mesh.
@@ -198,6 +198,64 @@ impl Mesh {
                         format!("cell {} repeats a point", cell.id),
                     ));
                 }
+            }
+        }
+        Ok(())
+    }
+}
+
+/// Association of a numeric field with mesh entities.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FieldLocation {
+    Point,
+    Cell,
+}
+
+/// One field at one step. Values are interleaved by entity and component.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Field {
+    pub name: String,
+    pub location: FieldLocation,
+    pub components: Vec<String>,
+    pub values: Vec<f64>,
+    pub step: Option<i64>,
+    pub time: Option<f64>,
+}
+
+/// Mesh plus fields. Solver loads, constraints and material laws are outside this type.
+#[derive(Debug, Default, Clone, PartialEq)]
+pub struct Dataset {
+    pub mesh: Mesh,
+    pub fields: Vec<Field>,
+}
+
+impl Dataset {
+    pub fn validate(&self) -> Result<()> {
+        self.mesh.validate()?;
+        for field in &self.fields {
+            if field.name.is_empty() || field.components.is_empty() {
+                return Err(Error::new(
+                    "E_FIELD",
+                    "field name and components must be nonempty",
+                ));
+            }
+            let entities = match field.location {
+                FieldLocation::Point => self.mesh.points.len(),
+                FieldLocation::Cell => self.mesh.cells.len(),
+            };
+            if field.values.len() != entities.saturating_mul(field.components.len()) {
+                return Err(Error::new(
+                    "E_FIELD",
+                    format!("field {} has an invalid value count", field.name),
+                ));
+            }
+            if !field.values.iter().all(|value| value.is_finite())
+                || field.time.is_some_and(|time| !time.is_finite())
+            {
+                return Err(Error::new(
+                    "E_NONFINITE",
+                    format!("field {} contains a nonfinite value", field.name),
+                ));
             }
         }
         Ok(())

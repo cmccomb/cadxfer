@@ -58,7 +58,7 @@ def main() -> None:
     checks.append("lockfile matches workspace package versions and dependency graph")
     facade = members["caexfer-formats"][1]
     assert facade["features"]["default"] == []
-    assert set(facade["features"]) == {"default", "bdf", "vtu", "all-formats"}
+    assert set(facade["features"]) == {"default", "bdf", "vtu", "msh", "inp", "frd", "op2", "all-formats"}
     assert workspace["workspace"]["lints"]["rust"]["unsafe_code"] == "forbid"
     checks.append("feature gates match implemented libraries; unsafe code forbidden")
     tests = 0

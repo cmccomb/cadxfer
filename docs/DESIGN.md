@@ -12,30 +12,20 @@ omission report, refuses unknown geometry-affecting inputs, and never invents
 units or coordinate transformations. A BDF-to-VTU operation is not labeled
 lossless. Native byte preservation and semantic preservation are separate claims.
 
-## Why BDF before OP2
+## Source documents and projected datasets
 
-A shallow OP2 table-name scanner would look impressive beside a format support
-badge but would not deliver the promised lazy displacement/stress reader.
-Correct OP2 support needs vendor/version/endian/word-size coverage, accurate
-record/table decoding, original IDs, result locations, and frame conventions.
-There is no placeholder OP2 crate or empty feature gate in this release.
+BDF remains a byte-preserving document with narrow typed views. Other readers
+project directly into a linear `Mesh` plus located numeric `Field`s. This is
+not a universal solver schema: loads, constraints, units and constitutive laws
+are never inferred from a mesh. Every CLI conversion needs an explicit
+`--geometry-only` acknowledgement and reports source/destination omissions.
 
-BDF establishes a source model, diagnostics, resource limits, transactional
-field edits, and an honest projection boundary with an immediately useful CLI.
-Those choices are reusable without committing the entire project to one large
-universal engineering object graph.
-
-## Small shared core
-
-The core shares only errors/diagnostics and the minimal geometry needed by the
-first adapter. It does not force native BDF records into a generic solver schema.
-There are no speculative FieldView/ResultView traits without an implementation.
-When a second format has genuinely different needs, add a view based on both
-formats rather than predicting every future result data model now.
-
-The format facade has optional dependencies and no default formats. Individual
-crates remain independently usable. The CLI includes every format actually
-implemented in this snapshot. All current Rust dependencies are workspace-local.
+FRD and OP2 have different boundaries. The FRD adapter decodes a documented
+ASCII subset directly. OP2 is decoded through pyNastran because record framing
+alone is not displacement data. The OP2 route accepts one real displacement
+table, requires a matching BDF geometry projection, and checks node identity
+and basic result coordinates. Format features remain optional; all Rust
+workspace dependencies are local.
 
 ## Precision and identity
 
@@ -58,7 +48,8 @@ valid simply because they survived lexical parsing.
 ## Safe file operations
 
 Input reads are bounded. INCLUDE is an inert native record, not permission to
-traverse the filesystem. The parser does not spawn tools or execute code.
+traverse the filesystem. The BDF parser does not spawn tools. The optional OP2 adapter explicitly launches
+a user-selected Python interpreter with pyNastran installed.
 Outputs use a new filename; the CLI stages writes and refuses an existing path.
 The library writes to caller-provided streams and documents partial-I/O behavior.
 

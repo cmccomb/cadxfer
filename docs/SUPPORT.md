@@ -95,13 +95,74 @@ fail with E_FIELD_WIDTH. Physically omitted/truncated fixed fields are not
 expanded. All three coordinate edits commit together after reparsing; any error
 leaves the original document unchanged.
 
-## VTU
+## Conversion formats
 
-Write-only ASCII UnstructuredGrid, one Piece, Float64 coordinates, Int64
-connectivity/offsets, UInt8 cell types, and UInt64 original IDs. A missing
-property ID is encoded as zero, which is invalid as a normal positive PID.
-No arbitrary user strings enter XML tags/attributes. No binary/compressed VTU,
-parallel files, scalar/vector/tensor result fields, or VTU reader is included.
+All `convert` operations require `--geometry-only`, including routes that carry
+supported numeric fields. This acknowledges projection from a native source to
+our linear mesh and numeric-field subset. The CLI emits source and destination
+omissions. Native `roundtrip` copies bytes unchanged; for BDF, the document is
+parsed and rewritten from its retained source buffer. Other formats are copied
+as opaque bytes by `roundtrip`.
+
+### VTU
+
+Read/write one ASCII VTK XML `UnstructuredGrid` piece with the seven supported
+linear VTK cell types. Float32/Float64 point/cell numeric arrays are read; the
+writer uses Float64. Original IDs use UInt64 `nastran_node_id` and
+`nastran_element_id` arrays. If absent on input, sequential IDs are assigned.
+Zero in `nastran_property_id` means no property ID. The writer retains component
+names and optional step/time through caexfer XML attributes. Binary, compressed,
+appended, parallel, multi-piece, and `FieldData` layouts are rejected or outside
+the reader's scope. This is a bounded XML subset, not a full VTK XML parser.
+
+### Gmsh MSH
+
+Read/write ASCII MSH 4.1 with nonparametric node blocks, the seven supported
+linear element families, and complete numeric `NodeData`/`ElementData` blocks.
+Node and element tags remain integer IDs. Binary MSH, high-order types,
+parametric nodes and partial result blocks fail. Extra sections such as physical
+names or entity metadata are reported as omissions by the CLI. MSH field values,
+time and step are retained when supplied. A field without step metadata uses
+MSH step 0 with an omission note. Per-component names and BDF property IDs do
+not have mappings in this exporter.
+
+### Abaqus/CalculiX INP
+
+Read global `*NODE` and supported linear `*ELEMENT, TYPE=...` blocks. Node IDs
+and element IDs remain intact. `*PART`, `*ASSEMBLY`, `*INSTANCE`, `*SYSTEM`, and
+`*INCLUDE` require expansion/scoping and fail. Other keyword blocks are omitted
+from the mesh projection and listed by keyword. The writer emits only nodes and
+elements, without properties, materials, sets, loads, steps or results. It is not
+a runnable solver deck. `C3D5` is an Abaqus pyramid type; not every solver
+accepts every emitted element type.
+
+### CalculiX FRD
+
+Read ASCII short/long fixed-record blocks for supported linear elements and
+complete nodal fields. Material-independent results and material-dependent
+results with exactly one material per node are supported. Component labels,
+field values and available time/step metadata are retained. Binary blocks,
+higher-order cells and multiple materials at a node fail. When a field has
+multiple steps, select `--step N` for VTU output; MSH can carry multiple blocks.
+No FRD writer is supplied.
+
+### Nastran OP2
+
+The OP2 adapter uses an installed pyNastran Python interpreter to decode one
+real six-component displacement table. Pass `--mesh model.bdf` and, if needed,
+`--python PATH`, `--subcase N`, and zero-based `--step N`. The BDF must project to
+a basic-frame mesh, all GRID CD values must be zero, and result node IDs must
+match exactly. Complex results, other OP2 tables, nonbasic result frames,
+multiple unselected subcases/steps, and embedded-geometry recovery are outside
+this route. No OP2 writer is supplied. The included real fixture permits an
+optional pyNastran-backed interoperability check.
+
+### Geometry-only BDF output
+
+`convert` can emit basic-frame GRID and linear element cards. It preserves known
+property IDs or uses placeholder PID 1 when absent. No property, material,
+load, constraint or case-control cards are generated. Use the native BDF
+`roundtrip` or `set-grid` commands when source preservation matters.
 
 ## Resource and storage limits
 

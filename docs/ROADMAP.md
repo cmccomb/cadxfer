@@ -1,33 +1,34 @@
-# Follow-on scope, not implemented features
+# Follow-on scope
 
-## First: earn confidence in the BDF foundation
+The 0.1.0 conversion matrix covers a **linear mesh and numeric-field subset**.
+Wider compatibility requires independent examples, precise loss reporting, and
+checks against the tools that own each format.
 
-Run compiler/tests/Clippy and CI; add licensed real-world decks and a differential
-harness against pyNastran; test edits in a solver; add sustained fuzzing and
-measured memory/runtime benchmarks. The publication gate comes before a wider
-support badge. Resolve coordinate frames and GRDSET with explicit default
-semantics, then add a controlled INCLUDE resolver with a caller-supplied policy.
+## BDF and INP
 
-Expand common BDF card families only with reference cases, precise support
-levels, and no-loss native round trips. Higher-order elements need verified
-node permutations and reader cross-checks, not corner-node truncation.
+Resolve coordinate frames, GRDSET and controlled INCLUDE expansion before
+claiming broader deck support. Add element types only with verified node order
+and solver references. Geometry-only BDF/INP output should gain optional
+property/material mapping in a distinct, explicit solver-model workflow.
 
-## Then: a result-file use case
+## VTU and MSH
 
-FRD is a plausible next independently useful reader: document the ASCII dialect
-first, then binary dialects, locations, component labels, time steps, and source
-IDs. It should shape a real field/result API rather than inherit an invented one.
+Add binary/compressed and multi-piece layouts through proven readers and
+writers. Preserve Gmsh physical/entity metadata and component labels when a
+mapping is available. Extend result support to sparse fields with an explicit
+missing-value model, rather than filling unreported values silently.
 
-OP2 follows a separate compatibility plan. Start with a named set of solver
-variants and complete displacement tables, with byte order, word size, subcases,
-frames, lazy index semantics, and redistribution-safe fixtures. Do not describe
-an envelope scanner as a result reader.
+## FRD and OP2
 
-## Integration
+Extend FRD beyond ASCII and one-material-per-node results with fixtures from
+CalculiX. OP2 currently delegates one real displacement table to pyNastran;
+a native Rust reader would need named solver dialects, byte-order and word-size
+coverage, frame transforms, subcases, and real-world fixtures. Other result
+tables, complex modes, time-series export and lazy reads need separate support
+contracts. Neither FRD nor OP2 output is implied by their read support.
 
-Add adapters to established Gmsh/VTK Rust crates where their semantics fit. Add
-PyO3 bindings after the native API and error model settle. Keep the Python layer
-thin; it should not become the only usable interface. Add format detection only
-when it reports confidence/ambiguity rather than guessing from a file suffix.
+## Verification and publication
 
-No dates or performance targets are promised by this roadmap.
+Run the full CI matrix, cross-check with Gmsh, VTK, CalculiX and pyNastran,
+add fuzzing and measured resource benchmarks, then revisit crates.io release.
+No dates or performance targets are promised.

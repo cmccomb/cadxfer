@@ -132,12 +132,18 @@ fn missing_file_json_error() {
 }
 
 #[test]
-fn unsupported_result_format_is_honest() {
-    let result = Scratch::new().run(&["info", "results.op2", "--json"]);
-    assert_eq!(result.status.code(), Some(1));
+fn op2_requires_matching_mesh() {
+    let result = Scratch::new().run(&[
+        "convert",
+        "results.op2",
+        "results.vtu",
+        "--geometry-only",
+        "--json",
+    ]);
+    assert_eq!(result.status.code(), Some(2));
     assert!(String::from_utf8(result.stdout)
         .unwrap()
-        .contains("E_FORMAT"));
+        .contains("OP2 requires --mesh"));
 }
 
 #[test]
