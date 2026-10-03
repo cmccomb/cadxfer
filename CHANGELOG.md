@@ -8,7 +8,9 @@ conversion matrix.
 Added documented ASCII FRD mesh/nodal-field output and pyNastran-backed OP2
 real displacement output. Three-component displacements require an explicit
 assertion before receiving float `0.0` rotational components, with omission reports and OP2 reread
-verification. Mesh-only inputs still cannot yield a fabricated OP2 result.
+verification. Mesh-only inputs are never presented as computed results.
+Added an explicit BDF/INP-to-OP2 synthetic baseline: `--assume-zero-displacement`
+writes six zeros per node and labels the OP2 title as assumed, non-solver data.
 Narrowed the BDF public API by hiding source field spans and removing the
 physical field format classification and redundant INCLUDE-line accessor.
 `Document::cards()` and `Document::card_text()` remain available for inspection.

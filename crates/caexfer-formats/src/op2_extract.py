@@ -39,7 +39,10 @@ if step < 0 or step >= disp.data.shape[0]:
 time = float(disp._times[step])
 if not math.isfinite(time):
     time = 0.0
-print(f'OK\t{len(disp.node_gridtype)}\t{key}\t{step}\t{time:.17g}')
+assumed_zero = 'CAEXFER ASSUMED ZERO DISPLACEMENT' in str(disp.title)
+if assumed_zero and not (disp.data[step] == 0).all():
+    raise ValueError('OP2 assumed-zero title conflicts with nonzero displacement data')
+print(f'OK\t{len(disp.node_gridtype)}\t{key}\t{step}\t{time:.17g}\t{int(assumed_zero)}')
 for (node, grid_type), values in zip(disp.node_gridtype, disp.data[step]):
     if int(grid_type) != 1:
         raise ValueError(f'non-GRID result entity {node} has type {grid_type}')

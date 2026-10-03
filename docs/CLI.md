@@ -25,6 +25,10 @@ step number. These selection options also work with `info` and `validate`.
 `--zero-missing-rotations` is an OP2-output-only assertion that absent
 R1/R2/R3 in a three-component displacement are known float zero. Without it,
 that conversion fails rather than filling unknown results.
+`--assume-zero-displacement` accepts BDF or INP input and creates a synthetic
+static OP2 displacement table with six float zeros per node. It requires
+pyNastran, labels the OP2 title as assumed data, and never runs a solver.
+For INP, export a matching BDF separately before reading the OP2.
 
 `--json` produces one JSON object on stdout, with schema_version=1. Human-readable
 conversion omission reports go to stderr; JSON conversion reports place them in

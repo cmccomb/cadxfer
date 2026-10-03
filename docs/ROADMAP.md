@@ -30,6 +30,8 @@ time-series export and lazy reads need separate support contracts. The current
 writer creates one displacement table and fills missing rotations with typed
 float zero only after an explicit assertion for recognized three-component
 displacement fields. Other results cannot be inferred from a mesh alone.
+An explicit all-zero OP2 assumption is available for mesh-only BDF/INP; it is
+synthetic and does not replace analysis or a missing-value model.
 
 ## Verification and publication
 

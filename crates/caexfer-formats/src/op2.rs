@@ -8,13 +8,14 @@ use std::process::{Command, Stdio};
 
 /// Decode one real six-component displacement table using the installed
 /// pyNastran Python package. `step` is a zero-based index within the subcase.
+/// The bool reports whether the OP2 title marks a synthetic all-zero table.
 pub fn read_displacements(
     path: &Path,
     mesh: &Mesh,
     python: &Path,
     subcase: Option<i64>,
     step: Option<usize>,
-) -> Result<Dataset> {
+) -> Result<(Dataset, bool)> {
     mesh.validate()?;
     let output = Command::new(python)
         .arg("-c")
@@ -39,9 +40,14 @@ pub fn read_displacements(
         .next()
         .ok_or_else(|| Error::new("E_OP2", "empty extractor output"))?;
     let parts: Vec<&str> = header.split('\t').collect();
-    if parts.len() != 5 || parts[0] != "OK" {
+    if parts.len() != 6 || parts[0] != "OK" {
         return Err(Error::new("E_OP2", "invalid extractor header"));
     }
+    let assumed_zero = match parts[5] {
+        "0" => false,
+        "1" => true,
+        _ => return Err(Error::new("E_OP2", "invalid assumed-zero provenance flag")),
+    };
     let count: usize = parts[1]
         .parse()
         .map_err(|_| Error::new("E_OP2", "invalid result count"))?;
@@ -99,18 +105,20 @@ pub fn read_displacements(
         }],
     };
     dataset.validate()?;
-    Ok(dataset)
+    Ok((dataset, assumed_zero))
 }
 
 /// Emit one real Nastran displacement table through pyNastran. A recognized
 /// three-component displacement is promoted to six components with typed 0.0
 /// rotations only when `zero_missing_rotations` is true. The OP2 carries no mesh.
+/// `assumed_zero` marks a synthetic, non-solver table in the OP2 title.
 pub fn write_displacements(
     dataset: &Dataset,
     field: &Field,
     python: &Path,
     subcase: i64,
     zero_missing_rotations: bool,
+    assumed_zero: bool,
 ) -> Result<Vec<u8>> {
     dataset.mesh.validate()?;
     if dataset.mesh.points.is_empty()
@@ -152,6 +160,14 @@ pub fn write_displacements(
             "three-component displacement has unknown rotations; pass --zero-missing-rotations only if R1/R2/R3 are known to be zero",
         ));
     }
+    if assumed_zero
+        && (field.components.len() != 6 || field.values.iter().any(|value| *value != 0.0))
+    {
+        return Err(Error::new(
+            "E_OP2",
+            "assumed-zero OP2 output requires six zero components per node",
+        ));
+    }
     let name = field.name.to_ascii_uppercase();
     let named_displacement = name == "DISP"
         || name == "DISPLACEMENT"
@@ -165,13 +181,14 @@ pub fn write_displacements(
         ));
     }
     let mut source = format!(
-        "{}\t{}\t{}\t{}\n",
+        "{}\t{}\t{}\t{}\t{}\n",
         dataset.mesh.points.len(),
         subcase,
         field
             .time
             .map_or("-".to_string(), |value| value.to_string()),
-        field.components.len()
+        field.components.len(),
+        if assumed_zero { 1 } else { 0 }
     );
     for (i, point) in dataset.mesh.points.iter().enumerate() {
         if point.id > i32::MAX as u64 {
@@ -252,8 +269,8 @@ mod tests {
     #[test]
     fn unknown_rotations_are_not_filled_implicitly() {
         let (dataset, field) = sample();
-        let error =
-            write_displacements(&dataset, &field, Path::new("python3"), 1, false).unwrap_err();
+        let error = write_displacements(&dataset, &field, Path::new("python3"), 1, false, false)
+            .unwrap_err();
         assert!(error.message.contains("unknown rotations"));
     }
 
@@ -262,7 +279,22 @@ mod tests {
         let (dataset, mut field) = sample();
         field.values.pop();
         assert_eq!(
-            write_displacements(&dataset, &field, Path::new("python3"), 1, true)
+            write_displacements(&dataset, &field, Path::new("python3"), 1, true, false)
+                .unwrap_err()
+                .code,
+            "E_OP2"
+        );
+    }
+
+    #[test]
+    fn synthetic_provenance_requires_actual_zero_values() {
+        let (dataset, mut field) = sample();
+        field
+            .components
+            .extend(["R1".into(), "R2".into(), "R3".into()]);
+        field.values.extend([0.0, 0.0, 0.0]);
+        assert_eq!(
+            write_displacements(&dataset, &field, Path::new("python3"), 1, false, true)
                 .unwrap_err()
                 .code,
             "E_OP2"

@@ -31,6 +31,11 @@ float zero, and the fill is reported. Format
 features remain optional; all Rust
 workspace dependencies are local.
 
+A result-free BDF or INP can deliberately produce a synthetic all-zero OP2
+through `--assume-zero-displacement`. This is an explicit hypothetical field,
+not a computed result. The OP2 title records that provenance and the reader
+reports it. OP2 has no typed null slot for unknown displacement values.
+
 ## Precision and identity
 
 Source node/element IDs are not array offsets. Mapping to contiguous indices

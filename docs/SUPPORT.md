@@ -172,7 +172,16 @@ nonzero values that would underflow to zero, overflowing values, and node IDs
 outside signed 32-bit range fail. The output OP2 contains no mesh, so retain or
 export a matching BDF separately. Other fields and a nonzero source step
 number are omitted with reports. A mesh-only BDF/INP cannot generate an OP2
-displacement table. The included real fixture permits an optional
+result from analysis. With `--assume-zero-displacement`, a BDF or INP mesh can
+generate a **synthetic** static table with T1/T2/T3/R1/R2/R3 all set to float
+`0.0` at every node. The OP2 title says `CAEXFER ASSUMED ZERO DISPLACEMENT -
+NOT SOLVER RESULTS`, and the CLI reports the same assumption. This does not
+infer a solution or verify consistency with loads, constraints, or prescribed
+motions in the input. INP users must separately export a matching BDF mesh for
+OP2 readers. BDF synthetic output requires basic-frame GRID CD=0 so caexfer
+can reread it with that BDF. A rewritten synthetic OP2 retains its provenance title; other
+format projections report that provenance but do not encode it in their fields.
+The included real fixture permits an optional
 pyNastran-backed interoperability check.
 
 ### Geometry-only BDF output

@@ -64,7 +64,10 @@ the workspace tests and matrix script. Without optional Python, the script
 checked 25 routes and five byte-identical native copies. With pyNastran 1.4.1
 in Python 3.12, it checked 34 routes and six native copies, including FRD,
 VTU, and MSH three-component `DISP` fields converted to OP2 with explicitly
-asserted float `0.0` rotations. Generated OP2 files were reread through pyNastran and matched to
+asserted float `0.0` rotations. A later extension exercised 36 routes, adding
+explicit BDF/INP-to-OP2 all-zero assumptions, OP2 title provenance, and a
+synthetic OP2 rewrite that retained the title. Generated OP2 files were reread
+through pyNastran and matched to
 separate BDF geometry. Generated FRD files were reread by caexfer; an
 independent CalculiX GraphiX reader check remains to be done.
 

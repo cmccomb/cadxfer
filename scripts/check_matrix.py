@@ -118,6 +118,30 @@ def main() -> None:
                 target = folder / f'{source_format}-to-op2.op2'
                 result = run('convert', source, target, '--geometry-only', code=1)
                 assert result['error']['code'] == 'E_OP2' and not target.exists()
+                if options.op2_python and source_format in ('bdf', 'inp'):
+                    report = run('convert', source, target, '--geometry-only',
+                                 '--assume-zero-displacement', '--python', options.op2_python)
+                    assert target.is_file()
+                    assert any('SYNTHETIC ASSUMPTION' in item['detail']
+                               for item in report['omissions'])
+                    mesh = (source if source_format == 'bdf'
+                            else folder / 'inp-to-bdf.bdf')
+                    reread = folder / f'{source_format}-zero-reread.vtu'
+                    loaded = run('convert', target, reread, '--mesh', mesh,
+                                 '--python', options.op2_python, '--geometry-only')
+                    assert any('synthetic all-zero' in item['detail']
+                               for item in loaded['omissions'])
+                    piece = ET.parse(reread).find('./UnstructuredGrid/Piece')
+                    field = piece.find("./PointData/DataArray[@Name='DISPLACEMENT_SUBCASE_1']")
+                    assert field is not None and all(float(x) == 0.0 for x in field.text.split())
+                    if source_format == 'bdf':
+                        rewritten = folder / 'synthetic-op2-rewritten.op2'
+                        run('convert', target, rewritten, '--mesh', mesh,
+                            '--python', options.op2_python, '--geometry-only')
+                        reread_report = run('info', rewritten, '--mesh', mesh,
+                                            '--python', options.op2_python)
+                        assert any('synthetic all-zero' in item for item in reread_report['omissions'])
+                    routes += 1
         if options.op2_python:
             mesh = folder / 'result-carrier-mesh.bdf'
             run('convert', sources['frd'], mesh, '--geometry-only')

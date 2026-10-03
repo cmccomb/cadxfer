@@ -6,12 +6,15 @@ use std::fs::File;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-use caexfer_core::{Dataset, Error, FieldLocation, Result, Severity, ValidationReport};
+use caexfer_core::{Dataset, Error, Field, FieldLocation, Result, Severity, ValidationReport};
 use caexfer_formats::{
     bdf::{parse_real, Document, ParseOptions},
     bdf_mesh, frd, inp, msh, op2, vtu,
 };
 use json::{array, object, quote};
+
+const SYNTHETIC_OP2_SOURCE_NOTICE: &str =
+    "OP2 title marks this as a synthetic all-zero displacement table, not solver results";
 
 const HELP: &str = "caexfer 0.1.0 — inspect, preserve, and explicitly project engineering files
 
@@ -28,6 +31,7 @@ COMMON OPTIONS
   --mesh BDF       Required BDF geometry for OP2 results
   --python PATH    Python with pyNastran installed for OP2 (default: python3)
   --zero-missing-rotations  Confirm absent R1/R2/R3 are known float 0.0 for OP2 output
+  --assume-zero-displacement  Create a synthetic all-zero OP2 displacement table from BDF/INP
   --subcase N      OP2 displacement subcase if more than one exists
   --step N         Zero-based OP2 result step, or FRD step number
   --max-bytes N    Input byte limit (default: 268435456)
@@ -46,6 +50,7 @@ SCOPE
   convert requires --geometry-only and reports omitted solver information.
   Unresolved INCLUDEs, nonbasic CP, GRDSET, higher-order/unknown geometry fail.
   OP2 output contains results only; export a matching BDF separately.
+  --assume-zero-displacement writes hypothetical values, not solver results.
   Output files must not already exist.
 ";
 
@@ -57,6 +62,7 @@ struct Args {
     strict: bool,
     geometry_only: bool,
     zero_missing_rotations: bool,
+    assume_zero_displacement: bool,
     from: Option<String>,
     mesh: Option<PathBuf>,
     python: Option<PathBuf>,
@@ -146,6 +152,11 @@ fn parse_args(raw: Vec<OsString>) -> Result<Args> {
                 return Err(usage("duplicate --zero-missing-rotations"));
             }
             args.zero_missing_rotations = true;
+        } else if options && arg == "--assume-zero-displacement" {
+            if args.assume_zero_displacement {
+                return Err(usage("duplicate --assume-zero-displacement"));
+            }
+            args.assume_zero_displacement = true;
         } else if options && arg == "--from" {
             if args.from.is_some() {
                 return Err(usage("duplicate --from"));
@@ -255,6 +266,24 @@ fn parse_args(raw: Vec<OsString>) -> Result<Args> {
                 .is_none_or(|extension| !extension.eq_ignore_ascii_case("op2")))
     {
         return Err(usage("--zero-missing-rotations applies only to OP2 output"));
+    }
+    if args.assume_zero_displacement
+        && (args.command != "convert"
+            || args
+                .paths
+                .get(1)
+                .and_then(|path| path.extension())
+                .and_then(OsStr::to_str)
+                .is_none_or(|extension| !extension.eq_ignore_ascii_case("op2")))
+    {
+        return Err(usage(
+            "--assume-zero-displacement applies only to OP2 output",
+        ));
+    }
+    if args.assume_zero_displacement && args.zero_missing_rotations {
+        return Err(usage(
+            "--assume-zero-displacement already supplies all six components",
+        ));
     }
     if args.command == "convert" && !args.geometry_only {
         return Err(usage("conversion projects the supported mesh/field subset; pass --geometry-only to acknowledge omitted information"));
@@ -413,6 +442,16 @@ fn read_dataset(args: &Args) -> Result<(Dataset, Vec<String>)> {
                     ..ParseOptions::default()
                 },
             )?;
+            if args.assume_zero_displacement {
+                for grid in doc.grids() {
+                    if grid?.cd != 0 {
+                        return Err(Error::new(
+                            "E_OP2",
+                            "synthetic OP2 output requires basic-frame GRID CD=0 for matching BDF reread",
+                        ));
+                    }
+                }
+            }
             let projection = doc.geometry()?;
             let omitted = projection
                 .omissions
@@ -519,7 +558,7 @@ fn read_dataset(args: &Args) -> Result<(Dataset, Vec<String>)> {
                 .clone()
                 .or_else(|| std::env::var_os("CAEXFER_PYTHON").map(PathBuf::from))
                 .unwrap_or_else(|| PathBuf::from("python3"));
-            let dataset = op2::read_displacements(
+            let (dataset, assumed_zero) = op2::read_displacements(
                 &args.paths[0],
                 &projection.mesh,
                 &python,
@@ -531,6 +570,9 @@ fn read_dataset(args: &Args) -> Result<(Dataset, Vec<String>)> {
                 .iter()
                 .map(|v| format!("BDF {} × {}: {}", v.category, v.count, v.detail))
                 .collect();
+            if assumed_zero {
+                omissions.push(SYNTHETIC_OP2_SOURCE_NOTICE.into());
+            }
             omissions.push("OP2 result tables other than the selected real displacement table are not exported".into());
             Ok((dataset, omissions))
         }
@@ -542,6 +584,9 @@ fn read_dataset(args: &Args) -> Result<(Dataset, Vec<String>)> {
 }
 fn run_convert(args: &Args) -> Result<u8> {
     let (mut dataset, mut omissions) = read_dataset(args)?;
+    let synthetic_op2_source = omissions
+        .iter()
+        .any(|notice| notice == SYNTHETIC_OP2_SOURCE_NOTICE);
     let ext = args.paths[1]
         .extension()
         .and_then(OsStr::to_str)
@@ -681,6 +726,34 @@ fn run_convert(args: &Args) -> Result<u8> {
             output::create_new(&args.paths[1], |writer| frd::write(&dataset, writer))?;
         }
         "op2" => {
+            if args.assume_zero_displacement {
+                let source_format = format_of(args)?;
+                if !matches!(source_format.as_str(), "bdf" | "inp") {
+                    return Err(usage(
+                        "--assume-zero-displacement currently accepts BDF or INP input",
+                    ));
+                }
+                if !dataset.fields.is_empty() {
+                    return Err(Error::new(
+                        "E_OP2",
+                        "zero-displacement assumption requires a result-free input",
+                    ));
+                }
+                let count = dataset.mesh.points.len().checked_mul(6).ok_or_else(|| {
+                    Error::new("E_LIMIT", "too many nodes for synthetic displacement")
+                })?;
+                dataset.fields.push(Field {
+                    name: "DISP".into(),
+                    location: FieldLocation::Point,
+                    components: ["T1", "T2", "T3", "R1", "R2", "R3"]
+                        .map(str::to_owned)
+                        .to_vec(),
+                    values: vec![0.0; count],
+                    step: None,
+                    time: None,
+                });
+                omissions.push("SYNTHETIC ASSUMPTION: all six displacement components set to float 0.0 for every node; no solver analysis was performed".into());
+            }
             let matches: Vec<_> = dataset
                 .fields
                 .iter()
@@ -733,6 +806,7 @@ fn run_convert(args: &Args) -> Result<u8> {
                 &python,
                 subcase,
                 args.zero_missing_rotations,
+                args.assume_zero_displacement || synthetic_op2_source,
             )?;
             output::create_new(&args.paths[1], |writer| {
                 writer.write_all(&bytes)?;
@@ -870,7 +944,7 @@ fn run(args: Args) -> Result<u8> {
                     (
                         "op2",
                         "real displacement via pyNastran and matching BDF",
-                        "real displacement via pyNastran; no embedded mesh",
+                        "real displacement via pyNastran; explicit synthetic all-zero option; no embedded mesh",
                     ),
                 ];
                 emit(&object([
@@ -888,7 +962,7 @@ fn run(args: Args) -> Result<u8> {
                     ),
                 ]))?;
             } else {
-                emit("bdf  document + linear mesh; document copy and geometry export\nvtu  ASCII mesh + numeric fields, read/write\nmsh  ASCII 4.1 mesh + numeric fields, read/write\ninp  flat mesh subset, read/geometry write\nfrd  ASCII mesh + nodal fields, read/write\nop2  real displacement via pyNastran, read/write; separate BDF mesh")?;
+                emit("bdf  document + linear mesh; document copy and geometry export\nvtu  ASCII mesh + numeric fields, read/write\nmsh  ASCII 4.1 mesh + numeric fields, read/write\ninp  flat mesh subset, read/geometry write\nfrd  ASCII mesh + nodal fields, read/write\nop2  real displacement via pyNastran, read/write; explicit synthetic-zero option; separate BDF mesh")?;
             }
             return Ok(0);
         }
@@ -1120,5 +1194,33 @@ mod tests {
     #[test]
     fn format_report_takes_no_paths() {
         assert!(args(&["formats", "x.bdf"]).is_err());
+    }
+    #[test]
+    fn assumed_zero_requires_op2_output_and_no_rotation_fill_flag() {
+        assert!(args(&[
+            "convert",
+            "x.bdf",
+            "x.op2",
+            "--geometry-only",
+            "--assume-zero-displacement"
+        ])
+        .is_ok());
+        assert!(args(&[
+            "convert",
+            "x.bdf",
+            "x.vtu",
+            "--geometry-only",
+            "--assume-zero-displacement"
+        ])
+        .is_err());
+        assert!(args(&[
+            "convert",
+            "x.bdf",
+            "x.op2",
+            "--geometry-only",
+            "--assume-zero-displacement",
+            "--zero-missing-rotations"
+        ])
+        .is_err());
     }
 }
