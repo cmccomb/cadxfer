@@ -383,7 +383,7 @@ fn materials_are_opaque_warnings_not_false_validation() {
 #[test]
 fn empty_is_roundtrippable_not_projectable() {
     let doc = Document::parse(b"").unwrap();
-    assert!(doc.to_bytes().is_empty());
+    assert_eq!(doc.to_bytes(), b"");
     assert_eq!(doc.geometry().unwrap_err().code, "E_EMPTY_GEOMETRY");
 }
 

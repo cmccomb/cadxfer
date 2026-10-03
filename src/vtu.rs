@@ -799,7 +799,7 @@ mod tests {
         mesh.cells[0].connectivity[0] = 100;
         let mut output = Vec::new();
         assert!(write(&mesh, &mut output).is_err());
-        assert!(output.is_empty());
+        assert_eq!(output, Vec::<u8>::new());
     }
 
     #[test]
@@ -935,11 +935,11 @@ mod tests {
             };
             let mut output = Vec::new();
             assert_eq!(write_data(&dataset, &mut output).unwrap_err().code, "E_VTU");
-            assert!(output.is_empty());
+            assert_eq!(output, Vec::<u8>::new());
             dataset.fields[0].name = "valid".into();
             dataset.fields[0].components[0] = invalid_name.into();
             assert_eq!(write_data(&dataset, &mut output).unwrap_err().code, "E_VTU");
-            assert!(output.is_empty());
+            assert_eq!(output, Vec::<u8>::new());
         }
     }
 }
