@@ -110,7 +110,11 @@ parametric nodes and partial result blocks fail. Extra sections such as physical
 names or entity metadata are reported as omissions by the CLI. MSH field values,
 time and step are retained when supplied. A field without step metadata uses
 MSH step 0 with an omission note. Per-component names and BDF property IDs do
-not have mappings in this exporter.
+not have mappings in this exporter. The writer declares one discrete entity per
+occupied element dimension and classifies nodes on the highest dimension; for a
+nodes-only mesh it declares one point entity per node. These entities carry no
+physical groups or boundary topology. CI checks that Gmsh can import and resave
+mixed-dimension and nodes-only exports without changing IDs or connectivity.
 
 ### Abaqus/CalculiX INP
 

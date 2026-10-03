@@ -151,53 +151,54 @@ pub fn read(source: &str) -> Result<Dataset> {
     }
 
     // Element blocks are homogeneous in type and entity dimension.
-    let elements = section(source, "Elements")?.ok_or_else(|| err("missing Elements"))?;
-    let mut t = elements.split_whitespace();
-    let blocks: usize = number(t.next(), "element block count")?;
-    let total: usize = number(t.next(), "element count")?;
-    let _: u64 = number(t.next(), "minimum element tag")?;
-    let _: u64 = number(t.next(), "maximum element tag")?;
-    if blocks > t.clone().count() / 4 || total > t.clone().count() / 3 {
-        return Err(err("element counts exceed available input"));
-    }
-    for _ in 0..blocks {
-        let dim: u32 = number(t.next(), "entity dimension")?;
-        let _: u64 = number(t.next(), "entity tag")?;
-        let type_code: u32 = number(t.next(), "element type")?;
-        let cell_kind = kind(type_code)?;
-        if dim != code(cell_kind).1 {
-            return Err(err("element dimension mismatch"));
+    if let Some(elements) = section(source, "Elements")? {
+        let mut t = elements.split_whitespace();
+        let blocks: usize = number(t.next(), "element block count")?;
+        let total: usize = number(t.next(), "element count")?;
+        let _: u64 = number(t.next(), "minimum element tag")?;
+        let _: u64 = number(t.next(), "maximum element tag")?;
+        if blocks > t.clone().count() / 4 || total > t.clone().count() / 3 {
+            return Err(err("element counts exceed available input"));
         }
-        let count: usize = number(t.next(), "block element count")?;
-        let tokens_per_element = cell_kind.node_count() + 1;
-        if count > total.saturating_sub(mesh.cells.len())
-            || count > t.clone().count() / tokens_per_element
-        {
-            return Err(err("block element count exceeds available input"));
-        }
-        for _ in 0..count {
-            let id = number(t.next(), "element tag")?;
-            let mut connectivity = Vec::with_capacity(cell_kind.node_count());
-            for _ in 0..cell_kind.node_count() {
-                let node: u64 = number(t.next(), "element node")?;
-
-                // The mesh model stores point indices, not Gmsh node tags.
-                connectivity.push(
-                    *node_ids
-                        .get(&node)
-                        .ok_or_else(|| err(format!("unknown node {node}")))?,
-                );
+        for _ in 0..blocks {
+            let dim: u32 = number(t.next(), "entity dimension")?;
+            let _: u64 = number(t.next(), "entity tag")?;
+            let type_code: u32 = number(t.next(), "element type")?;
+            let cell_kind = kind(type_code)?;
+            if dim != code(cell_kind).1 {
+                return Err(err("element dimension mismatch"));
             }
-            mesh.cells.push(Cell {
-                id,
-                kind: cell_kind,
-                connectivity,
-                property_id: None,
-            });
+            let count: usize = number(t.next(), "block element count")?;
+            let tokens_per_element = cell_kind.node_count() + 1;
+            if count > total.saturating_sub(mesh.cells.len())
+                || count > t.clone().count() / tokens_per_element
+            {
+                return Err(err("block element count exceeds available input"));
+            }
+            for _ in 0..count {
+                let id = number(t.next(), "element tag")?;
+                let mut connectivity = Vec::with_capacity(cell_kind.node_count());
+                for _ in 0..cell_kind.node_count() {
+                    let node: u64 = number(t.next(), "element node")?;
+
+                    // The mesh model stores point indices, not Gmsh node tags.
+                    connectivity.push(
+                        *node_ids
+                            .get(&node)
+                            .ok_or_else(|| err(format!("unknown node {node}")))?,
+                    );
+                }
+                mesh.cells.push(Cell {
+                    id,
+                    kind: cell_kind,
+                    connectivity,
+                    property_id: None,
+                });
+            }
         }
-    }
-    if mesh.cells.len() != total {
-        return Err(err("element count mismatch"));
+        if mesh.cells.len() != total {
+            return Err(err("element count mismatch"));
+        }
     }
     let mut dataset = Dataset {
         mesh,
@@ -286,11 +287,101 @@ pub fn read(source: &str) -> Result<Dataset> {
     Ok(dataset)
 }
 
+/// Write the discrete entities referenced by node and element blocks.
+fn write_entities(mesh: &Mesh, writer: &mut impl Write) -> Result<Option<u32>> {
+    let dimensions: BTreeSet<u32> = mesh.cells.iter().map(|cell| code(cell.kind).1).collect();
+    let max_dim = dimensions.iter().next_back().copied();
+    let mut bounds = [[0.; 3]; 2];
+    if let Some(first) = mesh.points.first() {
+        bounds = [first.position; 2];
+        for point in &mesh.points {
+            let [low, high] = &mut bounds;
+            for ((min, max), coordinate) in low.iter_mut().zip(high.iter_mut()).zip(point.position)
+            {
+                *min = min.min(coordinate);
+                *max = max.max(coordinate);
+            }
+        }
+    }
+    writeln!(writer, "$MeshFormat\n4.1 0 8\n$EndMeshFormat\n$Entities")?;
+    let point_entities = if max_dim.is_none() {
+        mesh.points.len()
+    } else {
+        0
+    };
+    writeln!(
+        writer,
+        "{point_entities} {} {} {}",
+        u8::from(dimensions.contains(&1)),
+        u8::from(dimensions.contains(&2)),
+        u8::from(dimensions.contains(&3))
+    )?;
+    if max_dim.is_none() {
+        for (index, point) in mesh.points.iter().enumerate() {
+            writeln!(
+                writer,
+                "{} {} {} {} 0",
+                index + 1,
+                point.position[0],
+                point.position[1],
+                point.position[2]
+            )?;
+        }
+    }
+    for _dim in &dimensions {
+        writeln!(
+            writer,
+            "1 {} {} {} {} {} {} 0 0",
+            bounds[0][0], bounds[0][1], bounds[0][2], bounds[1][0], bounds[1][1], bounds[1][2]
+        )?;
+    }
+    writeln!(writer, "$EndEntities")?;
+    Ok(max_dim)
+}
+
+/// Write nodes classified on a declared entity, retaining original IDs.
+fn write_nodes(mesh: &Mesh, max_dim: Option<u32>, writer: &mut impl Write) -> Result<()> {
+    writeln!(writer, "$Nodes")?;
+    let min = mesh.points.iter().map(|p| p.id).min().unwrap_or(0);
+    let max = mesh.points.iter().map(|p| p.id).max().unwrap_or(0);
+    if let Some(dim) = max_dim {
+        writeln!(writer, "1 {} {min} {max}", mesh.points.len())?;
+        writeln!(writer, "{dim} 1 0 {}", mesh.points.len())?;
+        for point in &mesh.points {
+            writeln!(writer, "{}", point.id)?;
+        }
+        for point in &mesh.points {
+            writeln!(
+                writer,
+                "{} {} {}",
+                point.position[0], point.position[1], point.position[2]
+            )?;
+        }
+    } else {
+        writeln!(
+            writer,
+            "{} {} {min} {max}",
+            mesh.points.len(),
+            mesh.points.len()
+        )?;
+        for (index, point) in mesh.points.iter().enumerate() {
+            writeln!(writer, "0 {} 0 1\n{}", index + 1, point.id)?;
+            writeln!(
+                writer,
+                "{} {} {}",
+                point.position[0], point.position[1], point.position[2]
+            )?;
+        }
+    }
+    writeln!(writer, "$EndNodes")?;
+    Ok(())
+}
+
 /// Write ASCII MSH 4.1 geometry and complete numeric fields.
 ///
 /// Property IDs cannot be represented by this writer and cause an error.
-/// Validate the returned bytes with [`read`] when interoperability matters;
-/// external Gmsh entity and physical-group semantics are outside this model.
+/// Cells are classified on one discrete entity per occupied dimension;
+/// physical groups and boundary relationships are outside this model.
 ///
 /// # Errors
 ///
@@ -306,28 +397,11 @@ pub fn write(dataset: &Dataset, mut writer: impl Write) -> Result<()> {
     }
     let mesh = &dataset.mesh;
 
-    // This bounded writer emits one global node block. Tags and coordinate
-    // tuples are separate sequences in the MSH 4.1 block layout.
-    writeln!(writer, "$MeshFormat\n4.1 0 8\n$EndMeshFormat\n$Nodes")?;
-    let min = mesh.points.iter().map(|p| p.id).min().unwrap_or(0);
-    let max = mesh.points.iter().map(|p| p.id).max().unwrap_or(0);
-    writeln!(
-        writer,
-        "1 {} {min} {max}\n3 1 0 {}",
-        mesh.points.len(),
-        mesh.points.len()
-    )?;
-    for point in &mesh.points {
-        writeln!(writer, "{}", point.id)?;
-    }
-    for point in &mesh.points {
-        writeln!(
-            writer,
-            "{} {} {}",
-            point.position[0], point.position[1], point.position[2]
-        )?;
-    }
-    writeln!(writer, "$EndNodes\n$Elements")?;
+    // The model has no CAD topology; these entities have no physical tags or
+    // declared boundary relationships.
+    let max_dim = write_entities(mesh, &mut writer)?;
+    write_nodes(mesh, max_dim, &mut writer)?;
+    writeln!(writer, "$Elements")?;
 
     // Group cells by Gmsh type because an element block has one type code.
     let mut groups: BTreeMap<u32, Vec<&Cell>> = BTreeMap::new();

@@ -53,6 +53,14 @@ jobs:
       # Independent tools check the CLI output, beyond Rust unit tests.
       - name: Build CLI for interoperability checks
         run: cargo build --offline
+      - name: Install Gmsh for MSH import gate
+        if: matrix.os == 'ubuntu-latest' && matrix.rust == 'stable'
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq gmsh
+      - name: Check MSH output with Gmsh
+        if: matrix.os == 'ubuntu-latest' && matrix.rust == 'stable'
+        env:
+          CAEXFER_GMSH: gmsh
+        run: cargo test --test gmsh_interop --offline
       - name: Execute independent CLI interoperability checks
         run: python scripts/check_interop.py
       - name: Check supported conversion matrix
