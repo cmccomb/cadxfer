@@ -17,7 +17,7 @@ BDF remains a byte-preserving document with narrow typed views. Other readers
 project directly into a linear `Mesh` plus located numeric `Field`s. This is
 not a universal solver schema: loads, constraints, units and constitutive laws
 are never inferred from a mesh. Every CLI conversion needs an explicit
-`--geometry-only` acknowledgement and reports source/destination omissions.
+`--accept-projection` acknowledgement and reports source/destination omissions.
 
 FRD and OP2 have different boundaries. The FRD adapter reads and writes a
 documented ASCII subset directly. OP2 reads and writes one real displacement

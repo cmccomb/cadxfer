@@ -33,15 +33,9 @@ def main() -> None:
         assert info["schema_version"] == 1 and info["card_counts"]["GRID"] == 4
         assert info["geometry"]["full_solver_validation"] is False
         checks.append("CLI info emits valid, scope-aware JSON")
-        sources = sorted((ROOT / "tests/fixtures").glob("*.bdf")) + sorted((ROOT / "examples").glob("*.bdf"))
-        for index, source in enumerate(sources):
-            destination = temp / f"roundtrip-{index}.bdf"
-            run("roundtrip", source, destination)
-            assert destination.read_bytes() == source.read_bytes(), source
-        checks.append(f"{len(sources)} native round trips are byte-identical")
         source = ROOT / "tests/fixtures/mixed-linear.bdf"
         destination = temp / "mixed.vtu"
-        result = run("convert", source, destination, "--geometry-only", "--json")
+        result = run("convert", source, destination, "--accept-projection", "--json")
         report = json.loads(result.stdout)
         assert report["points"] == 9 and report["cells"] == 7 and report["omissions"]
         expected = json.loads((ROOT / "tests/fixtures/mixed-linear.expected.json").read_text())
@@ -84,13 +78,13 @@ def main() -> None:
             checks.append("independent VTK reader accepts the actual Rust output and original IDs")
         run("convert", source, temp / "no-ack.vtu", expected_code=2)
         assert not (temp / "no-ack.vtu").exists()
-        run("convert", "examples/unsupported.bdf", temp / "unknown.vtu", "--geometry-only", expected_code=1)
+        run("convert", "examples/unsupported.bdf", temp / "unknown.vtu", "--accept-projection", expected_code=1)
         assert not (temp / "unknown.vtu").exists()
-        run("convert", "examples/nonbasic-frame.bdf", temp / "frame.vtu", "--geometry-only", expected_code=1)
+        run("convert", "examples/nonbasic-frame.bdf", temp / "frame.vtu", "--accept-projection", expected_code=1)
         assert not (temp / "frame.vtu").exists()
         checks.append("loss acknowledgement, unknown geometry and frame failures leave no output")
         before = destination.read_bytes()
-        run("convert", source, destination, "--geometry-only", expected_code=1)
+        run("convert", source, destination, "--accept-projection", expected_code=1)
         assert destination.read_bytes() == before
         checks.append("existing output is not overwritten")
     print(json.dumps({"kind": "executed-cli-interoperability", "checks_passed": checks}, indent=2))

@@ -22,6 +22,7 @@ checkout to browse every public type and method.
 | Read a mesh and numeric results | `vtu::read`, `msh::read`, or `frd::read` | `core::Dataset` |
 | Read a flat INP mesh | `inp::read` | `Inspection { mesh, omitted_keywords }` |
 | Read one OP2 displacement result | `op2::read_displacements` | `(Dataset, assumed_zero)`; matching BDF mesh and pyNastran required |
+| Convert a file and inspect losses | `conversion::convert_path` | Caller-owned output stream and `ConversionReport` |
 
 `core::Mesh` contains original positive point and cell IDs. Cell connectivity
 contains **zero-based indices into `mesh.points`**, not point IDs. A
@@ -55,6 +56,34 @@ before writing its mesh. Run the executable
 `cargo run --example project_geometry`.
 
 ## Convert a dataset with numeric fields
+
+The high-level conversion API applies the same projections as the CLI and
+returns typed source, destination, and assumption notices:
+
+```rust
+use caexfer::conversion::{self, Format, Options};
+use std::path::Path;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let output = std::fs::OpenOptions::new()
+        .write(true).create_new(true).open("results.msh")?;
+    let report = conversion::convert_path(
+        Path::new("results.vtu"), Format::Msh, &Options::default(), output,
+    )?;
+    for omission in report.omissions {
+        eprintln!("{}: {}", omission.stage.name(), omission.detail);
+    }
+    Ok(())
+}
+```
+
+`Options` sets source format, result selection, byte limits, and the Python
+interpreter for OP2. `read_path` returns a `ReadResult` if an application needs
+to inspect or modify the dataset before calling `conversion::convert`. The
+caller owns the output stream and handles incomplete output on failure; use
+the CLI for staged no-clobber file creation.
+
+For direct control over format-specific features, call an adapter:
 
 Read a supported ASCII VTU piece and write its mesh and fields as Gmsh MSH 4.1:
 

@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Added public `conversion` API with typed format selection and omission reports;
+  the CLI now uses it for all conversions.
+- Retired the CLI `roundtrip` command and its opaque file copying. BDF byte
+  preservation remains available through `Document::write_to`.
+- Renamed the conversion acknowledgement to `--accept-projection`.
 - Removed BDF GRID editing from the public library API and CLI to keep the
   package focused on inspection, preservation, and conversion.
 - Renamed the project to `caexfer` and consolidated five crates into one

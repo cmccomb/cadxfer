@@ -3,8 +3,9 @@
 //! Start with [`bdf::Document`] for byte-preserving BDF inspection and copying.
 //! Call [`bdf::Document::geometry`] only when a mesh projection is intended,
 //! and inspect its omissions. [`core::Mesh`] holds geometry and original IDs;
-//! [`core::Dataset`] adds complete numeric fields. Format modules expose their
-//! scoped readers and writers; see the [library guide] for a format-by-format
+//! [`core::Dataset`] adds complete numeric fields. [`conversion::convert_path`]
+//! provides format selection and a typed omission report; format modules expose
+//! their scoped readers and writers. See the [library guide] for a format-by-format
 //! map and installation instructions.
 //!
 //! [library guide]: https://github.com/cmccomb/caexfer/blob/main/docs/LIBRARY.md
@@ -28,6 +29,7 @@
 #![warn(missing_docs)]
 
 pub mod bdf;
+pub mod conversion;
 pub mod core;
 pub mod frd;
 pub mod inp;

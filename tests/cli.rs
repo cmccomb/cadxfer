@@ -55,16 +55,13 @@ fn info_json_has_version_and_scope() {
 }
 
 #[test]
-fn roundtrip_really_matches_original() {
+fn retired_roundtrip_command_is_rejected() {
     let s = Scratch::new();
-    assert!(s
-        .run(&["roundtrip", "mesh.bdf", "copy.bdf"])
-        .status
-        .success());
     assert_eq!(
-        std::fs::read(s.0.join("mesh.bdf")).unwrap(),
-        std::fs::read(s.0.join("copy.bdf")).unwrap()
+        s.run(&["roundtrip", "mesh.bdf", "copy.bdf"]).status.code(),
+        Some(2)
     );
+    assert!(!s.0.join("copy.bdf").exists());
 }
 
 #[test]
@@ -84,7 +81,7 @@ fn geometry_conversion_creates_vtu_and_reports_losses() {
         "convert",
         "mesh.bdf",
         "mesh.vtu",
-        "--geometry-only",
+        "--accept-projection",
         "--json",
     ]);
     assert!(
@@ -105,7 +102,7 @@ fn source_file_is_never_overwritten() {
     let s = Scratch::new();
     let before = std::fs::read(s.0.join("mesh.bdf")).unwrap();
     assert!(!s
-        .run(&["roundtrip", "mesh.bdf", "mesh.bdf"])
+        .run(&["convert", "mesh.bdf", "mesh.bdf", "--accept-projection"])
         .status
         .success());
     assert_eq!(before, std::fs::read(s.0.join("mesh.bdf")).unwrap());
@@ -137,7 +134,7 @@ fn op2_requires_matching_mesh() {
         "convert",
         "results.op2",
         "results.vtu",
-        "--geometry-only",
+        "--accept-projection",
         "--json",
     ]);
     assert_eq!(result.status.code(), Some(2));

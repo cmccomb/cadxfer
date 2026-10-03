@@ -8,9 +8,8 @@ CLI without installation. Routes that do not read or write OP2 need no Python.
 caexfer formats
 caexfer info model.bdf
 caexfer validate model.bdf --json
-caexfer roundtrip model.bdf model-copy.bdf
-caexfer convert model.bdf model.vtu --geometry-only
-caexfer convert results.op2 results.vtu --mesh model.bdf --geometry-only
+caexfer convert model.bdf model.vtu --accept-projection
+caexfer convert results.op2 results.vtu --mesh model.bdf --accept-projection
 ```
 
 The OP2 example requires pyNastran in the selected Python interpreter.
@@ -27,8 +26,7 @@ JSON/human display of non-UTF-8 paths is lossy, not an exact path serialization.
 | `formats` | Actual read/write capabilities, not a roadmap |
 | `info INPUT` | Record counts and whether geometry projection is available |
 | `validate INPUT` | BDF geometry diagnostics or supported mesh/field subset checks |
-| `roundtrip INPUT OUTPUT` | Source bytes reproduced unchanged (only BDF parses first) |
-| `convert INPUT OUTPUT --geometry-only` | Explicit mesh/field projection to BDF, VTU, MSH, INP, FRD, or OP2 when the source has suitable results |
+| `convert INPUT OUTPUT --accept-projection` | Explicit mesh/field projection to BDF, VTU, MSH, INP, FRD, or OP2 when the source has suitable results |
 
 Input extensions are `.bdf`, `.nas`, `.dat`, `.pch`, `.vtu`, `.msh`, `.inp`,
 `.frd`, and `.op2` (case-insensitive). `--from FORMAT` overrides the extension;
@@ -48,14 +46,15 @@ For INP, export a matching BDF separately before reading the OP2.
 
 `--json` produces one JSON object on stdout, with schema_version=1. Human-readable
 conversion omission reports go to stderr; JSON conversion reports place them in
-an `omissions` array. JSON error output also goes to stdout. Schema version 1
+an `omissions` array with each item's `stage` (`source`, `destination`, or
+`assumption`) and detail. JSON error output also goes to stdout. Schema version 1
 is intentionally small; consumers should tolerate new keys.
 
 Exit 0 means the requested scoped operation succeeded. `info` succeeds after
 native parsing even when geometry cannot be projected; consult its report.
 Exit 1 means I/O, parsing, projection, or validation failed. `validate
 --strict` also exits 1 on a warning. Exit 2 means invalid CLI usage, including
-conversion without `--geometry-only`. Use stable diagnostic `code` values rather
+conversion without `--accept-projection`. Use stable diagnostic `code` values rather
 than parsing human descriptions. The version's code list can grow.
 
 The CLI never overwrites an output path and deliberately has no `--force` option

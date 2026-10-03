@@ -33,7 +33,7 @@ class Card:
 NATIVE = (
     Card(235, 137, "SOURCE DOCUMENT", "model.bdf", SOURCE, "source",
          "PSHELL  MAT1  FORCE  SPC1"),
-    Card(640, 137, "BYTE-IDENTICAL COPY", "copy.bdf", COPY, "copy",
+    Card(640, 137, "LIBRARY BYTE COPY", "copy.bdf", COPY, "copy",
          "Every source byte retained"),
 )
 
@@ -134,7 +134,7 @@ def render() -> str:
         '<svg xmlns="http://www.w3.org/2000/svg" width="1240" height="1037" '
         'viewBox="0 0 1240 1037" role="img" aria-labelledby="title description">',
         '<title id="title">Caexfer preserves native BDF bytes and projects six format subsets</title>',
-        '<desc id="description">The top row compares a BDF source and its byte-identical copy. '
+        '<desc id="description">The top row shows BDF document byte preservation through the Rust library. '
         'The lower cards show BDF and INP geometry decks; VTU and MSH meshes with numeric fields; '
         'FRD mesh with nodal fields; and an OP2 displacement table without embedded geometry. '
         'Mesh-bearing representations share the same topology.</desc>',
@@ -144,9 +144,9 @@ def render() -> str:
         '</linearGradient></defs>',
         '<rect width="1240" height="1037" rx="24" fill="url(#background)"/>',
         text(45, 58, "One mesh, different promises", size=32, weight=700),
-        text(46, 87, "Native BDF copies preserve the document. Conversions project supported geometry and results.",
+        text(46, 87, "BDF Document preserves source bytes. Conversions project supported geometry and results.",
              size=16, color=MUTED),
-        text(46, 120, "NATIVE BDF COPY", size=13, color=SOURCE, weight=700, spacing=1),
+        text(46, 120, "BDF LIBRARY DOCUMENT", size=13, color=SOURCE, weight=700, spacing=1),
     ]
     parts.extend(card(item, native=True) for item in NATIVE)
     parts.extend((

@@ -13,7 +13,7 @@
 3. **Geometry projection.** Only the geometry subset below is interpreted.
    Unknown geometry, unresolved frames/defaults/includes, and unsupported
    higher-order connectivity fail. The API returns an omission report; the CLI
-   additionally requires `--geometry-only`.
+   additionally requires `--accept-projection`.
 
 These are intentionally not described by one generic `read/write: yes` flag.
 
@@ -83,12 +83,11 @@ Any card outside the geometry subset and this allowlist blocks projection.
 
 ## Conversion formats
 
-All `convert` operations require `--geometry-only`, including routes that carry
+All `convert` operations require `--accept-projection`, including routes that carry
 supported numeric fields. This acknowledges projection from a native source to
 our linear mesh and numeric-field subset. The CLI emits source and destination
-omissions. Native `roundtrip` copies bytes unchanged; for BDF, the document is
-parsed and rewritten from its retained source buffer. Other formats are copied
-as opaque bytes by `roundtrip`.
+omissions. The BDF library `Document` retains source bytes and can write them
+unchanged; conversion always works from the supported projection.
 
 ### VTU
 
@@ -174,8 +173,8 @@ pyNastran-backed interoperability check.
 
 `convert` can emit basic-frame GRID and linear element cards. It preserves known
 property IDs or uses placeholder PID 1 when absent. No property, material,
-load, constraint or case-control cards are generated. Use the native BDF
-`roundtrip` command when source preservation matters.
+load, constraint or case-control cards are generated. Use the BDF library
+`Document::write_to` when source preservation matters.
 
 ## Resource and storage limits
 

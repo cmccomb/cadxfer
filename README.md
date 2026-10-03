@@ -27,36 +27,35 @@ cd caexfer
 
 caexfer formats
 caexfer info examples/plate.bdf
-caexfer roundtrip examples/plate.bdf plate-copy.bdf
-caexfer convert examples/plate.bdf plate.vtu --geometry-only
+caexfer convert examples/plate.bdf plate.vtu --accept-projection
 ```
 
 For a local checkout without installing, replace `caexfer` with
 `cargo run --locked --`. OP2 routes additionally need Python with pyNastran;
 the other routes have no non-Rust runtime dependency.
 
-`roundtrip` writes a byte-identical copy. `convert` requires `--geometry-only`
-to acknowledge projection into the supported mesh and field subset. Output
+`convert` requires `--accept-projection` to acknowledge projection into the
+supported mesh and field subset. Output
 files must be new; the CLI never overwrites an existing path.
 
 ## Conversion routes
 
-[![Schematic of a byte-identical BDF copy and BDF, VTU, MSH, INP, FRD, and OP2 representations](assets/conversion-flow.svg)](assets/conversion-flow.svg)
+[![Schematic of a BDF document and BDF, VTU, MSH, INP, FRD, and OP2 representations](assets/conversion-flow.svg)](assets/conversion-flow.svg)
 
-The figure shows what each format can carry. The matrix gives the actual routes:
+The figure shows what each format can carry. Its BDF byte copy uses the library's
+`Document::write_to`; the matrix lists `convert` routes:
 
 | From ↓ / To → | BDF | VTU | MSH 4.1 | INP | FRD | OP2 |
 | --- | --- | --- | --- | --- | --- | --- |
-| **BDF** | C / M | M | M | M | M† | Z |
-| **VTU** | M | C / F | F | M | F† | D‡ |
-| **MSH 4.1** | M | F | C / F | M | F† | D‡ |
-| **INP** | M | M | M | C / M | M† | Z |
-| **FRD** | M | F | F | M | C / F | D‡ |
-| **OP2 + BDF mesh** | M* | F* | F* | M* | F*† | C / D*‡ |
+| **BDF** | M | M | M | M | M† | Z |
+| **VTU** | M | F | F | M | F† | D‡ |
+| **MSH 4.1** | M | F | F | M | F† | D‡ |
+| **INP** | M | M | M | M | M† | Z |
+| **FRD** | M | F | F | M | F† | D‡ |
+| **OP2 + BDF mesh** | M* | F* | F* | M* | F*† | D*‡ |
 
 | Key | Result |
 | --- | --- |
-| **C** | Native byte copy via `roundtrip`. |
 | **M** | Linear mesh projection with original node and element IDs. |
 | **F** | Mesh plus supported numeric fields. |
 | **D** | One real displacement table written to OP2 via pyNastran. |
@@ -117,9 +116,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 ```
 
 `Document` keeps the native BDF; `geometry()` explicitly projects it and
-returns omissions to inspect. Other readers return a `Dataset` or mesh
-inspection. Library writers use caller-owned streams; the CLI stages output
-files. The library guide below maps each format to its read/write calls.
+returns omissions to inspect. [`conversion::convert_path`](docs/LIBRARY.md)
+provides format-aware conversion and a typed omission report. Library writers
+use caller-owned streams; the CLI stages output files.
 
 ## Documentation and development
 

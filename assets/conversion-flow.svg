@@ -1,11 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1240" height="1037" viewBox="0 0 1240 1037" role="img" aria-labelledby="title description">
 <title id="title">Caexfer preserves native BDF bytes and projects six format subsets</title>
-<desc id="description">The top row compares a BDF source and its byte-identical copy. The lower cards show BDF and INP geometry decks; VTU and MSH meshes with numeric fields; FRD mesh with nodal fields; and an OP2 displacement table without embedded geometry. Mesh-bearing representations share the same topology.</desc>
+<desc id="description">The top row shows BDF document byte preservation through the Rust library. The lower cards show BDF and INP geometry decks; VTU and MSH meshes with numeric fields; FRD mesh with nodal fields; and an OP2 displacement table without embedded geometry. Mesh-bearing representations share the same topology.</desc>
 <defs><linearGradient id="background" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#122238"/><stop offset="1" stop-color="#0b1423"/></linearGradient></defs>
 <rect width="1240" height="1037" rx="24" fill="url(#background)"/>
 <text x="45" y="58" fill="#f5f8ff" font-family="Arial, Helvetica, sans-serif" font-size="32" font-weight="700" letter-spacing="0">One mesh, different promises</text>
-<text x="46" y="87" fill="#b6c7d9" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="400" letter-spacing="0">Native BDF copies preserve the document. Conversions project supported geometry and results.</text>
-<text x="46" y="120" fill="#f4bc72" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="700" letter-spacing="1">NATIVE BDF COPY</text>
+<text x="46" y="87" fill="#b6c7d9" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="400" letter-spacing="0">BDF Document preserves source bytes. Conversions project supported geometry and results.</text>
+<text x="46" y="120" fill="#f4bc72" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="700" letter-spacing="1">BDF LIBRARY DOCUMENT</text>
 <rect x="235" y="137" width="365" height="222" rx="20" fill="#17283e" stroke="#3c5875" stroke-width="1.3"/>
 <rect x="235" y="137" width="365" height="6" rx="3" fill="#f4bc72"/>
 <text x="259" y="174" fill="#f4bc72" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="700" letter-spacing="1">SOURCE DOCUMENT</text>
@@ -53,7 +53,7 @@
 <text x="259" y="347" fill="#b6c7d9" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="400" letter-spacing="0">PSHELL  MAT1  FORCE  SPC1</text>
 <rect x="640" y="137" width="365" height="222" rx="20" fill="#17283e" stroke="#3c5875" stroke-width="1.3"/>
 <rect x="640" y="137" width="365" height="6" rx="3" fill="#69dfc0"/>
-<text x="664" y="174" fill="#69dfc0" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="700" letter-spacing="1">BYTE-IDENTICAL COPY</text>
+<text x="664" y="174" fill="#69dfc0" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="700" letter-spacing="1">LIBRARY BYTE COPY</text>
 <text x="664" y="205" fill="#f5f8ff" font-family="Arial, Helvetica, sans-serif" font-size="23" font-weight="700" letter-spacing="0">copy.bdf</text>
 <g aria-hidden="true">
 <polygon points="670,224 707,221 714,249 677,252" fill="#37546b" fill-opacity=".24" stroke="#69dfc0" stroke-width="1.5" stroke-linejoin="round"/>

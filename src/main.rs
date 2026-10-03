@@ -6,15 +6,10 @@ use std::fs::File;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-use caexfer::core::{Dataset, Error, Field, FieldLocation, Result, Severity, ValidationReport};
-use caexfer::{
-    bdf::{self, Document, ParseOptions},
-    frd, inp, msh, op2, vtu,
-};
+use caexfer::bdf::{Document, ParseOptions};
+use caexfer::conversion::{self, Format, Omission, Options, ReadResult, Stage};
+use caexfer::core::{Error, Field, FieldLocation, Result, Severity, ValidationReport};
 use json::{array, object, quote};
-
-const SYNTHETIC_OP2_SOURCE_NOTICE: &str =
-    "OP2 title marks this as a synthetic all-zero displacement table, not solver results";
 
 const HELP: &str = "caexfer — inspect, preserve, and explicitly project engineering files
 
@@ -22,8 +17,7 @@ USAGE
   caexfer formats [--json]
   caexfer info INPUT [--json]
   caexfer validate INPUT [--strict] [--json]
-  caexfer roundtrip INPUT OUTPUT [--json]
-  caexfer convert INPUT OUTPUT --geometry-only [--json]
+  caexfer convert INPUT OUTPUT --accept-projection [--json]
 
 COMMON OPTIONS
   --from FORMAT    bdf, vtu, msh, inp, frd, or op2; otherwise infer extension
@@ -40,7 +34,7 @@ COMMON OPTIONS
   -V, --version    Show version
 
 SCOPE
-  BDF copy preserves the native document; conversion projects a subset.
+  BDF library documents preserve source bytes; conversion projects a subset.
   validate is scoped, not full solver validation. Conversion reports omissions.
   OP2 needs pyNastran; reading needs a matching BDF; output contains no mesh.
   Assumed-zero OP2 values are hypothetical, not solver results.
@@ -48,8 +42,8 @@ SCOPE
 
 EXAMPLES
   caexfer info model.bdf
-  caexfer convert model.bdf model.vtu --geometry-only
-  caexfer convert results.op2 results.vtu --mesh model.bdf --geometry-only
+  caexfer convert model.bdf model.vtu --accept-projection
+  caexfer convert results.op2 results.vtu --mesh model.bdf --accept-projection
 
 Format limits: https://github.com/cmccomb/caexfer/blob/main/docs/SUPPORT.md
 ";
@@ -60,7 +54,7 @@ struct Args {
     paths: Vec<PathBuf>,
     json: bool,
     strict: bool,
-    geometry_only: bool,
+    accept_projection: bool,
     zero_missing_rotations: bool,
     assume_zero_displacement: bool,
     from: Option<String>,
@@ -139,7 +133,7 @@ fn parse_args(raw: Vec<OsString>) -> Result<Args> {
     }
     if !matches!(
         command.as_str(),
-        "formats" | "info" | "validate" | "roundtrip" | "convert"
+        "formats" | "info" | "validate" | "convert"
     ) {
         return Err(usage(format!("unknown command {command:?}; use --help")));
     }
@@ -171,8 +165,8 @@ fn parse_args(raw: Vec<OsString>) -> Result<Args> {
             set_flag(&mut args.json, "--json")?;
         } else if options && arg == "--strict" {
             set_flag(&mut args.strict, "--strict")?;
-        } else if options && arg == "--geometry-only" {
-            set_flag(&mut args.geometry_only, "--geometry-only")?;
+        } else if options && arg == "--accept-projection" {
+            set_flag(&mut args.accept_projection, "--accept-projection")?;
         } else if options && arg == "--zero-missing-rotations" {
             set_flag(&mut args.zero_missing_rotations, "--zero-missing-rotations")?;
         } else if options && arg == "--assume-zero-displacement" {
@@ -240,8 +234,8 @@ fn parse_args(raw: Vec<OsString>) -> Result<Args> {
     if args.strict && args.command != "validate" {
         return Err(usage("--strict is only for validate"));
     }
-    if args.geometry_only && args.command != "convert" {
-        return Err(usage("--geometry-only is only for convert"));
+    if args.accept_projection && args.command != "convert" {
+        return Err(usage("--accept-projection is only for convert"));
     }
     let op2_output = is_op2_output(&args);
     if args.zero_missing_rotations && !op2_output {
@@ -257,8 +251,8 @@ fn parse_args(raw: Vec<OsString>) -> Result<Args> {
             "--assume-zero-displacement already supplies all six components",
         ));
     }
-    if args.command == "convert" && !args.geometry_only {
-        return Err(usage("conversion projects the supported mesh/field subset; pass --geometry-only to acknowledge omitted information"));
+    if args.command == "convert" && !args.accept_projection {
+        return Err(usage("conversion projects the supported mesh/field subset; pass --accept-projection to acknowledge omitted information"));
     }
     if args.command == "formats"
         && (args.from.is_some()
@@ -335,430 +329,106 @@ fn path_json(path: &Path) -> String {
     quote(&path.to_string_lossy())
 }
 
-fn format_of(args: &Args) -> Result<String> {
-    if let Some(format) = &args.from {
-        return Ok(format.to_ascii_lowercase());
-    }
-    let ext = args.paths[0]
-        .extension()
-        .and_then(OsStr::to_str)
-        .unwrap_or("")
-        .to_ascii_lowercase();
-    match ext.as_str() {
-        "bdf" | "nas" | "dat" | "pch" => Ok("bdf".into()),
-        "vtu" | "msh" | "inp" | "frd" | "op2" => Ok(ext),
-        _ => Err(Error::new(
-            "E_FORMAT",
-            format!("no reader for extension {ext:?}; use --from"),
-        )),
-    }
+fn format_of(args: &Args) -> Result<Format> {
+    args.from
+        .as_deref()
+        .map(Format::parse)
+        .unwrap_or_else(|| Format::from_input_path(&args.paths[0]))
 }
-fn read_limited(path: &Path, max: usize) -> Result<Vec<u8>> {
-    let len = std::fs::metadata(path)?.len();
-    if len > max as u64 {
-        return Err(Error::new("E_LIMIT", format!("input exceeds {max} bytes")));
-    }
-    Ok(std::fs::read(path)?)
-}
-fn read_dataset(args: &Args) -> Result<(Dataset, Vec<String>)> {
+
+fn conversion_options(args: &Args) -> Result<Options> {
     let format = format_of(args)?;
-    let max = args.max_bytes.unwrap_or(ParseOptions::default().max_bytes);
-    let writing_op2 = is_op2_output(args);
-    if format != "op2"
-        && (args.mesh.is_some()
-            || args.subcase.is_some()
-            || (args.python.is_some() && !writing_op2))
-    {
+    if args.python.is_some() && format != Format::Op2 && !is_op2_output(args) {
+        return Err(usage("--python applies only to OP2 input or output"));
+    }
+    Ok(Options {
+        input_format: Some(format),
+        mesh: args.mesh.clone(),
+        python: python(args),
+        subcase: args.subcase,
+        step: args.step,
+        max_bytes: args.max_bytes.unwrap_or(ParseOptions::default().max_bytes),
+        zero_missing_rotations: args.zero_missing_rotations,
+    })
+}
+
+fn assume_zero_displacement(args: &Args, source: &mut ReadResult, max_bytes: usize) -> Result<()> {
+    if !matches!(source.format, Format::Bdf | Format::Inp) {
         return Err(usage(
-            "--mesh and --subcase apply to OP2 input; --python also applies to OP2 output",
+            "--assume-zero-displacement currently accepts BDF or INP input",
         ));
     }
-    if !matches!(format.as_str(), "op2" | "frd") && args.step.is_some() {
-        return Err(usage("--step applies only to OP2 or FRD"));
+    if !source.dataset.fields.is_empty() {
+        return Err(Error::new(
+            "E_OP2",
+            "zero-displacement assumption requires a result-free input",
+        ));
     }
-    match format.as_str() {
-        "bdf" => {
-            let doc = read_bdf(&args.paths[0], max)?;
-            if args.assume_zero_displacement {
-                for grid in doc.grids() {
-                    if grid?.cd != 0 {
-                        return Err(Error::new(
-                            "E_OP2",
-                            "synthetic OP2 output requires basic-frame GRID CD=0 for matching BDF reread",
-                        ));
-                    }
-                }
+    if source.format == Format::Bdf {
+        for grid in read_bdf(&args.paths[0], max_bytes)?.grids() {
+            if grid?.cd != 0 {
+                return Err(Error::new(
+                    "E_OP2",
+                    "synthetic OP2 output requires basic-frame GRID CD=0 for matching BDF reread",
+                ));
             }
-            let projection = doc.geometry()?;
-            let omitted = projection
-                .omissions
-                .iter()
-                .map(|v| format!("{} × {}: {}", v.category, v.count, v.detail))
-                .collect();
-            Ok((
-                Dataset {
-                    mesh: projection.mesh,
-                    fields: Vec::new(),
-                },
-                omitted,
-            ))
         }
-        "vtu" => {
-            let bytes = read_limited(&args.paths[0], max)?;
-            let text = std::str::from_utf8(&bytes)
-                .map_err(|_| Error::new("E_VTU", "VTU must be UTF-8 XML"))?;
-            Ok((vtu::read(text)?, Vec::new()))
-        }
-        "msh" => {
-            let bytes = read_limited(&args.paths[0], max)?;
-            let text = std::str::from_utf8(&bytes)
-                .map_err(|_| Error::new("E_MSH", "MSH must be UTF-8 ASCII"))?;
-            let dataset = msh::read(text)?;
-            let mut omissions = Vec::new();
-            for section in text
-                .lines()
-                .filter_map(|line| line.trim().strip_prefix('$'))
-                .filter(|name| !name.starts_with("End"))
-            {
-                if !matches!(
-                    section,
-                    "MeshFormat" | "Nodes" | "Elements" | "NodeData" | "ElementData"
-                ) {
-                    omissions.push(format!(
-                        "MSH ${section} section is not represented in the projection"
-                    ));
-                }
-            }
-            Ok((dataset, omissions))
-        }
-        "inp" => {
-            let bytes = read_limited(&args.paths[0], max)?;
-            let text = std::str::from_utf8(&bytes)
-                .map_err(|_| Error::new("E_INP", "INP must be UTF-8 text"))?;
-            let parsed = inp::read(text)?;
-            let omissions = parsed
-                .omitted_keywords
-                .into_iter()
-                .map(|v| format!("INP keyword *{v} is absent from mesh projection"))
-                .collect();
-            Ok((
-                Dataset {
-                    mesh: parsed.mesh,
-                    fields: Vec::new(),
-                },
-                omissions,
-            ))
-        }
-        "frd" => {
-            let bytes = read_limited(&args.paths[0], max)?;
-            let mut dataset = frd::read(&bytes)?;
-            if let Some(step) = args.step {
-                dataset.fields.retain(|f| f.step == Some(step as i64));
-                if dataset.fields.is_empty() {
-                    return Err(Error::new("E_FRD", "selected step has no fields"));
-                }
-            }
-            let mut omissions = Vec::new();
-            if bytes.windows(2).any(|pair| pair == b"1U" || pair == b"1P") {
-                omissions.push(
-                    "FRD user/model parameter metadata is not represented in the projection".into(),
-                );
-            }
-            Ok((dataset, omissions))
-        }
-        "op2" => {
-            let mesh_path = args
-                .mesh
-                .as_ref()
-                .ok_or_else(|| usage("OP2 requires --mesh matching.bdf"))?;
-            let mesh_doc = read_bdf(mesh_path, max)?;
-            for grid in mesh_doc.grids() {
-                if grid?.cd != 0 {
-                    return Err(Error::new(
-                        "E_OP2",
-                        "nonbasic GRID CD requires displacement frame transformation",
-                    ));
-                }
-            }
-            let projection = mesh_doc.geometry()?;
-            if std::fs::metadata(&args.paths[0])?.len() > max as u64 {
-                return Err(Error::new("E_LIMIT", "OP2 exceeds input byte limit"));
-            }
-            let python = python(args);
-            let (dataset, assumed_zero) = op2::read_displacements(
-                &args.paths[0],
-                &projection.mesh,
-                &python,
-                args.subcase,
-                args.step,
-            )?;
-            let mut omissions: Vec<String> = projection
-                .omissions
-                .iter()
-                .map(|v| format!("BDF {} × {}: {}", v.category, v.count, v.detail))
-                .collect();
-            if assumed_zero {
-                omissions.push(SYNTHETIC_OP2_SOURCE_NOTICE.into());
-            }
-            omissions.push("OP2 result tables other than the selected real displacement table are not exported".into());
-            Ok((dataset, omissions))
-        }
-        _ => Err(Error::new(
-            "E_FORMAT",
-            format!("unknown input format {format}"),
-        )),
     }
+    let count = source
+        .dataset
+        .mesh
+        .points
+        .len()
+        .checked_mul(6)
+        .ok_or_else(|| Error::new("E_LIMIT", "too many nodes for synthetic displacement"))?;
+    source.dataset.fields.push(Field {
+        name: "DISP".into(),
+        location: FieldLocation::Point,
+        components: ["T1", "T2", "T3", "R1", "R2", "R3"]
+            .map(str::to_owned)
+            .to_vec(),
+        values: vec![0.0; count],
+        step: None,
+        time: None,
+    });
+    source.omissions.push(Omission {
+        stage: Stage::Assumption,
+        detail: "SYNTHETIC ASSUMPTION: all six displacement components set to float 0.0 for every node; no solver analysis was performed".into(),
+    });
+    source.assumed_zero = true;
+    Ok(())
 }
+
 fn run_convert(args: &Args) -> Result<u8> {
-    let (mut dataset, mut omissions) = read_dataset(args)?;
-    let synthetic_op2_source = omissions
-        .iter()
-        .any(|notice| notice == SYNTHETIC_OP2_SOURCE_NOTICE);
-    let ext = args.paths[1]
-        .extension()
-        .and_then(OsStr::to_str)
-        .unwrap_or("")
-        .to_ascii_lowercase();
-    match ext.as_str() {
-        "vtu" => {
-            // A single VTU piece cannot carry multiple versions of the same named field.
-            let mut seen = std::collections::BTreeSet::new();
-            for field in &dataset.fields {
-                if !seen.insert((field.location as u8, field.name.clone())) {
-                    return Err(Error::new(
-                        "E_VTU",
-                        "multiple steps of one field; choose --step",
-                    ));
-                }
-            }
-            output::create_new(&args.paths[1], |writer| vtu::write_data(&dataset, writer))?;
-        }
-        "msh" => {
-            let missing_steps = dataset
-                .fields
-                .iter()
-                .filter(|field| field.step.is_none())
-                .count();
-            if missing_steps > 0 {
-                omissions.push(format!(
-                    "{missing_steps} field(s) without step metadata use MSH step 0"
-                ));
-            }
-            let labels = dataset
-                .fields
-                .iter()
-                .filter(|field| {
-                    field
-                        .components
-                        .iter()
-                        .enumerate()
-                        .any(|(i, name)| name != &format!("C{}", i + 1))
-                })
-                .count();
-            if labels > 0 {
-                omissions.push(format!(
-                    "{labels} field(s) lose component labels in MSH NodeData/ElementData"
-                ));
-            }
-            let props = dataset
-                .mesh
-                .cells
-                .iter()
-                .filter(|c| c.property_id.is_some())
-                .count();
-            if props > 0 {
-                omissions.push(format!(
-                    "{props} property IDs have no MSH entity mapping in this exporter"
-                ));
-            }
-            for cell in &mut dataset.mesh.cells {
-                cell.property_id = None;
-            }
-            output::create_new(&args.paths[1], |writer| msh::write(&dataset, writer))?;
-        }
-        "inp" | "bdf" | "nas" => {
-            if !dataset.fields.is_empty() {
-                omissions.push(format!(
-                    "{} numeric field(s) omitted from geometry-only solver input",
-                    dataset.fields.len()
-                ));
-            }
-            if ext == "inp" {
-                let props = dataset
-                    .mesh
-                    .cells
-                    .iter()
-                    .filter(|c| c.property_id.is_some())
-                    .count();
-                if props > 0 {
-                    omissions.push(format!("{props} property IDs omitted from INP"));
-                }
-                for cell in &mut dataset.mesh.cells {
-                    cell.property_id = None;
-                }
-                output::create_new(&args.paths[1], |writer| inp::write(&dataset.mesh, writer))?;
-            } else {
-                let missing = dataset
-                    .mesh
-                    .cells
-                    .iter()
-                    .filter(|cell| cell.property_id.is_none())
-                    .count();
-                if missing > 0 {
-                    omissions.push(format!("{missing} BDF element(s) use placeholder PID 1; no property cards are emitted"));
-                }
-                output::create_new(&args.paths[1], |writer| {
-                    bdf::mesh::write(&dataset.mesh, writer)
-                })?;
-            }
-        }
-        "frd" => {
-            let before = dataset.fields.len();
-            dataset
-                .fields
-                .retain(|field| field.location == FieldLocation::Point);
-            if dataset.fields.len() != before {
-                omissions.push(format!(
-                    "{} cell field(s) have no direct FRD nodal representation",
-                    before - dataset.fields.len()
-                ));
-            }
-            for field in &mut dataset.fields {
-                if field.name.starts_with("DISPLACEMENT_SUBCASE_") {
-                    omissions.push(format!(
-                        "field {} is named DISP in FRD; subcase name is not retained",
-                        field.name
-                    ));
-                    field.name = "DISP".into();
-                }
-                if field.step.is_none() || field.time.is_none() {
-                    omissions.push(format!(
-                        "field {} uses FRD step/time 0 where metadata is absent",
-                        field.name
-                    ));
-                }
-            }
-            if dataset
-                .mesh
-                .cells
-                .iter()
-                .any(|cell| cell.property_id.is_some())
-            {
-                omissions.push("BDF property IDs have no direct FRD mesh mapping".into());
-            }
-            omissions.push(
-                "FRD ASCII E12.5 rounds coordinates and field values to six significant digits"
-                    .into(),
-            );
-            output::create_new(&args.paths[1], |writer| frd::write(&dataset, writer))?;
-        }
-        "op2" => {
-            if args.assume_zero_displacement {
-                let source_format = format_of(args)?;
-                if !matches!(source_format.as_str(), "bdf" | "inp") {
-                    return Err(usage(
-                        "--assume-zero-displacement currently accepts BDF or INP input",
-                    ));
-                }
-                if !dataset.fields.is_empty() {
-                    return Err(Error::new(
-                        "E_OP2",
-                        "zero-displacement assumption requires a result-free input",
-                    ));
-                }
-                let count = dataset.mesh.points.len().checked_mul(6).ok_or_else(|| {
-                    Error::new("E_LIMIT", "too many nodes for synthetic displacement")
-                })?;
-                dataset.fields.push(Field {
-                    name: "DISP".into(),
-                    location: FieldLocation::Point,
-                    components: ["T1", "T2", "T3", "R1", "R2", "R3"]
-                        .map(str::to_owned)
-                        .to_vec(),
-                    values: vec![0.0; count],
-                    step: None,
-                    time: None,
-                });
-                omissions.push("SYNTHETIC ASSUMPTION: all six displacement components set to float 0.0 for every node; no solver analysis was performed".into());
-            }
-            let matches: Vec<_> = dataset
-                .fields
-                .iter()
-                .filter(|field| {
-                    let name = field.name.to_ascii_uppercase();
-                    field.location == FieldLocation::Point
-                        && (name == "DISP"
-                            || name == "DISPLACEMENT"
-                            || name.starts_with("DISPLACEMENT_SUBCASE_"))
-                        && matches!(field.components.len(), 3 | 6)
-                })
-                .collect();
-            if matches.len() != 1 {
-                return Err(Error::new("E_OP2", "OP2 output requires exactly one 3- or 6-component nodal DISP field; select one result step"));
-            }
-            let field = matches[0];
-            let subcase = field
-                .name
-                .to_ascii_uppercase()
-                .strip_prefix("DISPLACEMENT_SUBCASE_")
-                .and_then(|text| text.parse().ok())
-                .unwrap_or(1);
-            if field.components.len() == 3 && args.zero_missing_rotations {
-                omissions.push(
-                    "rotational displacement components R1/R2/R3 filled with typed float 0.0 by explicit request"
-                        .into(),
-                );
-            }
-            if field.step.is_some_and(|step| step != 0) {
-                omissions
-                    .push("source step number is not encoded in the one-step OP2 table".into());
-            }
-            if dataset.fields.len() > 1 {
-                omissions.push(format!(
-                    "{} other numeric field(s) omitted from OP2 displacement output",
-                    dataset.fields.len() - 1
-                ));
-            }
-            omissions
-                .push("OP2 contains no mesh; export and keep a matching BDF separately".into());
-            omissions.push("OP2 real displacement values use float32 precision".into());
-            let python = python(args);
-            let bytes = op2::write_displacements(
-                &dataset,
-                field,
-                &python,
-                subcase,
-                args.zero_missing_rotations,
-                args.assume_zero_displacement || synthetic_op2_source,
-            )?;
-            output::create_new(&args.paths[1], |writer| {
-                writer.write_all(&bytes)?;
-                Ok(())
-            })?;
-        }
-        _ => {
-            return Err(Error::new(
-                "E_FORMAT",
-                format!("no writer for extension {ext:?}"),
-            ))
-        }
+    let target = Format::from_output_path(&args.paths[1])?;
+    let options = conversion_options(args)?;
+    let mut source = conversion::read_path(&args.paths[0], &options)?;
+    if args.assume_zero_displacement {
+        assume_zero_displacement(args, &mut source, options.max_bytes)?;
     }
+    let mut report = None;
+    output::create_new(&args.paths[1], |writer| {
+        report = Some(conversion::convert(source, target, &options, writer)?);
+        Ok(())
+    })?;
+    let report = report.ok_or_else(|| Error::new("E_OUTPUT", "conversion produced no report"))?;
     if args.json {
         emit(&object([
             ("schema_version", "1".into()),
             ("operation", quote("mesh-and-fields-projection")),
             ("output", path_json(&args.paths[1])),
-            ("points", dataset.mesh.points.len().to_string()),
-            ("cells", dataset.mesh.cells.len().to_string()),
-            ("fields", dataset.fields.len().to_string()),
+            ("points", report.points.to_string()),
+            ("cells", report.cells.to_string()),
+            ("fields", report.fields.to_string()),
             ("units", quote("unspecified")),
             (
                 "omissions",
-                array(omissions.iter().map(|detail| {
+                array(report.omissions.iter().map(|omission| {
                     object([
                         ("category", quote("source-or-destination")),
+                        ("stage", quote(omission.stage.name())),
                         ("count", "1".into()),
-                        ("detail", quote(detail)),
+                        ("detail", quote(&omission.detail)),
                     ])
                 })),
             ),
@@ -767,30 +437,36 @@ fn run_convert(args: &Args) -> Result<u8> {
         emit(&format!(
             "Wrote {}: {} points, {} cells, {} source field(s). Units unspecified.",
             args.paths[1].display(),
-            dataset.mesh.points.len(),
-            dataset.mesh.cells.len(),
-            dataset.fields.len()
+            report.points,
+            report.cells,
+            report.fields
         ))?;
         let mut stderr = std::io::stderr().lock();
-        for omission in omissions {
-            writeln!(stderr, "Omission: {omission}")?;
+        for omission in report.omissions {
+            writeln!(stderr, "Omission: {}", omission.detail)?;
         }
     }
     Ok(0)
 }
+
 fn run_generic_info(args: &Args) -> Result<u8> {
-    let format = format_of(args)?;
-    let (dataset, omissions) = read_dataset(args)?;
+    let read = conversion::read_path(&args.paths[0], &conversion_options(args)?)?;
+    let format = read.format.name();
+    let dataset = read.dataset;
+    let omissions = read.omissions;
     if args.command == "validate" {
         let passed = !args.strict || omissions.is_empty();
         if args.json {
             emit(&object([
                 ("schema_version", "1".into()),
-                ("format", quote(&format)),
+                ("format", quote(format)),
                 ("passed", passed.to_string()),
                 ("strict", args.strict.to_string()),
                 ("scope", quote("supported-mesh-and-fields-subset")),
-                ("omissions", array(omissions.iter().map(|item| quote(item)))),
+                (
+                    "omissions",
+                    array(omissions.iter().map(|item| quote(&item.detail))),
+                ),
             ]))?;
         } else {
             emit(&format!(
@@ -807,12 +483,15 @@ fn run_generic_info(args: &Args) -> Result<u8> {
     } else if args.json {
         emit(&object([
             ("schema_version", "1".into()),
-            ("format", quote(&format)),
+            ("format", quote(format)),
             ("path", path_json(&args.paths[0])),
             ("points", dataset.mesh.points.len().to_string()),
             ("cells", dataset.mesh.cells.len().to_string()),
             ("fields", dataset.fields.len().to_string()),
-            ("omissions", array(omissions.iter().map(|item| quote(item)))),
+            (
+                "omissions",
+                array(omissions.iter().map(|item| quote(&item.detail))),
+            ),
         ]))?;
     } else {
         emit(&format!(
@@ -842,7 +521,7 @@ fn run(args: Args) -> Result<u8> {
                     (
                         "bdf",
                         "document + linear mesh",
-                        "document copy + geometry mesh",
+                        "geometry mesh projection",
                     ),
                     (
                         "vtu",
@@ -885,7 +564,7 @@ fn run(args: Args) -> Result<u8> {
                     ),
                 ]))?;
             } else {
-                emit("bdf  document + linear mesh; document copy and geometry export\nvtu  ASCII mesh + numeric fields, read/write\nmsh  ASCII 4.1 mesh + numeric fields, read/write\ninp  flat mesh subset, read/geometry write\nfrd  ASCII mesh + nodal fields, read/write\nop2  real displacement via pyNastran, read/write; explicit synthetic-zero option; separate BDF mesh")?;
+                emit("bdf  document + linear mesh; geometry export\nvtu  ASCII mesh + numeric fields, read/write\nmsh  ASCII 4.1 mesh + numeric fields, read/write\ninp  flat mesh subset, read/geometry write\nfrd  ASCII mesh + nodal fields, read/write\nop2  real displacement via pyNastran, read/write; explicit synthetic-zero option; separate BDF mesh")?;
             }
             return Ok(0);
         }
@@ -895,32 +574,14 @@ fn run(args: Args) -> Result<u8> {
         return run_convert(&args);
     }
     let format = format_of(&args)?;
-    if format != "bdf" && matches!(args.command.as_str(), "info" | "validate") {
+    if format != Format::Bdf && matches!(args.command.as_str(), "info" | "validate") {
         return run_generic_info(&args);
     }
-    if format != "bdf" && args.command == "roundtrip" {
-        let bytes = read_limited(
-            &args.paths[0],
-            args.max_bytes.unwrap_or(ParseOptions::default().max_bytes),
-        )?;
-        output::create_new(&args.paths[1], |writer| {
-            writer.write_all(&bytes)?;
-            Ok(())
-        })?;
-        if args.json {
-            emit(&object([
-                ("schema_version", "1".into()),
-                ("operation", quote("roundtrip")),
-                ("bytes", bytes.len().to_string()),
-            ]))?;
-        } else {
-            emit(&format!(
-                "Wrote {} ({} source bytes unchanged).",
-                args.paths[1].display(),
-                bytes.len()
-            ))?;
-        }
-        return Ok(0);
+    if args.mesh.is_some() || args.python.is_some() || args.subcase.is_some() || args.step.is_some()
+    {
+        return Err(usage(
+            "--mesh, --python, --subcase and --step do not apply to BDF inspection",
+        ));
     }
     let doc = read_bdf(
         &args.paths[0],
@@ -1001,24 +662,6 @@ fn run(args: Args) -> Result<u8> {
                 }
             }
             return Ok(if passed { 0 } else { 1 });
-        }
-        "roundtrip" => {
-            output::create_new(&args.paths[1], |writer| doc.write_to(writer))?;
-            if args.json {
-                emit(&object([
-                    ("schema_version", "1".into()),
-                    ("operation", quote(&args.command)),
-                    ("output", path_json(&args.paths[1])),
-                    ("bytes", doc.to_bytes().len().to_string()),
-                ]))?;
-            } else {
-                emit(&format!(
-                    "Wrote {} ({} bytes; {}).",
-                    args.paths[1].display(),
-                    doc.to_bytes().len(),
-                    "source bytes unchanged"
-                ))?;
-            }
         }
         _ => return Err(usage("unknown command")),
     }
@@ -1101,7 +744,7 @@ mod tests {
     }
     #[test]
     fn bad_arity_rejected() {
-        assert!(args(&["roundtrip", "only.bdf"]).is_err());
+        assert!(args(&["convert", "only.bdf", "--accept-projection"]).is_err());
     }
     #[test]
     fn format_report_takes_no_paths() {
@@ -1113,7 +756,7 @@ mod tests {
             "convert",
             "x.bdf",
             "x.op2",
-            "--geometry-only",
+            "--accept-projection",
             "--assume-zero-displacement"
         ])
         .is_ok());
@@ -1121,7 +764,7 @@ mod tests {
             "convert",
             "x.bdf",
             "x.vtu",
-            "--geometry-only",
+            "--accept-projection",
             "--assume-zero-displacement"
         ])
         .is_err());
@@ -1129,7 +772,7 @@ mod tests {
             "convert",
             "x.bdf",
             "x.op2",
-            "--geometry-only",
+            "--accept-projection",
             "--assume-zero-displacement",
             "--zero-missing-rotations"
         ])
