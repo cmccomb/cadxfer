@@ -250,6 +250,7 @@ impl Mesh {
     /// # Ok::<(), caexfer::core::Error>(())
     /// ```
     pub fn validate(&self) -> Result<()> {
+        // Original IDs identify entities independently of vector position.
         let mut points = BTreeSet::new();
         for point in &self.points {
             if point.id == 0 || !points.insert(point.id) {
@@ -265,6 +266,9 @@ impl Mesh {
                 ));
             }
         }
+
+        // Connectivity uses zero-based vector indices; each cell must have
+        // the topology's exact arity and distinct, existing point indices.
         let mut cells = BTreeSet::new();
         for cell in &self.cells {
             if cell.id == 0 || !cells.insert(cell.id) {
@@ -360,6 +364,7 @@ impl Dataset {
     /// # Ok::<(), caexfer::core::Error>(())
     /// ```
     pub fn validate(&self) -> Result<()> {
+        // A field is meaningful only against a structurally valid mesh.
         self.mesh.validate()?;
         for field in &self.fields {
             if field.name.is_empty() || field.components.is_empty() {
@@ -368,6 +373,9 @@ impl Dataset {
                     "field name and components must be nonempty",
                 ));
             }
+
+            // Values are stored entity-major, so tuple width times the
+            // location's entity count determines the only valid array length.
             let entities = match field.location {
                 FieldLocation::Point => self.mesh.points.len(),
                 FieldLocation::Cell => self.mesh.cells.len(),
@@ -378,6 +386,8 @@ impl Dataset {
                     format!("field {} has an invalid value count", field.name),
                 ));
             }
+
+            // Reject nonfinite payloads and time metadata before serialization.
             if !field.values.iter().all(|value| value.is_finite())
                 || field.time.is_some_and(|time| !time.is_finite())
             {

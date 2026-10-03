@@ -40,6 +40,7 @@ fn type_code(kind: CellKind) -> Result<u32> {
 /// Format a finite value in the fixed E12.5 field used by long FRD records.
 /// Values outside the two-digit exponent range fail instead of overflowing.
 fn ascii_number(value: f64) -> Result<String> {
+    // FRD's 12-column ASCII number has room for only a signed two-digit exponent.
     let scientific = format!("{value:.5E}");
     let (mantissa, exponent) = scientific
         .split_once('E')
@@ -92,6 +93,8 @@ fn label(value: &str, limit: usize, what: &str) -> Result<()> {
 /// # Ok::<(), caexfer::core::Error>(())
 /// ```
 pub fn write(dataset: &Dataset, mut output: impl Write) -> Result<()> {
+    // Check the entire dataset against FRD's fixed-width constraints before
+    // writing any bytes to the caller's stream.
     dataset.validate()?;
     if dataset.mesh.points.is_empty() || dataset.mesh.cells.is_empty() {
         return Err(err("FRD requires nodes and elements"));
@@ -125,6 +128,9 @@ pub fn write(dataset: &Dataset, mut output: impl Write) -> Result<()> {
             ascii_number(*value)?;
         }
     }
+
+    // The node and element blocks retain original IDs; connectivity is
+    // translated from internal point indices back to node IDs.
     writeln!(output, "  1Ccaexfr")?;
     writeln!(
         output,
@@ -164,6 +170,8 @@ pub fn write(dataset: &Dataset, mut output: impl Write) -> Result<()> {
         writeln!(output)?;
     }
     writeln!(output, " -3")?;
+
+    // Each nodal field gets its own result header and component descriptors.
     for field in &dataset.fields {
         writeln!(
             output,
@@ -199,6 +207,9 @@ pub fn write(dataset: &Dataset, mut output: impl Write) -> Result<()> {
             )?;
         }
         let components = field.components.len();
+
+        // FRD carries at most six values per record; remaining components
+        // continue on -2 records for the same node.
         for (i, point) in dataset.mesh.points.iter().enumerate() {
             for (chunk_index, chunk) in field.values[i * components..(i + 1) * components]
                 .chunks(6)
@@ -223,6 +234,7 @@ pub fn write(dataset: &Dataset, mut output: impl Write) -> Result<()> {
 /// Decode one result row's entity ID and expected numeric components.
 /// Accepts whitespace records and fixed-width short or long records.
 fn values(line: &str, long: bool, expected: usize) -> Result<(u64, Vec<f64>)> {
+    // Prefer whitespace-separated records when all columns are distinct.
     let tokens: Vec<&str> = line.split_whitespace().collect();
     if tokens.len() >= expected + 2 {
         let id = n(tokens[1], "entity ID")?;
@@ -232,6 +244,8 @@ fn values(line: &str, long: bool, expected: usize) -> Result<(u64, Vec<f64>)> {
             .collect::<Result<Vec<_>>>()?;
         return Ok((id, vals));
     }
+
+    // Long IDs can touch adjacent columns, requiring fixed-width slicing.
     let width = if long { 10 } else { 5 };
     let id = n(
         line.get(3..3 + width).ok_or_else(|| err("truncated ID"))?,
@@ -251,6 +265,7 @@ fn values(line: &str, long: bool, expected: usize) -> Result<(u64, Vec<f64>)> {
 /// Decode the numeric payload of an FRD `-2` result continuation.
 /// The caller chooses the remaining component count for this entity.
 fn continuation_values(line: &str, long: bool, expected: usize) -> Result<Vec<f64>> {
+    // A full-width row can be sliced without depending on whitespace.
     let width = if long { 10 } else { 5 };
     if line.len() >= 3 + width + expected * 12 {
         let mut values = Vec::with_capacity(expected);
@@ -260,6 +275,8 @@ fn continuation_values(line: &str, long: bool, expected: usize) -> Result<Vec<f6
         }
         return Ok(values);
     }
+
+    // Shorter rows are accepted only in the explicit -2 token form.
     let tokens: Vec<&str> = line.split_whitespace().collect();
     if tokens.len() != expected + 1 || tokens.first() != Some(&"-2") {
         return Err(err("invalid result continuation"));
@@ -272,6 +289,7 @@ fn continuation_values(line: &str, long: bool, expected: usize) -> Result<Vec<f6
 /// Decode element node IDs from a whitespace or fixed-width connectivity row.
 /// Blank fixed-width slots are skipped; malformed IDs fail.
 fn integers(line: &str, long: bool) -> Result<Vec<u64>> {
+    // Element connectivity can appear as spaced tags or packed columns.
     let tokens: Vec<&str> = line.split_whitespace().collect();
     if tokens.len() > 2 {
         return tokens[1..].iter().map(|v| n(v, "node ID")).collect();
@@ -288,6 +306,7 @@ fn integers(line: &str, long: bool) -> Result<Vec<u64>> {
 /// Decode an element record's ID and its type/count field.
 /// The named second value is included in parse diagnostics.
 fn header_pair(line: &str, long: bool, second: &str) -> Result<(u64, u64)> {
+    // The fallback preserves IDs when fixed-width columns run together.
     let tokens: Vec<&str> = line.split_whitespace().collect();
     if tokens.len() >= 3 && tokens[0] == "-1" {
         return Ok((n(tokens[1], "entity ID")?, n(tokens[2], second)?));
@@ -308,6 +327,7 @@ fn header_pair(line: &str, long: bool, second: &str) -> Result<(u64, u64)> {
 /// Inspect the FRD header's format column: false is short, true is long.
 /// Binary mode flags are rejected even when their record body is not read.
 fn header_format(line: &str, column: usize) -> Result<bool> {
+    // Header format flags are column-specific for geometry and result blocks.
     if line.len() < column {
         return Ok(false);
     }
@@ -343,6 +363,8 @@ struct FieldBuilder {
 /// fail explicitly. Use [`write()`] for an example roundtrip. The returned
 /// [`Dataset`] contains only the documented supported subset.
 pub fn read(source: &[u8]) -> Result<Dataset> {
+    // Parse block records first, then resolve element and result node IDs
+    // against the completed point list.
     let text = std::str::from_utf8(source).map_err(|_| err("non-UTF-8 or binary FRD block"))?;
     let mut mode = Mode::None;
     let mut points = Vec::new();
@@ -356,6 +378,8 @@ pub fn read(source: &[u8]) -> Result<Dataset> {
             continue;
         }
         if trimmed.starts_with("2C") || trimmed.starts_with("3C") || trimmed.starts_with("100C") {
+            // A new block closes the previous result builder and selects
+            // short or long record widths from its header.
             if let Some(f) = field.take() {
                 fields.push(f);
             }
@@ -380,6 +404,7 @@ pub fn read(source: &[u8]) -> Result<Dataset> {
             break;
         }
         if trimmed.starts_with("-3") {
+            // -3 terminates the active element or result block.
             if let Mode::Elements(_) = mode {
                 if let Some(e) = current.take() {
                     elements.push(e);
@@ -447,6 +472,9 @@ pub fn read(source: &[u8]) -> Result<Dataset> {
             }
             Mode::Results(long) if trimmed.starts_with("-1") => {
                 let f = field.as_mut().ok_or_else(|| err("result without header"))?;
+
+                // Material-dependent rows use a count header; only the
+                // single-material case can map to one value tuple per node.
                 if f.material_dependent {
                     let (id, materials) =
                         header_pair(line, long, "material count").map_err(|e| e.at(line_no + 1))?;
@@ -470,6 +498,7 @@ pub fn read(source: &[u8]) -> Result<Dataset> {
                 f.pending = Some(id);
             }
             Mode::Results(long) if trimmed.starts_with("-2") => {
+                // Continue the most recent node's tuple in groups of six.
                 let f = field
                     .as_mut()
                     .ok_or_else(|| err("continuation without result"))?;
@@ -500,6 +529,8 @@ pub fn read(source: &[u8]) -> Result<Dataset> {
     if points.is_empty() || elements.is_empty() {
         return Err(err("FRD requires node and element blocks"));
     }
+
+    // Convert original node tags to internal point indices for each cell.
     let index: BTreeMap<u64, usize> = points.iter().enumerate().map(|(i, p)| (p.id, i)).collect();
     let mut cells = Vec::new();
     for (id, kind, nodes) in elements {
@@ -526,6 +557,9 @@ pub fn read(source: &[u8]) -> Result<Dataset> {
         mesh: Mesh { points, cells },
         fields: Vec::new(),
     };
+
+    // FRD result rows may be in any node order; emit entity-major field
+    // values in the reconstructed mesh's point order.
     for f in fields {
         if f.name.is_empty() || f.count == 0 || f.components.len() != f.count {
             return Err(err("incomplete result field metadata"));

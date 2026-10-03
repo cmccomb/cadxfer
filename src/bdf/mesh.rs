@@ -34,6 +34,7 @@ fn name(kind: CellKind) -> &'static str {
 /// # Ok::<(), caexfer::core::Error>(())
 /// ```
 pub fn write(mesh: &Mesh, mut writer: impl Write) -> Result<()> {
+    // Verify indices before writing, since output resolves each to a GRID ID.
     mesh.validate()?;
     writeln!(
         writer,
@@ -47,6 +48,9 @@ pub fn write(mesh: &Mesh, mut writer: impl Write) -> Result<()> {
             p.id, p.position[0], p.position[1], p.position[2]
         )?;
     }
+
+    // BDF element cards use original node IDs; a missing PID gets placeholder
+    // 1 because this geometry-only deck has no property definitions.
     for c in &mesh.cells {
         let mut fields = vec![
             name(c.kind).to_string(),
@@ -61,6 +65,7 @@ pub fn write(mesh: &Mesh, mut writer: impl Write) -> Result<()> {
         if fields.iter().any(|field| field.contains([',', '\n'])) {
             return Err(Error::new("E_BDF", "unrepresentable field"));
         }
+
         // Free-field lines contain at most eight data fields; continuation is explicit.
         if fields.len() <= 9 {
             writeln!(writer, "{}", fields.join(","))?;

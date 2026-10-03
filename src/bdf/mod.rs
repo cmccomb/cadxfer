@@ -47,5 +47,6 @@ pub use syntax::{Card, Document, ParseOptions};
 /// # Ok::<(), caexfer::core::Error>(())
 /// ```
 pub fn read_geometry(input: impl AsRef<[u8]>) -> Result<GeometryProjection> {
+    // Keep document parsing and lossy geometry projection as explicit steps.
     Document::parse(input)?.geometry()
 }

@@ -13,6 +13,7 @@ use crate::core::{Error, Result};
 /// # Ok::<(), caexfer::core::Error>(())
 /// ```
 pub fn parse_real(input: &str) -> Result<f64> {
+    // Reject whitespace inside the token before normalizing exponent syntax.
     let trimmed = input.trim();
     if trimmed.is_empty() || !trimmed.is_ascii() || trimmed.bytes().any(|b| b.is_ascii_whitespace())
     {
@@ -21,6 +22,8 @@ pub fn parse_real(input: &str) -> Result<f64> {
             format!("expected a real number, got {input:?}"),
         ));
     }
+
+    // Nastran permits an omitted E before a signed exponent, such as 1.2-3.
     let mut normalized = trimmed.replace(['d', 'D'], "E");
     if !normalized.contains(['e', 'E']) {
         let exponent = normalized
@@ -35,6 +38,8 @@ pub fn parse_real(input: &str) -> Result<f64> {
     let value = normalized
         .parse::<f64>()
         .map_err(|_| Error::new("E_REAL", format!("invalid Nastran real {input:?}")))?;
+
+    // Rust can parse NaN and infinity, but mesh fields require finite values.
     if !value.is_finite() {
         return Err(Error::new(
             "E_NONFINITE",

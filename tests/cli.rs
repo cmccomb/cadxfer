@@ -2,6 +2,7 @@ use std::path::PathBuf;
 use std::process::{Command, Output};
 use std::sync::atomic::{AtomicU64, Ordering};
 
+// Give concurrent CLI test scratch directories distinct process-local suffixes.
 static COUNTER: AtomicU64 = AtomicU64::new(0);
 struct Scratch(PathBuf);
 impl Scratch {

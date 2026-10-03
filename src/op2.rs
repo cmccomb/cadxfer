@@ -24,6 +24,8 @@ pub fn read_displacements(
     subcase: Option<i64>,
     step: Option<usize>,
 ) -> Result<(Dataset, bool)> {
+    // The caller supplies geometry; pyNastran extracts only the selected
+    // displacement table from the binary OP2.
     mesh.validate()?;
     let output = Command::new(python)
         .arg("-c")
@@ -41,6 +43,9 @@ pub fn read_displacements(
             .unwrap_or("pyNastran extraction failed");
         return Err(Error::new("E_OP2", last));
     }
+
+    // The Python adapter uses tab-delimited rows with a fixed header so Rust
+    // can validate counts, provenance, and numeric values independently.
     let text = std::str::from_utf8(&output.stdout)
         .map_err(|_| Error::new("E_OP2", "extractor returned non-UTF-8"))?;
     let mut lines = text.lines();
@@ -68,6 +73,9 @@ pub fn read_displacements(
     let time: f64 = parts[4]
         .parse()
         .map_err(|_| Error::new("E_OP2", "invalid result time"))?;
+
+    // Key rows by original GRID ID because OP2 row order can differ from the
+    // companion mesh's point order.
     let mut rows = BTreeMap::<u64, [f64; 6]>::new();
     for line in lines {
         let cols: Vec<&str> = line.split('\t').collect();
@@ -93,6 +101,8 @@ pub fn read_displacements(
             "displacement nodes do not match mesh nodes",
         ));
     }
+
+    // Produce entity-major field values in mesh point order.
     let mut values = Vec::with_capacity(6 * count);
     for point in &mesh.points {
         values.extend(rows.get(&point.id).ok_or_else(|| {
@@ -148,6 +158,7 @@ pub fn write_displacements(
     zero_missing_rotations: bool,
     assumed_zero: bool,
 ) -> Result<Vec<u8>> {
+    // Validate shape and numeric representability before launching Python.
     dataset.mesh.validate()?;
     if dataset.mesh.points.is_empty()
         || field.values.len()
@@ -188,6 +199,9 @@ pub fn write_displacements(
             "three-component displacement has unknown rotations; pass --zero-missing-rotations only if R1/R2/R3 are known to be zero",
         ));
     }
+
+    // A synthetic provenance marker is valid only for an actually all-zero
+    // six-component table, never for measured or partially known data.
     if assumed_zero
         && (field.components.len() != 6 || field.values.iter().any(|value| *value != 0.0))
     {
@@ -208,6 +222,8 @@ pub fn write_displacements(
             "OP2 output requires a field named DISP or DISPLACEMENT",
         ));
     }
+
+    // Send one tab-delimited row per mesh node to the pyNastran writer.
     let mut source = format!(
         "{}\t{}\t{}\t{}\t{}\n",
         dataset.mesh.points.len(),
@@ -227,6 +243,7 @@ pub fn write_displacements(
         }
         source.push_str(&point.id.to_string());
         for value in &field.values[i * field.components.len()..(i + 1) * field.components.len()] {
+            // Float32 overflow and underflow would alter result meaning.
             if !(*value as f32).is_finite() {
                 return Err(Error::new(
                     "E_OP2",
@@ -244,6 +261,9 @@ pub fn write_displacements(
         }
         source.push('\n');
     }
+
+    // Only the adapter writes OP2 records; capture its complete output in
+    // memory before returning bytes to the caller's chosen destination.
     let mut child = Command::new(python)
         .arg("-c")
         .arg(include_str!("op2_write.py"))

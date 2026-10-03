@@ -77,6 +77,7 @@ fn text(arg: &OsStr) -> Result<&str> {
 
 /// Set a boolean option exactly once; duplicates indicate likely CLI mistakes.
 fn set_flag(slot: &mut bool, name: &str) -> Result<()> {
+    // Repeated flags are treated as user errors instead of silently accepted.
     if *slot {
         return Err(usage(format!("duplicate {name}")));
     }
@@ -91,6 +92,7 @@ fn set_option<T>(
     name: &str,
     parse: impl FnOnce() -> Result<T>,
 ) -> Result<()> {
+    // Delay value parsing until uniqueness is known, so errors stay specific.
     if slot.is_some() {
         return Err(usage(format!("duplicate {name}")));
     }
@@ -100,6 +102,7 @@ fn set_option<T>(
 
 /// Detect an OP2 destination when validating OP2-only options before dispatch.
 fn is_op2_output(args: &Args) -> bool {
+    // Inspect only the destination suffix; the full format check runs later.
     args.command == "convert"
         && args
             .paths
@@ -111,6 +114,7 @@ fn is_op2_output(args: &Args) -> bool {
 
 /// Select pyNastran's interpreter: explicit option, environment, then default.
 fn python(args: &Args) -> PathBuf {
+    // CLI selection takes precedence over the environment fallback.
     args.python
         .clone()
         .or_else(|| std::env::var_os("CAEXFER_PYTHON").map(PathBuf::from))
@@ -120,6 +124,7 @@ fn python(args: &Args) -> PathBuf {
 /// Parse commands and options, then reject contradictory or irrelevant flags.
 /// Paths remain operating-system strings; only command/option tokens need UTF-8.
 fn parse_args(raw: Vec<OsString>) -> Result<Args> {
+    // Bare invocation and global help/version switches need no path parsing.
     if raw.is_empty() {
         return Ok(Args {
             command: "help".into(),
@@ -149,6 +154,8 @@ fn parse_args(raw: Vec<OsString>) -> Result<Args> {
         command,
         ..Args::default()
     };
+
+    // After --, even a leading dash belongs to a path rather than an option.
     let mut index = 1;
     let mut options = true;
     while index < raw.len() {
@@ -169,6 +176,9 @@ fn parse_args(raw: Vec<OsString>) -> Result<Args> {
                 .ok_or_else(|| usage(format!("missing value after {}", arg.to_string_lossy())))
                 .and_then(|v| text(v))
         };
+
+        // Valued options advance past their following token; all other
+        // non-options are collected as OS-native paths.
         if options && arg == "--json" {
             set_flag(&mut args.json, "--json")?;
         } else if options && arg == "--strict" {
@@ -235,6 +245,9 @@ fn parse_args(raw: Vec<OsString>) -> Result<Args> {
         }
         index += 1;
     }
+
+    // Command arity and cross-option rules are checked after collection so
+    // flags may appear before or after path arguments.
     let expected = match args.command.as_str() {
         "formats" => 0,
         "info" | "validate" => 1,
@@ -292,6 +305,7 @@ fn parse_args(raw: Vec<OsString>) -> Result<Args> {
 
 /// Write one complete output line to locked stdout with I/O error propagation.
 fn emit(value: &str) -> Result<()> {
+    // Lock stdout for the whole line so other writes cannot interleave it.
     let mut stdout = std::io::stdout().lock();
     writeln!(stdout, "{value}")?;
     Ok(())
@@ -300,6 +314,7 @@ fn emit(value: &str) -> Result<()> {
 /// Encode scoped geometry diagnostics, counts, and validity as CLI JSON.
 /// This explicitly says validation is not full solver validation.
 fn report_json(report: &ValidationReport) -> String {
+    // Make the geometry-only validation scope explicit in machine output.
     object([
         ("scope", quote("geometry-subset")),
         ("full_solver_validation", "false".into()),
@@ -333,6 +348,7 @@ fn report_json(report: &ValidationReport) -> String {
 
 /// Read a source-preserving BDF under the CLI's selected byte cap.
 fn read_bdf(path: &Path, max_bytes: usize) -> Result<Document> {
+    // Apply the CLI cap while preserving the BDF parser's other limits.
     Document::read_with_options(
         File::open(path)?,
         ParseOptions {
@@ -358,6 +374,7 @@ fn format_of(args: &Args) -> Result<Format> {
 /// Translate validated CLI flags into the library's typed conversion options.
 /// Reject an explicit Python override on routes that cannot use OP2.
 fn conversion_options(args: &Args) -> Result<Options> {
+    // Python is meaningful only when reading or writing OP2.
     let format = format_of(args)?;
     if args.python.is_some() && format != Format::Op2 && !is_op2_output(args) {
         return Err(usage("--python applies only to OP2 input or output"));
@@ -377,6 +394,8 @@ fn conversion_options(args: &Args) -> Result<Options> {
 /// Add an explicitly synthetic six-component zero field to a geometry source.
 /// Preserve its assumption in the conversion report and OP2 provenance title.
 fn assume_zero_displacement(args: &Args, source: &mut ReadResult, max_bytes: usize) -> Result<()> {
+    // Synthetic displacement is an explicit geometry-to-result assumption,
+    // limited to sources that carry no numeric results of their own.
     if !matches!(source.format, Format::Bdf | Format::Inp) {
         return Err(usage(
             "--assume-zero-displacement currently accepts BDF or INP input",
@@ -389,6 +408,8 @@ fn assume_zero_displacement(args: &Args, source: &mut ReadResult, max_bytes: usi
         ));
     }
     if source.format == Format::Bdf {
+        // OP2 rereads against the BDF mesh, so its GRID output frame must be
+        // basic even though the synthetic displacement values are all zero.
         for grid in read_bdf(&args.paths[0], max_bytes)?.grids() {
             if grid?.cd != 0 {
                 return Err(Error::new(
@@ -405,6 +426,8 @@ fn assume_zero_displacement(args: &Args, source: &mut ReadResult, max_bytes: usi
         .len()
         .checked_mul(6)
         .ok_or_else(|| Error::new("E_LIMIT", "too many nodes for synthetic displacement"))?;
+
+    // Record provenance alongside the values for both report and OP2 title.
     source.dataset.fields.push(Field {
         name: "DISP".into(),
         location: FieldLocation::Point,
@@ -427,6 +450,8 @@ fn assume_zero_displacement(args: &Args, source: &mut ReadResult, max_bytes: usi
 /// The library reports omissions; this layer owns no-clobber file installation
 /// and human or JSON presentation of the result.
 fn run_convert(args: &Args) -> Result<u8> {
+    // Read and project before staging output, so source failures leave no
+    // destination path behind.
     let target = Format::from_output_path(&args.paths[1])?;
     let options = conversion_options(args)?;
     let mut source = conversion::read_path(&args.paths[0], &options)?;
@@ -435,12 +460,16 @@ fn run_convert(args: &Args) -> Result<u8> {
     }
     let mut report = None;
     let mesh_output = if let Some(path) = &args.mesh_out {
+        // OP2 has no embedded mesh; stage the result and its companion
+        // together before installing either final path.
         let format = Format::from_output_path(path)?;
         if format == Format::Op2 {
             return Err(usage("--mesh-out requires a mesh-bearing output format"));
         }
         let mut mesh_source = source.clone();
         let excluded = mesh_source.dataset.fields.len();
+
+        // The companion is geometry-only, with excluded fields reported.
         mesh_source.dataset.fields.clear();
         if excluded > 0 {
             mesh_source.omissions.push(Omission {
@@ -474,6 +503,9 @@ fn run_convert(args: &Args) -> Result<u8> {
         })?;
         None
     };
+
+    // Present the same source/destination omission report in either output
+    // mode after successful file installation.
     let report = report.ok_or_else(|| Error::new("E_OUTPUT", "conversion produced no report"))?;
     if args.json {
         let mut fields = vec![
@@ -521,6 +553,7 @@ fn run_convert(args: &Args) -> Result<u8> {
 
 /// Encode omission stages and details for the versioned CLI JSON schema.
 fn omissions_json(omissions: &[Omission]) -> String {
+    // Each omission is one report row with its originating conversion stage.
     array(omissions.iter().map(|omission| {
         object([
             ("category", quote("source-or-destination")),
@@ -534,11 +567,13 @@ fn omissions_json(omissions: &[Omission]) -> String {
 /// Inspect or validate a non-BDF source through the shared format reader.
 /// Strict validation fails when the supported projection reports omissions.
 fn run_generic_info(args: &Args) -> Result<u8> {
+    // Non-BDF readers return projected datasets and explicit source losses.
     let read = conversion::read_path(&args.paths[0], &conversion_options(args)?)?;
     let format = read.format.name();
     let dataset = read.dataset;
     let omissions = read.omissions;
     if args.command == "validate" {
+        // Strict mode treats any documented omission as a failed validation.
         let passed = !args.strict || omissions.is_empty();
         if args.json {
             emit(&object([
@@ -592,6 +627,7 @@ fn run_generic_info(args: &Args) -> Result<u8> {
 /// Dispatch the parsed CLI command and return its process exit status.
 /// BDF uses its richer document inspection path; other formats use datasets.
 fn run(args: Args) -> Result<u8> {
+    // Commands without input return before any format or file selection.
     match args.command.as_str() {
         "help" => {
             emit(HELP)?;
@@ -656,6 +692,9 @@ fn run(args: Args) -> Result<u8> {
         }
         _ => {}
     }
+
+    // Conversion owns staged output; inspection dispatches BDF documents to
+    // their richer source-preserving report path.
     if args.command == "convert" {
         return run_convert(&args);
     }
@@ -679,6 +718,7 @@ fn run(args: Args) -> Result<u8> {
     )?;
     match args.command.as_str() {
         "info" => {
+            // Report document counts separately from scoped geometry checks.
             let counts = doc.card_counts();
             let report = doc.validate_geometry();
             if args.json {
@@ -726,6 +766,7 @@ fn run(args: Args) -> Result<u8> {
             }
         }
         "validate" => {
+            // Warnings only fail when strict validation was requested.
             let report = doc.validate_geometry();
             let passed = report.valid_in_scope() && (!args.strict || report.warning_count() == 0);
             if args.json {
@@ -760,6 +801,7 @@ fn run(args: Args) -> Result<u8> {
 
 /// Convert structured failures into human or JSON diagnostics and exit codes.
 fn main() {
+    // Retain JSON error formatting even when argument parsing itself fails.
     let raw: Vec<OsString> = std::env::args_os().skip(1).collect();
     let wants_json = raw.iter().any(|arg| arg == "--json");
     let status = match parse_args(raw).and_then(run) {
@@ -790,6 +832,8 @@ fn main() {
             } else {
                 let _ = writeln!(std::io::stderr().lock(), "{message}");
             }
+
+            // Usage failures use the conventional distinct CLI exit code.
             if error.code == "E_USAGE" {
                 2
             } else {

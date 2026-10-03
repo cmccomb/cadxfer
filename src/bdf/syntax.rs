@@ -93,6 +93,7 @@ fn comment_end(bytes: &[u8]) -> usize {
 
 /// Borrow the non-whitespace span without decoding arbitrary comment bytes.
 fn trim_ascii(bytes: &[u8]) -> &[u8] {
+    // Keep slices into the original bytes rather than allocating or decoding.
     let start = bytes
         .iter()
         .position(|b| !b.is_ascii_whitespace())
@@ -146,6 +147,7 @@ fn is_include(bytes: &[u8]) -> bool {
 /// Carry quote state across a physical line, stopping at unquoted comments.
 /// This permits multiline `INCLUDE` path detection without opening files.
 fn quote_open(bytes: &[u8], mut quote: Option<u8>) -> Option<u8> {
+    // A quote can span physical lines of an INCLUDE argument.
     for &byte in bytes {
         if (byte == b'\'' || byte == b'"') && quote.is_none() {
             quote = Some(byte);
@@ -168,6 +170,8 @@ struct Physical {
 /// Tabs and overfull free-field lines fail because their interpretation varies
 /// by BDF dialect; source byte ownership remains with `Document`.
 fn physical(source: &[u8], line: &Line, content_end: usize) -> Result<Physical> {
+    // Preserve byte ranges for data fields; reject tabs before choosing a
+    // fixed or free interpretation.
     let bytes = &source[line.start..content_end];
     if bytes.contains(&b'\t') {
         return Err(Error::new(
@@ -178,6 +182,8 @@ fn physical(source: &[u8], line: &Line, content_end: usize) -> Result<Physical> 
     }
     let free = bytes.iter().take(10).any(|b| *b == b',');
     if free {
+        // In free-field form, commas delimit up to eight data slots (four
+        // for large cards), with a possible continuation label at the end.
         text_ascii(bytes, line.number)?;
         let mut ranges = Vec::new();
         let mut start = line.start;
@@ -216,6 +222,8 @@ fn physical(source: &[u8], line: &Line, content_end: usize) -> Result<Physical> 
             .collect();
         Ok(Physical { head, fields, tail })
     } else {
+        // Fixed-field cards use an eight-column head followed by width 8 or
+        // width 16 data slots; absent trailing slots remain implied blanks.
         let head_end = (line.start + 8).min(content_end);
         let head = text_ascii(&source[line.start..head_end], line.number)?
             .trim()
@@ -282,10 +290,12 @@ impl Document {
     /// assert_eq!(error.code, "E_LIMIT");
     /// ```
     pub fn parse_with_options(input: impl AsRef<[u8]>, options: ParseOptions) -> Result<Self> {
+        // Resource limits apply before any card semantics are interpreted.
         let input = input.as_ref();
         if input.len() > options.max_bytes {
             return Err(Error::new("E_LIMIT", "input exceeds max_bytes"));
         }
+
         // Keep one owned source buffer; fields point into it rather than copy it.
         let source = input.to_vec();
         let mut lines = Vec::new();
@@ -314,6 +324,9 @@ impl Document {
             });
             start += raw.len();
         }
+
+        // Detect a full deck before indexing cards so case-control text is
+        // not mistaken for bulk data when BEGIN BULK is required.
         let mut full_deck = false;
         for line in &lines {
             let raw = &source[line.start..line.end];
@@ -334,6 +347,9 @@ impl Document {
         let mut pending = String::new();
         let mut include_lines = Vec::new();
         let mut include_quote = None;
+
+        // Walk physical lines in source order, preserving their bytes and
+        // indexing only cards in the active bulk-data section.
         for line in &lines {
             let raw = &source[line.start..line.end];
             if ended {
@@ -349,6 +365,8 @@ impl Document {
                 continue;
             }
             if is_include(content) {
+                // Record INCLUDE without opening it; quoted paths can span
+                // lines, and a pending card continuation cannot cross it.
                 if !pending.is_empty() {
                     return Err(Error::new(
                         "E_CONTINUATION",
@@ -404,6 +422,8 @@ impl Document {
             let part = physical(&source, line, content_end)?;
             let continuation = part.head.is_empty() || part.head.starts_with(['+', '*']);
             if continuation {
+                // Append data fields to the active card only when its
+                // continuation label matches the prior physical line.
                 let index = current.ok_or_else(|| {
                     Error::new("E_CONTINUATION", "orphan continuation").at(line.number)
                 })?;
@@ -422,6 +442,8 @@ impl Document {
                 }
                 pending = part.tail;
             } else {
+                // A new card cannot silently terminate a labeled
+                // continuation expected from the previous line.
                 if !pending.is_empty() {
                     return Err(Error::new(
                         "E_CONTINUATION",
@@ -470,6 +492,8 @@ impl Document {
                 format!("missing continuation {pending:?} at end of file"),
             ));
         }
+
+        // Carry unresolved defaults into later typed GRID and geometry checks.
         let has_grdset = cards.iter().any(|card| card.name() == "GRDSET");
         Ok(Self {
             source,
@@ -487,6 +511,7 @@ impl Document {
 
     /// Read a bounded byte stream, then parse it under the supplied limits.
     pub fn read_with_options(reader: impl Read, options: ParseOptions) -> Result<Self> {
+        // Read one byte beyond the cap to detect oversize streams accurately.
         let limit = options
             .max_bytes
             .checked_add(1)
@@ -518,6 +543,7 @@ impl Document {
     /// Borrow and trim one indexed data field; an implied blank yields `""`.
     /// Ranges are always interpreted against this document's preserved bytes.
     fn field_text(&self, field: &Field) -> &str {
+        // An absent indexed range is an implied blank, not a missing card.
         field
             .range
             .as_ref()

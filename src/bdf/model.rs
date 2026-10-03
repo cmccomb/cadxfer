@@ -168,6 +168,8 @@ impl Document {
     /// Decode one GRID's native values without resolving external defaults.
     /// GRDSET and INCLUDE make those defaults ambiguous and block typed access.
     pub(crate) fn parse_grid(&self, card: &Card) -> Result<Grid> {
+        // A native GRID cannot be interpreted while external defaults may
+        // change its coordinate or output frame.
         if self.has_grdset {
             return Err(Error::new(
                 "E_GRDSET",
@@ -181,6 +183,8 @@ impl Document {
         let f = |i| self.card_text(card, i);
         let id = positive(f(0), "GRID ID", card.line)?;
         let cp = nonnegative(f(1), "GRID CP", card.line)?;
+
+        // Blank coordinate fields default to zero on GRID cards.
         let mut coordinates = [0.0; 3];
         for (axis, value) in coordinates.iter_mut().enumerate() {
             if !f(axis + 2).is_empty() {
@@ -196,6 +200,8 @@ impl Document {
         if cd < -1 {
             return Err(Error::new("E_INTEGER", "GRID CD must be >= -1").at(card.line));
         }
+
+        // PS is a set of constraint digits, so repeated digits are invalid.
         let ps = f(6).to_string();
         let mut seen = BTreeSet::new();
         if !ps
@@ -251,6 +257,8 @@ impl Document {
     /// Extra solid-element fields are rejected to avoid silently linearizing
     /// higher-order cells; BDF source bytes are never modified here.
     fn parse_element(&self, card: &Card, kind: CellKind) -> Result<NativeElement> {
+        // CONROD has no property field; other supported cards require an
+        // explicit PID so dialect-specific defaults are never guessed.
         let f = |i| self.card_text(card, i);
         let id = positive(f(0), "element ID", card.line)?;
         let conrod = card.name() == "CONROD";
@@ -273,6 +281,9 @@ impl Document {
                 card.line,
             )?);
         }
+
+        // Extra solid-card fields may indicate higher-order geometry, which
+        // cannot be reduced to a linear cell without losing nodes.
         if matches!(card.name(), "CTETRA" | "CHEXA" | "CPENTA" | "CPYRAM") {
             let first_extra = first_node + kind.node_count();
             if (first_extra..card.fields.len()).any(|i| !f(i).is_empty()) {
@@ -292,6 +303,8 @@ impl Document {
     /// Keeps collecting scoped diagnostics so callers can inspect multiple
     /// omissions or errors from one document in a single pass.
     fn analyze_geometry(&self) -> (ValidationReport, Mesh) {
+        // Collect source diagnostics and native IDs before forming indexed
+        // connectivity; this lets one validation pass report multiple issues.
         let mut report = ValidationReport::default();
         let mut points = BTreeMap::new();
         let mut native_cells = BTreeMap::new();
@@ -316,6 +329,7 @@ impl Document {
                 "GRDSET" => report.diagnostics.push(Error::new("E_GRDSET", "GRID defaults from GRDSET are not implemented; no coordinate defaults will be guessed").at(card.line).into()),
                 "ENDDATA" => {},
                 name if element_kind(name).is_some() => {
+
                     // Guard above establishes the match; no user input can make this None.
                     if let Some(kind) = element_kind(name) {
                         match self.parse_element(card, kind) {
@@ -330,11 +344,14 @@ impl Document {
                     }
                 }
                 name if opaque_nongeometry(name) => {
+
                     // Counted once per card type below, not once per large deck record.
                 }
                 name => report.diagnostics.push(Error::new("E_UNSUPPORTED_CARD", format!("{name} is preserved, but its effect on geometry is unknown; projection is refused")).at(card.line).into()),
             }
         }
+
+        // Opaque nongeometry cards are counted by type for the scoped report.
         for (name, count) in self.card_counts() {
             if opaque_nongeometry(&name) {
                 report.diagnostics.push(Diagnostic {
@@ -344,6 +361,9 @@ impl Document {
                 });
             }
         }
+
+        // BTreeMap iteration gives deterministic ID order in the projected
+        // points array, independent of source-card order.
         let mut mesh = Mesh::default();
         let mut node_indices = BTreeMap::new();
         for (id, grid) in points {
@@ -353,6 +373,9 @@ impl Document {
                 position: grid.coordinates,
             });
         }
+
+        // Translate native GRID IDs to point indices, recording missing and
+        // repeated references while retaining other usable cells.
         for (_, element) in native_cells {
             let mut connectivity = Vec::new();
             let mut seen = BTreeSet::new();
@@ -441,6 +464,7 @@ impl Document {
     /// # Ok::<(), caexfer::core::Error>(())
     /// ```
     pub fn geometry(&self) -> Result<GeometryProjection> {
+        // Refuse a partial mesh if scoped validation found any blocking error.
         let (report, mesh) = self.analyze_geometry();
         if let Some(diagnostic) = report
             .diagnostics
@@ -454,6 +478,9 @@ impl Document {
             });
         }
         mesh.validate()?;
+
+        // The projection always loses the original document representation,
+        // with additional omissions for full-deck and opaque card content.
         let mut omissions = Vec::new();
         omissions.push(Omission {
             category: "document".into(), count: 1,

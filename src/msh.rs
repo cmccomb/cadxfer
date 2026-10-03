@@ -41,6 +41,7 @@ fn code(kind: CellKind) -> (u32, u32) {
 }
 /// Borrow the first named section body, checking that its end marker exists.
 fn section<'a>(source: &'a str, name: &str) -> Result<Option<&'a str>> {
+    // A missing section is optional to callers; a present truncated one is not.
     let begin = format!("${name}\n");
     let end = format!("$End{name}");
     let Some(start) = source.find(&begin) else {
@@ -55,6 +56,7 @@ fn section<'a>(source: &'a str, name: &str) -> Result<Option<&'a str>> {
 }
 /// Borrow all repeated field sections in source order, rejecting truncation.
 fn data_sections<'a>(source: &'a str, name: &str) -> Result<Vec<&'a str>> {
+    // NodeData and ElementData may occur once per field and step.
     let mut out = Vec::new();
     let mut rest = source;
     let begin = format!("${name}\n");
@@ -89,6 +91,7 @@ fn data_sections<'a>(source: &'a str, name: &str) -> Result<Vec<&'a str>> {
 /// # Ok::<(), caexfer::core::Error>(())
 /// ```
 pub fn read(source: &str) -> Result<Dataset> {
+    // Normalize line endings before looking for exact section delimiters.
     let normalized = source.replace("\r\n", "\n");
     let source = normalized.as_str();
     let header = section(source, "MeshFormat")?.ok_or_else(|| err("missing MeshFormat"))?;
@@ -96,6 +99,9 @@ pub fn read(source: &str) -> Result<Dataset> {
     if h.next() != Some("4.1") || h.next() != Some("0") || h.next() != Some("8") {
         return Err(err("only ASCII MSH 4.1 with 8-byte data size is supported"));
     }
+
+    // Gmsh stores node tags before coordinate tuples within each block.
+    // Build a tag-to-index map for later element connectivity.
     let mut mesh = Mesh::default();
     let mut node_ids = BTreeMap::new();
     let nodes = section(source, "Nodes")?.ok_or_else(|| err("missing Nodes"))?;
@@ -131,6 +137,8 @@ pub fn read(source: &str) -> Result<Dataset> {
     if mesh.points.len() != total {
         return Err(err("node count mismatch"));
     }
+
+    // Element blocks are homogeneous in type and entity dimension.
     let elements = section(source, "Elements")?.ok_or_else(|| err("missing Elements"))?;
     let mut t = elements.split_whitespace();
     let blocks: usize = number(t.next(), "element block count")?;
@@ -151,6 +159,8 @@ pub fn read(source: &str) -> Result<Dataset> {
             let mut connectivity = Vec::with_capacity(cell_kind.node_count());
             for _ in 0..cell_kind.node_count() {
                 let node: u64 = number(t.next(), "element node")?;
+
+                // The mesh model stores point indices, not Gmsh node tags.
                 connectivity.push(
                     *node_ids
                         .get(&node)
@@ -172,6 +182,9 @@ pub fn read(source: &str) -> Result<Dataset> {
         mesh,
         fields: Vec::new(),
     };
+
+    // Numeric data blocks identify entities by original tag and can appear
+    // in an order different from the geometry arrays.
     for (name, location) in [
         ("NodeData", FieldLocation::Point),
         ("ElementData", FieldLocation::Cell),
@@ -214,6 +227,8 @@ pub fn read(source: &str) -> Result<Dataset> {
                     "partial data blocks cannot be projected without missing-value semantics",
                 ));
             }
+
+            // Reorder each complete block into the mesh's entity-major order.
             let index: BTreeMap<u64, usize> =
                 ids.iter().enumerate().map(|(i, id)| (*id, i)).collect();
             let mut values = vec![0.; entries * components];
@@ -250,6 +265,7 @@ pub fn read(source: &str) -> Result<Dataset> {
 /// Validate the returned bytes with [`read`] when interoperability matters;
 /// external Gmsh entity and physical-group semantics are outside this model.
 pub fn write(dataset: &Dataset, mut writer: impl Write) -> Result<()> {
+    // Finish validation and reject unrepresentable properties before writing.
     dataset.validate()?;
     if dataset.mesh.cells.iter().any(|c| c.property_id.is_some()) {
         return Err(err(
@@ -257,6 +273,9 @@ pub fn write(dataset: &Dataset, mut writer: impl Write) -> Result<()> {
         ));
     }
     let mesh = &dataset.mesh;
+
+    // This bounded writer emits one global node block. Tags and coordinate
+    // tuples are separate sequences in the MSH 4.1 block layout.
     writeln!(writer, "$MeshFormat\n4.1 0 8\n$EndMeshFormat\n$Nodes")?;
     let min = mesh.points.iter().map(|p| p.id).min().unwrap_or(0);
     let max = mesh.points.iter().map(|p| p.id).max().unwrap_or(0);
@@ -277,6 +296,8 @@ pub fn write(dataset: &Dataset, mut writer: impl Write) -> Result<()> {
         )?;
     }
     writeln!(writer, "$EndNodes\n$Elements")?;
+
+    // Group cells by Gmsh type because an element block has one type code.
     let mut groups: BTreeMap<u32, Vec<&Cell>> = BTreeMap::new();
     for cell in &mesh.cells {
         groups.entry(code(cell.kind).0).or_default().push(cell);
@@ -290,12 +311,15 @@ pub fn write(dataset: &Dataset, mut writer: impl Write) -> Result<()> {
         for cell in cells {
             write!(writer, "{}", cell.id)?;
             for &idx in &cell.connectivity {
+                // Convert internal point indices back to original node tags.
                 write!(writer, " {}", mesh.points[idx].id)?;
             }
             writeln!(writer)?;
         }
     }
     writeln!(writer, "$EndElements")?;
+
+    // Each field becomes a complete NodeData or ElementData block.
     for field in &dataset.fields {
         let name = match field.location {
             FieldLocation::Point => "NodeData",
@@ -321,6 +345,8 @@ pub fn write(dataset: &Dataset, mut writer: impl Write) -> Result<()> {
             field.components.len(),
             ids.len()
         )?;
+
+        // The data header counts entity rows, each followed by one tuple.
         for (i, id) in ids.iter().enumerate() {
             write!(writer, "{id}")?;
             for value in &field.values[i * field.components.len()..(i + 1) * field.components.len()]

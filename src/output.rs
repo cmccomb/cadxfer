@@ -6,6 +6,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use caexfer::core::{Error, Result};
 
+// Distinguish staged filenames created by this process, even within one clock tick.
 static COUNTER: AtomicU64 = AtomicU64::new(0);
 
 struct Temporary(PathBuf);
@@ -13,6 +14,8 @@ impl Drop for Temporary {
     /// Remove the staged file when it falls out of scope, including on error.
     /// A successfully installed hard link remains at the destination path.
     fn drop(&mut self) {
+        // Once installed, only the temporary name is removed; the destination
+        // hard link keeps the complete file alive.
         let _ = fs::remove_file(&self.0);
     }
 }
@@ -20,6 +23,7 @@ impl Drop for Temporary {
 /// Reject any existing destination, including a dangling symlink.
 /// The later hard-link install repeats the no-clobber guarantee atomically.
 fn ensure_new(path: &Path) -> Result<()> {
+    // symlink_metadata also detects a dangling symlink at the destination.
     if fs::symlink_metadata(path).is_ok() {
         return Err(Error::new(
             "E_EXISTS",
@@ -38,6 +42,8 @@ impl Staged {
     /// Write, flush, and sync to an exclusive temporary file beside `path`.
     /// Nothing is visible at the destination until `install` succeeds.
     fn new(path: &Path, write: impl FnOnce(&mut BufWriter<File>) -> Result<()>) -> Result<Self> {
+        // Stage beside the destination so a later hard link stays on the
+        // same filesystem and can refuse replacement atomically.
         let name = path
             .file_name()
             .ok_or_else(|| Error::new("E_OUTPUT", "output must be a file path"))?;
@@ -46,6 +52,8 @@ impl Staged {
             .filter(|p| !p.as_os_str().is_empty())
             .unwrap_or(Path::new("."));
         ensure_new(path)?;
+
+        // Exclusive creation avoids collisions with another invocation.
         let timestamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap_or_default()
@@ -76,6 +84,9 @@ impl Staged {
             )
         })?;
         let mut writer = BufWriter::new(file);
+
+        // Flush buffered bytes and sync the file before making a destination
+        // name visible; Temporary cleans up if any step fails.
         write(&mut writer)?;
         writer.flush()?;
         writer.get_ref().sync_all()?;
@@ -89,6 +100,7 @@ impl Staged {
     /// Link a complete staged file into a still-new destination name.
     /// Hard links make the no-overwrite step atomic on supported filesystems.
     fn install(&self) -> Result<()> {
+        // hard_link fails if the destination name appeared during staging.
         fs::hard_link(&self.temporary.0, &self.path).map_err(|error| {
             if error.kind() == std::io::ErrorKind::AlreadyExists {
                 Error::new(
@@ -109,6 +121,7 @@ pub fn create_new(
     path: &Path,
     write: impl FnOnce(&mut BufWriter<File>) -> Result<()>,
 ) -> Result<()> {
+    // Staged::new retains cleanup ownership until the install call returns.
     Staged::new(path, write)?.install()
 }
 
@@ -121,6 +134,7 @@ pub fn create_pair(
     second_path: &Path,
     second_write: impl FnOnce(&mut BufWriter<File>) -> Result<()>,
 ) -> Result<()> {
+    // Both writes finish before either final path becomes visible.
     if first_path == second_path {
         return Err(Error::new("E_USAGE", "paired outputs need distinct paths"));
     }
@@ -128,6 +142,9 @@ pub fn create_pair(
     ensure_new(second_path)?;
     let first = Staged::new(first_path, first_write)?;
     let second = Staged::new(second_path, second_write)?;
+
+    // The two installations cannot be atomic together; report partial
+    // installation accurately if the second hard link fails.
     first.install()?;
     second.install().map_err(|error| {
         Error::new(

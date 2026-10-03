@@ -4,6 +4,8 @@ use std::fmt::Write;
 /// Quote a string as JSON, escaping controls, quotes, and backslashes.
 /// Used for user-facing CLI reports; input is never evaluated as JSON.
 pub fn quote(text: &str) -> String {
+    // Escape each scalar exactly once; control bytes use JSON's short forms
+    // where available and a Unicode escape otherwise.
     let mut output = String::from("\"");
     for ch in text.chars() {
         match ch {
@@ -25,6 +27,7 @@ pub fn quote(text: &str) -> String {
 /// Assemble an object from quoted keys and values already encoded as JSON.
 /// Callers must use `quote` for string values.
 pub fn object<K: AsRef<str>>(fields: impl IntoIterator<Item = (K, String)>) -> String {
+    // Values arrive pre-encoded, while keys always need JSON string quoting.
     format!(
         "{{{}}}",
         fields
@@ -37,6 +40,7 @@ pub fn object<K: AsRef<str>>(fields: impl IntoIterator<Item = (K, String)>) -> S
 
 /// Assemble an array from values already encoded as JSON.
 pub fn array(values: impl IntoIterator<Item = String>) -> String {
+    // The caller supplies JSON values, so joining adds only delimiters.
     format!("[{}]", values.into_iter().collect::<Vec<_>>().join(","))
 }
 

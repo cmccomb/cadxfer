@@ -61,6 +61,7 @@ pub struct Inspection {
 /// # Ok::<(), caexfer::core::Error>(())
 /// ```
 pub fn read(source: &str) -> Result<Inspection> {
+    // Keyword lines switch how subsequent data lines are interpreted.
     enum Mode {
         None,
         Node,
@@ -79,6 +80,8 @@ pub fn read(source: &str) -> Result<Inspection> {
             continue;
         }
         if let Some(stripped) = line.strip_prefix('*') {
+            // Scoped geometry requires expansion that this flat reader cannot
+            // perform, so fail before projecting misleading global nodes.
             let mut parts = stripped.split(',').map(str::trim);
             let keyword = parts.next().unwrap_or("").to_ascii_uppercase();
             if matches!(
@@ -112,6 +115,8 @@ pub fn read(source: &str) -> Result<Inspection> {
                     Mode::Element(kind(&type_value).map_err(|e| e.at(line_no + 1))?)
                 }
                 _ => {
+                    // Preserve the keyword name as an omission while ignoring
+                    // its uninterpreted data lines until the next keyword.
                     omitted.insert(keyword);
                     Mode::None
                 }
@@ -125,6 +130,7 @@ pub fn read(source: &str) -> Result<Inspection> {
             .collect();
         match mode {
             Mode::Node => {
+                // Record each original node ID and its internal point index.
                 if values.len() != 4 {
                     return Err(err("NODE needs ID,X,Y,Z").at(line_no + 1));
                 }
@@ -143,6 +149,8 @@ pub fn read(source: &str) -> Result<Inspection> {
                 mesh.points.push(Point { id, position });
             }
             Mode::Element(cell_kind) => {
+                // Resolve references after all blocks are read; node blocks
+                // need not precede element blocks in this flat projection.
                 if values.len() != cell_kind.node_count() + 1 {
                     return Err(
                         err("element node count mismatch or unsupported continuation")
@@ -167,6 +175,8 @@ pub fn read(source: &str) -> Result<Inspection> {
     if !seen_node || !seen_element {
         return Err(err("both NODE and ELEMENT blocks are required"));
     }
+
+    // Convert original node IDs to the point indices used by Mesh.
     for (id, kind, nodes) in pending {
         let connectivity = nodes
             .into_iter()
@@ -198,6 +208,7 @@ pub fn read(source: &str) -> Result<Inspection> {
 /// no lossless INP mapping exists here. The caller owns the output stream;
 /// write errors can leave partial bytes.
 pub fn write(mesh: &Mesh, mut writer: impl Write) -> Result<()> {
+    // Property IDs have no mapping here, so reject them before any output.
     mesh.validate()?;
     if mesh.cells.iter().any(|c| c.property_id.is_some()) {
         return Err(err(
@@ -215,6 +226,8 @@ pub fn write(mesh: &Mesh, mut writer: impl Write) -> Result<()> {
             p.id, p.position[0], p.position[1], p.position[2]
         )?;
     }
+
+    // INP element blocks are homogeneous by element keyword.
     let mut groups: BTreeMap<&str, Vec<&Cell>> = BTreeMap::new();
     for c in &mesh.cells {
         groups.entry(name(c.kind)).or_default().push(c);
@@ -224,6 +237,7 @@ pub fn write(mesh: &Mesh, mut writer: impl Write) -> Result<()> {
         for c in cells {
             write!(writer, "{}", c.id)?;
             for &idx in &c.connectivity {
+                // Restore original node IDs from the internal connectivity.
                 write!(writer, ", {}", mesh.points[idx].id)?;
             }
             writeln!(writer)?;

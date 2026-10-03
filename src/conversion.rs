@@ -250,12 +250,15 @@ fn read_bdf(path: &Path, max_bytes: usize) -> Result<Document> {
 /// Bound non-BDF file reads with both a metadata check and an actual read cap.
 /// The second check handles files growing between the metadata and read calls.
 fn read_limited(path: &Path, max_bytes: usize) -> Result<Vec<u8>> {
+    // Metadata catches ordinary oversize files without allocating for them.
     if std::fs::metadata(path)?.len() > max_bytes as u64 {
         return Err(Error::new(
             "E_LIMIT",
             format!("input exceeds {max_bytes} bytes"),
         ));
     }
+
+    // The extra byte detects a file that grew after the metadata check.
     let mut bytes = Vec::new();
     File::open(path)?
         .take(max_bytes.saturating_add(1) as u64)
@@ -276,6 +279,7 @@ fn read_op2_mesh(path: &Path, options: &Options) -> Result<(Mesh, Vec<Omission>)
     let format = Format::from_input_path(path)?;
     match format {
         Format::Bdf => {
+            // BDF exposes GRID output frames, so verify them directly.
             let document = read_bdf(path, options.max_bytes)?;
             for grid in document.grids() {
                 if grid?.cd != 0 {
@@ -286,6 +290,9 @@ fn read_op2_mesh(path: &Path, options: &Options) -> Result<(Mesh, Vec<Omission>)
                 }
             }
             let projection = document.geometry()?;
+
+            // Keep source losses from the companion deck visible in the
+            // result conversion report.
             let omissions = projection
                 .omissions
                 .into_iter()
@@ -303,12 +310,15 @@ fn read_op2_mesh(path: &Path, options: &Options) -> Result<(Mesh, Vec<Omission>)
             "OP2 companion mesh must be a mesh-bearing format",
         )),
         _ => {
+            // Other mesh formats carry no GRID CD, requiring an explicit
+            // caller assertion before pairing them with OP2 displacements.
             if !options.assume_basic_frame {
                 return Err(Error::new(
                     "E_USAGE",
                     "non-BDF OP2 mesh lacks GRID CD; pass --assume-basic-frame to assert basic-frame coordinates and displacements",
                 ));
             }
+
             // A companion supplies geometry only; OP2 result-selection options
             // must not be reapplied while reading its mesh-bearing file.
             let mesh_options = Options {
@@ -320,6 +330,8 @@ fn read_op2_mesh(path: &Path, options: &Options) -> Result<(Mesh, Vec<Omission>)
                 ..options.clone()
             };
             let read = read_path(path, &mesh_options)?;
+
+            // A companion contributes geometry only; report ignored fields.
             let mut omissions = read
                 .omissions
                 .into_iter()
@@ -365,9 +377,13 @@ fn read_op2_mesh(path: &Path, options: &Options) -> Result<(Mesh, Vec<Omission>)
 /// # Ok::<(), caexfer::core::Error>(())
 /// ```
 pub fn read_path(path: &Path, options: &Options) -> Result<ReadResult> {
+    // An explicit source format overrides suffix-based selection.
     let format = options
         .input_format
         .map_or_else(|| Format::from_input_path(path), Ok)?;
+
+    // Reject result-selection and frame options on formats that cannot use
+    // them before opening or parsing any source file.
     if format != Format::Op2 && (options.mesh.is_some() || options.subcase.is_some()) {
         return Err(Error::new(
             "E_USAGE",
@@ -388,6 +404,7 @@ pub fn read_path(path: &Path, options: &Options) -> Result<ReadResult> {
     }
     let (dataset, omissions, assumed_zero) = match format {
         Format::Bdf => {
+            // BDF projection can lose solver cards while retaining geometry.
             let projection = read_bdf(path, options.max_bytes)?.geometry()?;
             let omissions = projection
                 .omissions
@@ -415,6 +432,8 @@ pub fn read_path(path: &Path, options: &Options) -> Result<ReadResult> {
             (vtu::read(text)?, Vec::new(), false)
         }
         Format::Msh => {
+            // The MSH reader handles geometry and data; other sections are
+            // recorded as source omissions for the caller to review.
             let bytes = read_limited(path, options.max_bytes)?;
             let text = std::str::from_utf8(&bytes)
                 .map_err(|_| Error::new("E_MSH", "MSH must be UTF-8 ASCII"))?;
@@ -463,6 +482,7 @@ pub fn read_path(path: &Path, options: &Options) -> Result<ReadResult> {
             )
         }
         Format::Frd => {
+            // Step selection filters complete fields after parsing the file.
             let bytes = read_limited(path, options.max_bytes)?;
             let mut dataset = frd::read(&bytes)?;
             if let Some(step) = options.step {
@@ -483,6 +503,7 @@ pub fn read_path(path: &Path, options: &Options) -> Result<ReadResult> {
             (dataset, omissions, false)
         }
         Format::Op2 => {
+            // OP2 result tables carry no complete matching mesh on their own.
             let mesh_path = options
                 .mesh
                 .as_deref()
@@ -498,6 +519,9 @@ pub fn read_path(path: &Path, options: &Options) -> Result<ReadResult> {
                 options.subcase,
                 options.step,
             )?;
+
+            // Preserve both explicit synthetic provenance and the results
+            // omitted by the selected displacement-table projection.
             if assumed_zero {
                 omissions.push(Omission::new(
                     Stage::Assumption,
@@ -543,6 +567,8 @@ pub fn convert_path(
     options: &Options,
     writer: impl Write,
 ) -> Result<ConversionReport> {
+    // Keep read-side omissions attached to the source through destination
+    // projection, so one report covers both stages.
     convert(read_path(path, options)?, target, options, writer)
 }
 
@@ -586,6 +612,8 @@ pub fn convert(
     let omissions = &mut source.omissions;
     match target {
         Format::Vtu => {
+            // VTU has one array per location and name; multiple source steps
+            // require the caller to select a step first.
             let mut seen = BTreeSet::new();
             for field in &dataset.fields {
                 if !seen.insert((field.location as u8, field.name.clone())) {
@@ -598,6 +626,8 @@ pub fn convert(
             vtu::write_data(dataset, &mut writer)?;
         }
         Format::Msh => {
+            // MSH stores numeric tuples but loses these component labels and
+            // this exporter's unmapped property IDs.
             let missing_steps = dataset
                 .fields
                 .iter()
@@ -644,6 +674,8 @@ pub fn convert(
             msh::write(dataset, &mut writer)?;
         }
         Format::Inp | Format::Bdf => {
+            // These writers emit geometry-only solver input, so result fields
+            // remain accounted for in the report instead of silently vanishing.
             if !dataset.fields.is_empty() {
                 omissions.push(Omission::new(
                     Stage::Destination,
@@ -654,6 +686,7 @@ pub fn convert(
                 ));
             }
             if target == Format::Inp {
+                // The bounded INP writer has no property definition mapping.
                 let props = dataset
                     .mesh
                     .cells
@@ -671,6 +704,8 @@ pub fn convert(
                 }
                 inp::write(&dataset.mesh, &mut writer)?;
             } else {
+                // BDF requires a PID on these element cards; the writer uses
+                // placeholder 1 where the source mesh has none.
                 let missing = dataset
                     .mesh
                     .cells
@@ -687,6 +722,8 @@ pub fn convert(
             }
         }
         Format::Frd => {
+            // The supported FRD result blocks are nodal, so cell fields must
+            // be removed before calling its writer.
             let before = dataset.fields.len();
             dataset
                 .fields
@@ -701,6 +738,8 @@ pub fn convert(
                 ));
             }
             for field in &mut dataset.fields {
+                // FRD's displacement name and metadata layout differ from
+                // the generic field model; record each normalization.
                 if field.name.starts_with("DISPLACEMENT_SUBCASE_") {
                     omissions.push(Omission::new(
                         Stage::Destination,
@@ -739,6 +778,7 @@ pub fn convert(
             frd::write(dataset, &mut writer)?;
         }
         Format::Op2 => {
+            // The adapter writes a single real nodal displacement table.
             let matches: Vec<_> = dataset
                 .fields
                 .iter()
@@ -755,6 +795,9 @@ pub fn convert(
                 return Err(Error::new("E_OP2", "OP2 output requires exactly one 3- or 6-component nodal DISP field; select one result step"));
             }
             let field = matches[0];
+
+            // Recover a subcase encoded in the field name, defaulting to 1
+            // for generic DISP names.
             let subcase = field
                 .name
                 .to_ascii_uppercase()
@@ -787,6 +830,9 @@ pub fn convert(
                 Stage::Destination,
                 "OP2 real displacement values use float32 precision",
             ));
+
+            // The adapter builds the binary table before it reaches the
+            // caller's output stream.
             let bytes = op2::write_displacements(
                 dataset,
                 field,
