@@ -5,6 +5,10 @@
 Renamed the GitHub repository, five Rust packages, CLI, examples, scripts, and
 README branding from `caxifer`, briefly `cadxfer`, to `caexfer`. Added a from/to
 conversion matrix.
+Added documented ASCII FRD mesh/nodal-field output and pyNastran-backed OP2
+real displacement output. Three-component displacements require an explicit
+assertion before receiving float `0.0` rotational components, with omission reports and OP2 reread
+verification. Mesh-only inputs still cannot yield a fabricated OP2 result.
 Narrowed the BDF public API by hiding source field spans and removing the
 physical field format classification and redundant INCLUDE-line accessor.
 `Document::cards()` and `Document::card_text()` remain available for inspection.

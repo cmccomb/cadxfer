@@ -20,24 +20,34 @@ original IDs but omits nongeometry records and reports those omissions.
 
 | From ↓ / To → | BDF | VTU | MSH 4.1 | INP | FRD | OP2 |
 | --- | --- | --- | --- | --- | --- | --- |
-| **BDF** | C / M | M | M | M | — | — |
-| **VTU** | M | C / F | F | M | — | — |
-| **MSH 4.1** | M | F | C / F | M | — | — |
-| **INP** | M | M | M | C / M | — | — |
-| **FRD** | M | F | F | M | C | — |
-| **OP2 + BDF mesh** | M* | F* | F* | M* | — | C |
+| **BDF** | C / M | M | M | M | M† | — |
+| **VTU** | M | C / F | F | M | F† | D‡ |
+| **MSH 4.1** | M | F | C / F | M | F† | D‡ |
+| **INP** | M | M | M | C / M | M† | — |
+| **FRD** | M | F | F | M | C / F | D‡ |
+| **OP2 + BDF mesh** | M* | F* | F* | M* | F*† | C / D*‡ |
 
 **C** is `roundtrip`, a byte-identical source copy. BDF additionally supports
 `set-grid`. **M** is a linear mesh projection with original node and element IDs.
-**F** carries the mesh plus supported numeric point/cell fields. `*` requires
-`--mesh model.bdf`; OP2 currently extracts one real six-component displacement
-table through pyNastran. An em dash means there is no writer for that format.
+**F** carries the mesh plus supported numeric fields. **D** writes one real
+displacement OP2 table through pyNastran. A recognized three-component `DISP`
+field needs `--zero-missing-rotations` to set R1/R2/R3 to float `0.0` when those
+values are known; the default refuses unknown rotations. A six-component field
+carries its rotations. **D** requires a displacement field, so mesh-only
+sources cannot produce OP2. `*` requires `--mesh model.bdf` to read OP2; OP2
+output has no embedded mesh and needs a matching BDF for later use. `†` requires
+FRD-supported cells (no five-node pyramid); FRD keeps nodal fields, reports any
+omitted cell fields, and uses six-significant-digit ASCII values. `‡` requires
+an installed pyNastran and one selected `DISP`/`DISPLACEMENT` field with three
+or six nodal components; a three-component field additionally needs the explicit
+zero-rotation option. An em dash means the source lacks the required result.
 Every `convert` route requires `--geometry-only` and reports omissions. This
 flag acknowledges projection into the supported mesh/field subset; it does not
 mean numeric fields are discarded on **F** routes.
 
 BDF and INP outputs from `convert` are **geometry-only decks**, not runnable
-solver models. FRD and OP2 may be copied verbatim but cannot be generated.
+solver models. FRD exports supported mesh and nodal results. OP2 exports a
+result table only; use a separate BDF to carry its geometry.
 MSH/VTU preserve supported numeric values; MSH has no component-label slot,
 and BDF property IDs have no mapping in this MSH/INP exporter. Those losses are
 reported. See [the precise format limits](docs/SUPPORT.md).
@@ -63,6 +73,8 @@ caexfer set-grid examples/plate.bdf edited.bdf --id 20 --xyz 1.2 0 0
 caexfer convert examples/plate.bdf plate.vtu --geometry-only
 caexfer convert examples/plate.bdf plate.msh --geometry-only
 caexfer convert tests/fixtures/linear-results.frd results.vtu --geometry-only
+caexfer convert tests/fixtures/linear-results.frd results-mesh.bdf --geometry-only
+caexfer convert tests/fixtures/linear-results.frd results.op2 --python /path/to/python3.12 --zero-missing-rotations --geometry-only
 # OP2 example, with pyNastran in a Python 3.12 environment:
 caexfer convert model.op2 displacement.vtu --mesh model.bdf --python /path/to/python3.12 --geometry-only
 ```
@@ -97,10 +109,10 @@ CHEXA, CPENTA, and CPYRAM. Bars/beams become their node-to-node centerline only;
 section data, orientations, and offsets are not projected. Higher-order solids
 are rejected, not reduced to their corner nodes.
 
-**Not implemented:** FRD/OP2 generation, binary/compressed VTU or MSH,
+**Not implemented:** binary FRD or binary/compressed VTU/MSH,
 INCLUDE expansion, coordinate-system resolution, GRDSET defaults, solver-ready
 BDF/INP generation, mesh repair, unit conversion, Python bindings, or lazy
-multi-gigabyte result access. OP2 decoding requires an external pyNastran
+multi-gigabyte result access. OP2 read/write requires an external pyNastran
 installation. Unsupported geometry is rejected rather than silently skipped.
 
 The exact boundary is in [SUPPORT.md](docs/SUPPORT.md).

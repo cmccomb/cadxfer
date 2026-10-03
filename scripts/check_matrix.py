@@ -77,14 +77,64 @@ def main() -> None:
                         assert abs(first[0] - 0.007644693832844496) < 1e-9
                         assert first[3:] == [0., 0., 0.]
                 routes += 1
-            for target_format in ('frd', 'op2'):
-                target = folder / f'{source_format}-to-{target_format}.{target_format}'
-                result = run('convert', source, target, '--geometry-only', *extra, code=1)
-                assert result['error']['code'] == 'E_FORMAT' and not target.exists()
+            target = folder / f'{source_format}-to-frd.frd'
+            report = run('convert', source, target, '--geometry-only', *extra)
+            assert target.is_file() and report['points'] == expected[0]
+            info = run('info', target)
+            assert (info['points'], info['cells']) == expected
+            assert info['fields'] == (2 if source_format == 'frd' else
+                                      1 if source_format == 'op2' else 0)
+            routes += 1
+
+            if source_format == 'frd':
+                result = folder / 'frd-to-op2.op2'
+                refused = run('convert', source, result, '--geometry-only', code=1)
+                assert refused['error']['code'] == 'E_OP2' and not result.exists()
+                assert 'unknown rotations' in refused['error']['message']
+
+            if options.op2_python and source_format in ('frd', 'op2'):
+                result = folder / f'{source_format}-to-op2.op2'
+                if source_format == 'frd':
+                    report = run('convert', source, result, '--geometry-only',
+                                 '--zero-missing-rotations', '--python', options.op2_python)
+                else:
+                    report = run('convert', source, result, '--geometry-only', *extra)
+                assert result.is_file() and report['fields'] >= 1
+                mesh = (ROOT / 'tests/fixtures/solid_bending.bdf' if source_format == 'op2'
+                        else folder / 'frd-for-op2.bdf')
+                if source_format == 'frd':
+                    run('convert', source, mesh, '--geometry-only')
+                    assert any('typed float 0.0' in item['detail'] for item in report['omissions'])
+                reread = folder / f'{source_format}-op2-reread.vtu'
+                run('convert', result, reread, '--mesh', mesh,
+                    '--python', options.op2_python, '--geometry-only')
+                piece = ET.parse(reread).find('./UnstructuredGrid/Piece')
+                field = piece.find("./PointData/DataArray[@Name='DISPLACEMENT_SUBCASE_1']")
+                assert field is not None
+                first = [float(x) for x in field.text.split()[:6]]
+                assert first[3:] == [0., 0., 0.]
+                routes += 1
+            elif source_format in ('bdf', 'inp', 'vtu', 'msh'):
+                target = folder / f'{source_format}-to-op2.op2'
+                result = run('convert', source, target, '--geometry-only', code=1)
+                assert result['error']['code'] == 'E_OP2' and not target.exists()
+        if options.op2_python:
+            mesh = folder / 'result-carrier-mesh.bdf'
+            run('convert', sources['frd'], mesh, '--geometry-only')
+            for carrier in ('vtu', 'msh'):
+                enriched = folder / f'frd-fields.{carrier}'
+                run('convert', sources['frd'], enriched, '--geometry-only')
+                target = folder / f'{carrier}-fields-to-op2.op2'
+                report = run('convert', enriched, target, '--python', options.op2_python,
+                             '--zero-missing-rotations', '--geometry-only')
+                assert target.is_file()
+                assert any('typed float 0.0' in item['detail'] for item in report['omissions'])
+                assert run('info', target, '--mesh', mesh,
+                           '--python', options.op2_python)['fields'] == 1
+                routes += 1
         print(json.dumps({'routes_checked': routes,
                           'sources': sorted(sources),
-                          'native_copies_checked': len(sources),
-                          'frd_op2_writers_correctly_rejected': True}))
+                          'native_copies_checked': len(sources)}))
 
 
 if __name__ == '__main__':

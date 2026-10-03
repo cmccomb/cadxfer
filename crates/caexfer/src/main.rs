@@ -6,7 +6,7 @@ use std::fs::File;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-use caexfer_core::{Dataset, Error, Result, Severity, ValidationReport};
+use caexfer_core::{Dataset, Error, FieldLocation, Result, Severity, ValidationReport};
 use caexfer_formats::{
     bdf::{parse_real, Document, ParseOptions},
     bdf_mesh, frd, inp, msh, op2, vtu,
@@ -27,6 +27,7 @@ COMMON OPTIONS
   --from FORMAT    bdf, vtu, msh, inp, frd, or op2; otherwise infer extension
   --mesh BDF       Required BDF geometry for OP2 results
   --python PATH    Python with pyNastran installed for OP2 (default: python3)
+  --zero-missing-rotations  Confirm absent R1/R2/R3 are known float 0.0 for OP2 output
   --subcase N      OP2 displacement subcase if more than one exists
   --step N         Zero-based OP2 result step, or FRD step number
   --max-bytes N    Input byte limit (default: 268435456)
@@ -39,12 +40,13 @@ SCOPE
   BDF: source-preserving small/large/free fields, GRID editing, linear geometry.
   VTU: ASCII linear mesh and numeric fields. MSH: ASCII 4.1 subset.
   INP: flat mesh subset. FRD: ASCII mesh and nodal results subset.
-  OP2: real displacement table via optional pyNastran, with matching BDF.
+  OP2: real displacement table via optional pyNastran; read needs matching BDF.
   validate checks the GEOMETRY SUBSET, not complete solver validity.
   set-grid coordinates are in the GRID's native CP frame.
   convert requires --geometry-only and reports omitted solver information.
   Unresolved INCLUDEs, nonbasic CP, GRDSET, higher-order/unknown geometry fail.
-  Output files must not already exist. No OP2/FRD writers.
+  OP2 output contains results only; export a matching BDF separately.
+  Output files must not already exist.
 ";
 
 #[derive(Debug, Default)]
@@ -54,6 +56,7 @@ struct Args {
     json: bool,
     strict: bool,
     geometry_only: bool,
+    zero_missing_rotations: bool,
     from: Option<String>,
     mesh: Option<PathBuf>,
     python: Option<PathBuf>,
@@ -138,6 +141,11 @@ fn parse_args(raw: Vec<OsString>) -> Result<Args> {
                 return Err(usage("duplicate --geometry-only"));
             }
             args.geometry_only = true;
+        } else if options && arg == "--zero-missing-rotations" {
+            if args.zero_missing_rotations {
+                return Err(usage("duplicate --zero-missing-rotations"));
+            }
+            args.zero_missing_rotations = true;
         } else if options && arg == "--from" {
             if args.from.is_some() {
                 return Err(usage("duplicate --from"));
@@ -236,6 +244,17 @@ fn parse_args(raw: Vec<OsString>) -> Result<Args> {
     }
     if args.geometry_only && args.command != "convert" {
         return Err(usage("--geometry-only is only for convert"));
+    }
+    if args.zero_missing_rotations
+        && (args.command != "convert"
+            || args
+                .paths
+                .get(1)
+                .and_then(|path| path.extension())
+                .and_then(OsStr::to_str)
+                .is_none_or(|extension| !extension.eq_ignore_ascii_case("op2")))
+    {
+        return Err(usage("--zero-missing-rotations applies only to OP2 output"));
     }
     if args.command == "convert" && !args.geometry_only {
         return Err(usage("conversion projects the supported mesh/field subset; pass --geometry-only to acknowledge omitted information"));
@@ -366,8 +385,21 @@ fn read_limited(path: &Path, max: usize) -> Result<Vec<u8>> {
 fn read_dataset(args: &Args) -> Result<(Dataset, Vec<String>)> {
     let format = format_of(args)?;
     let max = args.max_bytes.unwrap_or(ParseOptions::default().max_bytes);
-    if format != "op2" && (args.mesh.is_some() || args.python.is_some() || args.subcase.is_some()) {
-        return Err(usage("--mesh, --python and --subcase apply only to OP2"));
+    let writing_op2 = args.command == "convert"
+        && args
+            .paths
+            .get(1)
+            .and_then(|path| path.extension())
+            .and_then(OsStr::to_str)
+            .is_some_and(|extension| extension.eq_ignore_ascii_case("op2"));
+    if format != "op2"
+        && (args.mesh.is_some()
+            || args.subcase.is_some()
+            || (args.python.is_some() && !writing_op2))
+    {
+        return Err(usage(
+            "--mesh and --subcase apply to OP2 input; --python also applies to OP2 output",
+        ));
     }
     if !matches!(format.as_str(), "op2" | "frd") && args.step.is_some() {
         return Err(usage("--step applies only to OP2 or FRD"));
@@ -608,11 +640,104 @@ fn run_convert(args: &Args) -> Result<u8> {
                 })?;
             }
         }
-        "frd" | "op2" => {
-            return Err(Error::new(
-                "E_FORMAT",
-                "FRD and OP2 writers are not implemented",
-            ))
+        "frd" => {
+            let before = dataset.fields.len();
+            dataset
+                .fields
+                .retain(|field| field.location == FieldLocation::Point);
+            if dataset.fields.len() != before {
+                omissions.push(format!(
+                    "{} cell field(s) have no direct FRD nodal representation",
+                    before - dataset.fields.len()
+                ));
+            }
+            for field in &mut dataset.fields {
+                if field.name.starts_with("DISPLACEMENT_SUBCASE_") {
+                    omissions.push(format!(
+                        "field {} is named DISP in FRD; subcase name is not retained",
+                        field.name
+                    ));
+                    field.name = "DISP".into();
+                }
+                if field.step.is_none() || field.time.is_none() {
+                    omissions.push(format!(
+                        "field {} uses FRD step/time 0 where metadata is absent",
+                        field.name
+                    ));
+                }
+            }
+            if dataset
+                .mesh
+                .cells
+                .iter()
+                .any(|cell| cell.property_id.is_some())
+            {
+                omissions.push("BDF property IDs have no direct FRD mesh mapping".into());
+            }
+            omissions.push(
+                "FRD ASCII E12.5 rounds coordinates and field values to six significant digits"
+                    .into(),
+            );
+            output::create_new(&args.paths[1], |writer| frd::write(&dataset, writer))?;
+        }
+        "op2" => {
+            let matches: Vec<_> = dataset
+                .fields
+                .iter()
+                .filter(|field| {
+                    let name = field.name.to_ascii_uppercase();
+                    field.location == FieldLocation::Point
+                        && (name == "DISP"
+                            || name == "DISPLACEMENT"
+                            || name.starts_with("DISPLACEMENT_SUBCASE_"))
+                        && matches!(field.components.len(), 3 | 6)
+                })
+                .collect();
+            if matches.len() != 1 {
+                return Err(Error::new("E_OP2", "OP2 output requires exactly one 3- or 6-component nodal DISP field; select one result step"));
+            }
+            let field = matches[0];
+            let subcase = field
+                .name
+                .to_ascii_uppercase()
+                .strip_prefix("DISPLACEMENT_SUBCASE_")
+                .and_then(|text| text.parse().ok())
+                .unwrap_or(1);
+            if field.components.len() == 3 && args.zero_missing_rotations {
+                omissions.push(
+                    "rotational displacement components R1/R2/R3 filled with typed float 0.0 by explicit request"
+                        .into(),
+                );
+            }
+            if field.step.is_some_and(|step| step != 0) {
+                omissions
+                    .push("source step number is not encoded in the one-step OP2 table".into());
+            }
+            if dataset.fields.len() > 1 {
+                omissions.push(format!(
+                    "{} other numeric field(s) omitted from OP2 displacement output",
+                    dataset.fields.len() - 1
+                ));
+            }
+            omissions
+                .push("OP2 contains no mesh; export and keep a matching BDF separately".into());
+            omissions.push("OP2 real displacement values use float32 precision".into());
+            let python = args
+                .python
+                .clone()
+                .or_else(|| std::env::var_os("CAEXFER_PYTHON").map(PathBuf::from))
+                .unwrap_or_else(|| PathBuf::from("python3"));
+            let bytes = op2::write_displacements(
+                &dataset,
+                field,
+                &python,
+                subcase,
+                args.zero_missing_rotations,
+            )?;
+            output::create_new(&args.paths[1], |writer| {
+                writer.write_all(&bytes)?;
+                Ok(())
+            })?;
         }
         _ => {
             return Err(Error::new(
@@ -740,12 +865,12 @@ fn run(args: Args) -> Result<u8> {
                     (
                         "frd",
                         "ASCII linear mesh + nodal fields",
-                        "source copy only",
+                        "ASCII mesh + complete nodal fields",
                     ),
                     (
                         "op2",
                         "real displacement via pyNastran and matching BDF",
-                        "source copy only",
+                        "real displacement via pyNastran; no embedded mesh",
                     ),
                 ];
                 emit(&object([
@@ -763,7 +888,7 @@ fn run(args: Args) -> Result<u8> {
                     ),
                 ]))?;
             } else {
-                emit("bdf  document + linear mesh; document copy and geometry export\nvtu  ASCII mesh + numeric fields, read/write\nmsh  ASCII 4.1 mesh + numeric fields, read/write\ninp  flat mesh subset, read/geometry write\nfrd  ASCII mesh + nodal fields, read/source copy\nop2  real displacement via pyNastran + BDF mesh, read/source copy")?;
+                emit("bdf  document + linear mesh; document copy and geometry export\nvtu  ASCII mesh + numeric fields, read/write\nmsh  ASCII 4.1 mesh + numeric fields, read/write\ninp  flat mesh subset, read/geometry write\nfrd  ASCII mesh + nodal fields, read/write\nop2  real displacement via pyNastran, read/write; separate BDF mesh")?;
             }
             return Ok(0);
         }

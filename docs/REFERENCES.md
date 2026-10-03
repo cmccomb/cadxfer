@@ -26,6 +26,9 @@ projects is vendored into caexfer.
   https://docs.software.vt.edu/abaqusv2025/English/SIMACAEELMRefMap/simaelm-c-expelementindex.htm
 - pyNastran OP2 NumPy demo: displacement table, node IDs and six result components.
   https://pynastran-git.readthedocs.io/en/latest/quick_start/op2_demo_numpy1.html
+- pyNastran result-object documentation: static/transient real table creation and
+  OP2 writing interfaces used by the optional displacement exporter.
+  https://pynastran-git.readthedocs.io/en/latest/reference/op2/result_objects/pyNastran.op2.result_objects.html
 - Cargo documentation: workspaces, feature selection, local installation.
   https://doc.rust-lang.org/cargo/reference/workspaces.html
   https://doc.rust-lang.org/cargo/reference/features.html

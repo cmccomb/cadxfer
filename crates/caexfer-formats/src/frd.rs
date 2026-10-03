@@ -1,6 +1,7 @@
 //! ASCII CalculiX FRD geometry and supported nodal result records.
 use caexfer_core::{Cell, CellKind, Dataset, Error, Field, FieldLocation, Mesh, Point, Result};
 use std::collections::BTreeMap;
+use std::io::Write;
 fn err(message: impl Into<String>) -> Error {
     Error::new("E_FRD", message)
 }
@@ -20,6 +21,181 @@ fn kind(code: u32) -> Result<CellKind> {
         11 => Ok(CellKind::Line2),
         _ => Err(err(format!("unsupported FRD element type {code}"))),
     }
+}
+fn type_code(kind: CellKind) -> Result<u32> {
+    match kind {
+        CellKind::Hex8 => Ok(1),
+        CellKind::Wedge6 => Ok(2),
+        CellKind::Tet4 => Ok(3),
+        CellKind::Triangle3 => Ok(7),
+        CellKind::Quad4 => Ok(9),
+        CellKind::Line2 => Ok(11),
+        CellKind::Pyramid5 => Err(err("FRD has no supported five-node pyramid type")),
+    }
+}
+fn ascii_number(value: f64) -> Result<String> {
+    let scientific = format!("{value:.5E}");
+    let (mantissa, exponent) = scientific
+        .split_once('E')
+        .ok_or_else(|| err("cannot format FRD number"))?;
+    let exponent: i32 = exponent.parse().map_err(|_| err("invalid FRD exponent"))?;
+    if !(-99..=99).contains(&exponent) {
+        return Err(err("number exceeds FRD ASCII E12.5 range"));
+    }
+    let result = format!("{mantissa}E{exponent:+03}");
+    if result.len() > 12 {
+        return Err(err("number exceeds FRD ASCII E12.5 width"));
+    }
+    Ok(format!("{result:>12}"))
+}
+fn identifier(value: u64) -> Result<u64> {
+    if value > 9_999_999_999 {
+        return Err(err("FRD long-format IDs must fit ten digits"));
+    }
+    Ok(value)
+}
+fn label(value: &str, limit: usize, what: &str) -> Result<()> {
+    if value.is_empty()
+        || value.len() > limit
+        || !value.bytes().all(|b| b.is_ascii_graphic() && b != b' ')
+    {
+        return Err(err(format!(
+            "{what} must be 1–{limit} printable ASCII characters without spaces"
+        )));
+    }
+    Ok(())
+}
+
+/// Write documented long-format ASCII FRD mesh and complete nodal fields.
+/// FRD's E12.5 records round finite values to six significant digits.
+pub fn write(dataset: &Dataset, mut output: impl Write) -> Result<()> {
+    dataset.validate()?;
+    if dataset.mesh.points.is_empty() || dataset.mesh.cells.is_empty() {
+        return Err(err("FRD requires nodes and elements"));
+    }
+    for point in &dataset.mesh.points {
+        identifier(point.id)?;
+        for value in point.position {
+            ascii_number(value)?;
+        }
+    }
+    for cell in &dataset.mesh.cells {
+        identifier(cell.id)?;
+        type_code(cell.kind)?;
+    }
+    for field in &dataset.fields {
+        if field.location != FieldLocation::Point {
+            return Err(err("FRD writer accepts complete nodal fields only"));
+        }
+        label(&field.name, 8, "FRD field name")?;
+        for component in &field.components {
+            label(component, 8, "FRD component name")?;
+        }
+        if field.components.len() > 99_999 {
+            return Err(err("FRD component count exceeds five-digit field"));
+        }
+        if field.step.is_some_and(|v| !(0..=99_999).contains(&v)) {
+            return Err(err("FRD step must fit a nonnegative five-digit field"));
+        }
+        ascii_number(field.time.unwrap_or(0.0))?;
+        for value in &field.values {
+            ascii_number(*value)?;
+        }
+    }
+    writeln!(output, "  1Ccaexfr")?;
+    writeln!(
+        output,
+        "  2C{:18}{:>12}{:37}1",
+        "",
+        dataset.mesh.points.len(),
+        ""
+    )?;
+    for point in &dataset.mesh.points {
+        write!(output, " -1{:>10}", point.id)?;
+        for value in point.position {
+            write!(output, "{}", ascii_number(value)?)?;
+        }
+        writeln!(output)?;
+    }
+    writeln!(output, " -3")?;
+    writeln!(
+        output,
+        "  3C{:18}{:>12}{:37}1",
+        "",
+        dataset.mesh.cells.len(),
+        ""
+    )?;
+    for cell in &dataset.mesh.cells {
+        writeln!(
+            output,
+            " -1{:>10}{:>5}{:>5}{:>5}",
+            cell.id,
+            type_code(cell.kind)?,
+            0,
+            0
+        )?;
+        write!(output, " -2")?;
+        for &index in &cell.connectivity {
+            write!(output, "{:>10}", dataset.mesh.points[index].id)?;
+        }
+        writeln!(output)?;
+    }
+    writeln!(output, " -3")?;
+    for field in &dataset.fields {
+        writeln!(
+            output,
+            "  100C{:<6}{}{:>12}{:<20}{:>2}{:>5}{:<10}{:>2}",
+            "",
+            ascii_number(field.time.unwrap_or(0.0))?,
+            dataset.mesh.points.len(),
+            "",
+            if field.time.is_some() { 1 } else { 0 },
+            field.step.unwrap_or(0),
+            "",
+            1
+        )?;
+        writeln!(
+            output,
+            " -4  {:<8}{:>5}{:>5}",
+            field.name,
+            field.components.len(),
+            1
+        )?;
+        for (i, component) in field.components.iter().enumerate() {
+            let kind = if field.components.len() == 3 { 2 } else { 1 };
+            writeln!(
+                output,
+                " -5  {:<8}{:>5}{:>5}{:>5}{:>5}{:>5}{:8}",
+                component,
+                1,
+                kind,
+                i + 1,
+                0,
+                0,
+                ""
+            )?;
+        }
+        let components = field.components.len();
+        for (i, point) in dataset.mesh.points.iter().enumerate() {
+            for (chunk_index, chunk) in field.values[i * components..(i + 1) * components]
+                .chunks(6)
+                .enumerate()
+            {
+                if chunk_index == 0 {
+                    write!(output, " -1{:>10}", point.id)?;
+                } else {
+                    write!(output, " -2{:>10}", "")?;
+                }
+                for value in chunk {
+                    write!(output, "{}", ascii_number(*value)?)?;
+                }
+                writeln!(output)?;
+            }
+        }
+        writeln!(output, " -3")?;
+    }
+    writeln!(output, " 9999")?;
+    Ok(())
 }
 fn values(line: &str, long: bool, expected: usize) -> Result<(u64, Vec<f64>)> {
     let tokens: Vec<&str> = line.split_whitespace().collect();
@@ -46,6 +222,25 @@ fn values(line: &str, long: bool, expected: usize) -> Result<(u64, Vec<f64>)> {
         )?);
     }
     Ok((id, vals))
+}
+fn continuation_values(line: &str, long: bool, expected: usize) -> Result<Vec<f64>> {
+    let width = if long { 10 } else { 5 };
+    if line.len() >= 3 + width + expected * 12 {
+        let mut values = Vec::with_capacity(expected);
+        for i in 0..expected {
+            let start = 3 + width + i * 12;
+            values.push(n(&line[start..start + 12], "continuation value")?);
+        }
+        return Ok(values);
+    }
+    let tokens: Vec<&str> = line.split_whitespace().collect();
+    if tokens.len() != expected + 1 || tokens.first() != Some(&"-2") {
+        return Err(err("invalid result continuation"));
+    }
+    tokens[1..]
+        .iter()
+        .map(|token| n(token, "continuation value"))
+        .collect()
 }
 fn integers(line: &str, long: bool) -> Result<Vec<u64>> {
     let tokens: Vec<&str> = line.split_whitespace().collect();
@@ -248,7 +443,12 @@ pub fn read(source: &[u8]) -> Result<Dataset> {
                 if needed == 0 {
                     return Err(err("extra result continuation").at(line_no + 1));
                 }
-                let (_, vals) = values(line, long, needed).map_err(|e| e.at(line_no + 1))?;
+                let vals = if f.material_dependent {
+                    values(line, long, needed).map(|(_, values)| values)
+                } else {
+                    continuation_values(line, long, needed)
+                }
+                .map_err(|e| e.at(line_no + 1))?;
                 f.data.get_mut(&id).unwrap().extend(vals);
             }
             Mode::None => {}
@@ -353,5 +553,33 @@ mod tests {
             nodes
         );
         assert_eq!(dataset.mesh.cells[0].connectivity, vec![0, 1, 2]);
+    }
+
+    #[test]
+    fn ascii_writer_preserves_mesh_and_nodal_values_with_continuation() {
+        let mut dataset =
+            read(include_bytes!("../../../tests/fixtures/linear-results.frd")).unwrap();
+        dataset.fields.push(Field {
+            name: "EXTRA".into(),
+            location: FieldLocation::Point,
+            components: (1..=7).map(|index| format!("C{index}")).collect(),
+            values: (0..21).map(f64::from).collect(),
+            step: Some(2),
+            time: Some(0.25),
+        });
+        let mut bytes = Vec::new();
+        write(&dataset, &mut bytes).unwrap();
+        let decoded = read(&bytes).unwrap();
+        assert_eq!(decoded.mesh.points, dataset.mesh.points);
+        assert_eq!(decoded.mesh.cells, dataset.mesh.cells);
+        assert_eq!(decoded.fields[0].values, dataset.fields[0].values);
+        assert_eq!(decoded.fields[2].values, dataset.fields[2].values);
+        assert_eq!(decoded.fields[2].step, Some(2));
+        assert_eq!(decoded.fields[2].time, Some(0.25));
+    }
+
+    #[test]
+    fn ascii_writer_rejects_unsupported_pyramid() {
+        assert_eq!(type_code(CellKind::Pyramid5).unwrap_err().code, "E_FRD");
     }
 }

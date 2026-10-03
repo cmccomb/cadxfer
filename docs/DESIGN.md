@@ -20,11 +20,15 @@ not a universal solver schema: loads, constraints, units and constitutive laws
 are never inferred from a mesh. Every CLI conversion needs an explicit
 `--geometry-only` acknowledgement and reports source/destination omissions.
 
-FRD and OP2 have different boundaries. The FRD adapter decodes a documented
-ASCII subset directly. OP2 is decoded through pyNastran because record framing
-alone is not displacement data. The OP2 route accepts one real displacement
-table, requires a matching BDF geometry projection, and checks node identity
-and basic result coordinates. Format features remain optional; all Rust
+FRD and OP2 have different boundaries. The FRD adapter reads and writes a
+documented ASCII subset directly. OP2 reads and writes one real displacement
+table through pyNastran because record framing alone is not displacement data.
+Reading OP2 requires a matching BDF geometry projection and checks node
+identity and basic result coordinates. Writing OP2 emits no geometry; a matching
+BDF must be kept separately. A recognized three-component displacement has
+unknown rotations and fails by default; an explicit assertion can set them to
+float zero, and the fill is reported. Format
+features remain optional; all Rust
 workspace dependencies are local.
 
 ## Precision and identity

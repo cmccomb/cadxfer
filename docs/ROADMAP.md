@@ -21,11 +21,15 @@ missing-value model, rather than filling unreported values silently.
 ## FRD and OP2
 
 Extend FRD beyond ASCII and one-material-per-node results with fixtures from
-CalculiX. OP2 currently delegates one real displacement table to pyNastran;
-a native Rust reader would need named solver dialects, byte-order and word-size
-coverage, frame transforms, subcases, and real-world fixtures. Other result
-tables, complex modes, time-series export and lazy reads need separate support
-contracts. Neither FRD nor OP2 output is implied by their read support.
+CalculiX. The new ASCII writer still needs an external CalculiX GraphiX read
+check. OP2 delegates one real displacement table to pyNastran for reading and
+writing; broader output remains result-type specific. A native Rust reader would
+need named solver dialects, byte-order and word-size coverage, frame transforms,
+subcases, and real-world fixtures. Other result tables, complex modes,
+time-series export and lazy reads need separate support contracts. The current
+writer creates one displacement table and fills missing rotations with typed
+float zero only after an explicit assertion for recognized three-component
+displacement fields. Other results cannot be inferred from a mesh alone.
 
 ## Verification and publication
 

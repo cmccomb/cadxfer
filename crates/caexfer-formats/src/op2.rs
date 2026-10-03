@@ -2,8 +2,9 @@
 //! A matching basic-frame BDF mesh is required; no binary record guesswork.
 use caexfer_core::{Dataset, Error, Field, FieldLocation, Mesh, Result};
 use std::collections::BTreeMap;
+use std::io::Write;
 use std::path::Path;
-use std::process::Command;
+use std::process::{Command, Stdio};
 
 /// Decode one real six-component displacement table using the installed
 /// pyNastran Python package. `step` is a zero-based index within the subcase.
@@ -99,4 +100,172 @@ pub fn read_displacements(
     };
     dataset.validate()?;
     Ok(dataset)
+}
+
+/// Emit one real Nastran displacement table through pyNastran. A recognized
+/// three-component displacement is promoted to six components with typed 0.0
+/// rotations only when `zero_missing_rotations` is true. The OP2 carries no mesh.
+pub fn write_displacements(
+    dataset: &Dataset,
+    field: &Field,
+    python: &Path,
+    subcase: i64,
+    zero_missing_rotations: bool,
+) -> Result<Vec<u8>> {
+    dataset.mesh.validate()?;
+    if dataset.mesh.points.is_empty()
+        || field.values.len()
+            != dataset
+                .mesh
+                .points
+                .len()
+                .saturating_mul(field.components.len())
+        || field.time.is_some_and(|value| !value.is_finite())
+        || !field.values.iter().all(|value| value.is_finite())
+    {
+        return Err(Error::new(
+            "E_OP2",
+            "OP2 output requires complete finite displacement values for every mesh node",
+        ));
+    }
+    if subcase <= 0 || subcase > i32::MAX as i64 {
+        return Err(Error::new(
+            "E_OP2",
+            "subcase must be a positive 32-bit integer",
+        ));
+    }
+    if field
+        .time
+        .is_some_and(|value| !(value as f32).is_finite() || (value != 0.0 && (value as f32) == 0.0))
+    {
+        return Err(Error::new("E_OP2", "time is outside the OP2 float32 range"));
+    }
+    if field.location != FieldLocation::Point || !matches!(field.components.len(), 3 | 6) {
+        return Err(Error::new(
+            "E_OP2",
+            "OP2 output requires a 3- or 6-component nodal displacement",
+        ));
+    }
+    if field.components.len() == 3 && !zero_missing_rotations {
+        return Err(Error::new(
+            "E_OP2",
+            "three-component displacement has unknown rotations; pass --zero-missing-rotations only if R1/R2/R3 are known to be zero",
+        ));
+    }
+    let name = field.name.to_ascii_uppercase();
+    let named_displacement = name == "DISP"
+        || name == "DISPLACEMENT"
+        || name
+            .strip_prefix("DISPLACEMENT_SUBCASE_")
+            .is_some_and(|suffix| suffix.parse::<i64>().is_ok_and(|value| value > 0));
+    if !named_displacement {
+        return Err(Error::new(
+            "E_OP2",
+            "OP2 output requires a field named DISP or DISPLACEMENT",
+        ));
+    }
+    let mut source = format!(
+        "{}\t{}\t{}\t{}\n",
+        dataset.mesh.points.len(),
+        subcase,
+        field
+            .time
+            .map_or("-".to_string(), |value| value.to_string()),
+        field.components.len()
+    );
+    for (i, point) in dataset.mesh.points.iter().enumerate() {
+        if point.id > i32::MAX as u64 {
+            return Err(Error::new(
+                "E_OP2",
+                "OP2 node IDs must fit signed 32-bit integers",
+            ));
+        }
+        source.push_str(&point.id.to_string());
+        for value in &field.values[i * field.components.len()..(i + 1) * field.components.len()] {
+            if !(*value as f32).is_finite() {
+                return Err(Error::new(
+                    "E_OP2",
+                    "displacement exceeds OP2 float32 range",
+                ));
+            }
+            if *value != 0.0 && (*value as f32) == 0.0 {
+                return Err(Error::new(
+                    "E_OP2",
+                    "nonzero displacement would underflow to zero in OP2 float32",
+                ));
+            }
+            source.push('\t');
+            source.push_str(&format!("{value:.17e}"));
+        }
+        source.push('\n');
+    }
+    let mut child = Command::new(python)
+        .arg("-c")
+        .arg(include_str!("op2_write.py"))
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|e| Error::new("E_OP2", format!("cannot launch Python: {e}")))?;
+    child.stdin.take().unwrap().write_all(source.as_bytes())?;
+    let output = child.wait_with_output()?;
+    if !output.status.success() {
+        let detail = String::from_utf8_lossy(&output.stderr);
+        return Err(Error::new(
+            "E_OP2",
+            detail.lines().last().unwrap_or("pyNastran writing failed"),
+        ));
+    }
+    if output.stdout.is_empty() {
+        return Err(Error::new("E_OP2", "pyNastran produced an empty OP2"));
+    }
+    Ok(output.stdout)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use caexfer_core::Point;
+
+    fn sample() -> (Dataset, Field) {
+        let dataset = Dataset {
+            mesh: Mesh {
+                points: vec![Point {
+                    id: 1,
+                    position: [0.0; 3],
+                }],
+                cells: Vec::new(),
+            },
+            fields: Vec::new(),
+        };
+        let field = Field {
+            name: "DISP".into(),
+            location: FieldLocation::Point,
+            components: vec!["D1".into(), "D2".into(), "D3".into()],
+            values: vec![1.0, 0.0, 0.0],
+            step: None,
+            time: None,
+        };
+        (dataset, field)
+    }
+
+    #[test]
+    fn unknown_rotations_are_not_filled_implicitly() {
+        let (dataset, field) = sample();
+        let error =
+            write_displacements(&dataset, &field, Path::new("python3"), 1, false).unwrap_err();
+        assert!(error.message.contains("unknown rotations"));
+    }
+
+    #[test]
+    fn malformed_public_field_fails_before_launch() {
+        let (dataset, mut field) = sample();
+        field.values.pop();
+        assert_eq!(
+            write_displacements(&dataset, &field, Path::new("python3"), 1, true)
+                .unwrap_err()
+                .code,
+            "E_OP2"
+        );
+    }
 }

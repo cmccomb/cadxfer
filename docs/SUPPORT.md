@@ -144,7 +144,14 @@ results with exactly one material per node are supported. Component labels,
 field values and available time/step metadata are retained. Binary blocks,
 higher-order cells and multiple materials at a node fail. When a field has
 multiple steps, select `--step N` for VTU output; MSH can carry multiple blocks.
-No FRD writer is supplied.
+The FRD writer emits long-format ASCII mesh and complete nodal fields for the
+six supported FRD element types. Five-node pyramids, field/component labels
+longer than eight ASCII characters, and IDs over ten digits fail explicitly.
+Cell-associated fields have no direct FRD nodal meaning and are omitted by the
+CLI with a report. Properties have no mesh mapping. ASCII `E12.5` rounds
+coordinates and results to six significant digits; the CLI reports this.
+Missing result time/step metadata is written as zero and reported. FRD output
+does not assert that a solver computed any included values.
 
 ### Nastran OP2
 
@@ -154,8 +161,19 @@ real six-component displacement table. Pass `--mesh model.bdf` and, if needed,
 a basic-frame mesh, all GRID CD values must be zero, and result node IDs must
 match exactly. Complex results, other OP2 tables, nonbasic result frames,
 multiple unselected subcases/steps, and embedded-geometry recovery are outside
-this route. No OP2 writer is supplied. The included real fixture permits an
-optional pyNastran-backed interoperability check.
+this read route. The OP2 writer accepts one named `DISP`/`DISPLACEMENT` nodal
+field with three or six real components. Three-component displacements have
+unknown rotations and fail by default. `--zero-missing-rotations` sets R1/R2/R3
+to typed float `0.0` only when the caller asserts they are known zero, and
+reports the fill. OP2 has six numeric slots, not a typed null marker. The writer
+emits a single static or one-time transient MSC-style real displacement table through
+pyNastran, then rereads it before committing the file. Values use float32;
+nonzero values that would underflow to zero, overflowing values, and node IDs
+outside signed 32-bit range fail. The output OP2 contains no mesh, so retain or
+export a matching BDF separately. Other fields and a nonzero source step
+number are omitted with reports. A mesh-only BDF/INP cannot generate an OP2
+displacement table. The included real fixture permits an optional
+pyNastran-backed interoperability check.
 
 ### Geometry-only BDF output
 

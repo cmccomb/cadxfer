@@ -57,6 +57,17 @@ passed all four jobs: stable Rust on Linux, macOS and Windows, plus Rust 1.85.0
 on Linux. CI runs the 20 routes that need no optional Python package; the four
 OP2 routes were checked locally with pyNastran.
 
+## FRD/OP2 output extension on macOS
+
+The new FRD long-format ASCII writer and OP2 real displacement writer passed
+the workspace tests and matrix script. Without optional Python, the script
+checked 25 routes and five byte-identical native copies. With pyNastran 1.4.1
+in Python 3.12, it checked 34 routes and six native copies, including FRD,
+VTU, and MSH three-component `DISP` fields converted to OP2 with explicitly
+asserted float `0.0` rotations. Generated OP2 files were reread through pyNastran and matched to
+separate BDF geometry. Generated FRD files were reread by caexfer; an
+independent CalculiX GraphiX reader check remains to be done.
+
 ## Cross-platform CI
 
 The [initial GitHub Actions run](https://github.com/cmccomb/caxifer/actions/runs/37034376490)
