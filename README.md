@@ -1,4 +1,5 @@
 [![CI](https://github.com/cmccomb/caexfer/actions/workflows/ci.yml/badge.svg)](https://github.com/cmccomb/caexfer/actions/workflows/ci.yml)
+[![Coverage](https://github.com/cmccomb/caexfer/actions/workflows/coverage.yml/badge.svg)](https://github.com/cmccomb/caexfer/actions/workflows/coverage.yml)
 
 # caexfer
 
@@ -123,6 +124,7 @@ use caller-owned streams; the CLI stages output files.
 - [Library guide](docs/LIBRARY.md): dependencies, API map, examples, and I/O contracts.
 - [Support contract](docs/SUPPORT.md): format subsets and conversion limits.
 - [Design](docs/DESIGN.md): preservation, projection, and validation decisions.
+- [Test coverage](docs/COVERAGE.md): measured Rust coverage, scope, and gaps.
 - [Implementation references](docs/REFERENCES.md) and [contributing](CONTRIBUTING.md).
 
 Run `cargo test --offline` for Rust tests and `cargo doc --no-deps --open`

@@ -1,0 +1,31 @@
+name: Coverage
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust coverage tools
+        run: rustup toolchain install stable --profile minimal --component llvm-tools-preview
+      - name: Select toolchain
+        run: rustup override set stable
+      - uses: taiki-e/install-action@cargo-llvm-cov
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install pyNastran for OP2 checks
+        run: python -m pip install pyNastran==1.4.1
+      - name: Measure Rust line coverage
+        run: bash scripts/coverage.sh python
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rust-coverage
+          path: |
+            target/coverage.json
+            target/coverage.lcov
+          retention-days: 14
