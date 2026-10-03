@@ -34,8 +34,9 @@ After renaming the workspace packages and narrowing the BDF public API,
 and one doctest. The three `cadxfer-formats` feature-isolation checks,
 `cargo fmt --all -- --check`, Clippy with warnings denied, rustdoc with warnings
 denied, the source-package check, the independent CLI interoperability check,
-and the generated-diagram check also passed. These are local results; CI for
-the renamed GitHub repository is reported separately once it runs.
+and the generated-diagram check also passed. The [renamed repository's CI run](https://github.com/cmccomb/cadxfer/actions/runs/37080719854)
+passed all four jobs: stable Rust on Linux, macOS, and Windows, plus Rust 1.85.0
+on Linux.
 
 ## Cross-platform CI
 
