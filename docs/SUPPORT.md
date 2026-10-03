@@ -101,6 +101,19 @@ appended, parallel, multi-piece, and `FieldData` layouts are rejected or outside
 the reader's scope. XML tags, attributes, and comments are tokenized before
 geometry is read. This is a bounded XML subset, not a full VTK XML parser.
 
+### Legacy VTK
+
+Read/write ASCII legacy VTK `UNSTRUCTURED_GRID` with the seven supported
+linear cell types, complete point/cell numeric arrays, and original IDs in
+`nastran_node_id` and `nastran_element_id` integer arrays. The reader accepts
+classic counted `CELLS` and VTK 5.1 offsets/connectivity layout, plus `FIELD`,
+default-lookup `SCALARS`, and `VECTORS` data. If original IDs are absent,
+one-based IDs are assigned and reported. A zero `nastran_property_id` means
+no property ID. The writer emits version 2.0 syntax and Float64 values.
+Component labels and step/time metadata are reported as destination omissions.
+Binary data, nondefault lookup tables, structured grids, polydata, and
+higher-order cells fail explicitly. CI checks output with VTK 9.6.1 itself.
+
 ### Gmsh MSH
 
 Read/write ASCII MSH 4.1 with nonparametric node blocks, the seven supported
@@ -149,7 +162,7 @@ does not assert that a solver computed any included values.
 The native Rust OP2 adapter decodes one real six-component SORT1 OUGV1
 displacement table from 32-bit Fortran records. The tested solver and
 independently generated fixtures use little endian records. Pass
-`--mesh FILE` with a matching BDF, VTU, MSH, INP, or FRD mesh and, if needed,
+`--mesh FILE` with a matching BDF, VTU, VTK, MSH, INP, or FRD mesh and, if needed,
 `--subcase N` and zero-based `--step N`. Result node IDs must match the companion mesh exactly;
 the OP2 result table cannot verify companion coordinates or connectivity.
 A BDF must project to a basic-frame mesh and all GRID CD values must be zero.
@@ -168,7 +181,7 @@ in Rust. CI independently rereads written files with pyNastran. Values use float
 nonzero values that would underflow to zero, overflowing values, and node IDs
 outside signed 32-bit range fail. The output OP2 contains no mesh, so retain a
 matching mesh or use `--mesh-out FILE` to create a geometry-only companion in
-BDF, VTU, MSH, INP, or FRD. The companion carries no result fields; BDF and
+BDF, VTU, VTK, MSH, INP, or FRD. The companion carries no result fields; BDF and
 INP companions are not runnable solver decks. Each output is staged before
 either is installed, and existing output paths are never overwritten. Because
 two file installs cannot be atomic, a failed second install can leave the OP2

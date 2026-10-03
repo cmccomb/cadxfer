@@ -8,7 +8,7 @@
 **Preserve engineering documents. Transfer the parts another format can represent.**
 
 `caexfer` preserves Nastran BDF source bytes and projects supported linear
-meshes and numeric results between BDF, VTU, MSH 4.1, INP, FRD, and OP2.
+meshes and numeric results between BDF, VTU, legacy VTK, MSH 4.1, INP, FRD, and OP2.
 Conversions report information the destination cannot carry.
 
 ## Install and try the CLI
@@ -45,18 +45,19 @@ files must be new; the CLI never overwrites an existing path.
 
 ## Conversion routes
 
-[![Schematic of BDF, VTU, MSH, INP, FRD, and OP2 representations](assets/conversion-flow.svg)](assets/conversion-flow.svg)
+[![Schematic of BDF, VTU, VTK, MSH, INP, FRD, and OP2 representations](assets/conversion-flow.svg)](assets/conversion-flow.svg)
 
 The figure shows what each format can carry; the matrix lists `convert` routes:
 
-| From ↓ / To →           | BDF | VTU | MSH 4.1 | INP | FRD | OP2 (+ optional mesh) |
-|-------------------------|-----|-----|---------|-----|-----|-----------------------|
-| **BDF**                 | M   | M   | M       | M   | M†  | Z                     |
-| **VTU**                 | M   | F   | F       | M   | F†  | D‡                    |
-| **MSH 4.1**             | M   | F   | F       | M   | F†  | D‡                    |
-| **INP**                 | M   | M   | M       | M   | M†  | Z                     |
-| **FRD**                 | M   | F   | F       | M   | F†  | D‡                    |
-| **OP2 + matching mesh** | M*  | F*  | F*      | M*  | F*† | D*‡                   |
+| From ↓ / To →           | BDF | VTU | VTK | MSH 4.1 | INP | FRD | OP2 (+ optional mesh) |
+|-------------------------|-----|-----|-----|---------|-----|-----|-----------------------|
+| **BDF**                 | M   | M   | M   | M       | M   | M†  | Z                     |
+| **VTU**                 | M   | F   | F   | F       | M   | F†  | D‡                    |
+| **VTK legacy**          | M   | F   | F   | F       | M   | F†  | D‡                    |
+| **MSH 4.1**             | M   | F   | F   | F       | M   | F†  | D‡                    |
+| **INP**                 | M   | M   | M   | M       | M   | M†  | Z                     |
+| **FRD**                 | M   | F   | F   | F       | M   | F†  | D‡                    |
+| **OP2 + matching mesh** | M*  | F*  | F*  | F*      | M*  | F*† | D*‡                   |
 
 | Key   | Result                                                                                                                                                                                                                                                                                                                                              |
 |-------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -64,7 +65,7 @@ The figure shows what each format can carry; the matrix lists `convert` routes:
 | **F** | Mesh plus supported numeric fields.                                                                                                                                                                                                                                                                                                                 |
 | **D** | One real displacement table written to OP2 in Rust.                                                                                                                                                                                                                                                                                                    |
 | **Z** | Synthetic OP2 with six float-zero displacement components per node; requires `--assume-zero-displacement` and labels its values as assumed, not solver results.                                                                                                                                                                                        |
-| `*`   | Reading OP2 requires `--mesh` with a matching BDF, VTU, MSH, INP, or FRD mesh. Node IDs must match; OP2 cannot verify companion coordinates or cells. BDF verifies `GRID CD=0`. Other formats cannot verify the OP2 displacement frame and require `--assume-basic-frame`.                                                                          |
+| `*`   | Reading OP2 requires `--mesh` with a matching BDF, VTU, VTK, MSH, INP, or FRD mesh. Node IDs must match; OP2 cannot verify companion coordinates or cells. BDF verifies `GRID CD=0`. Other formats cannot verify the OP2 displacement frame and require `--assume-basic-frame`.                                                                          |
 | `†`   | FRD does not support five-node pyramids; its output can carry nodal fields and rounds ASCII values to six significant digits. `‡` OP2 writing requires one selected three- or six-component `DISP` field. If rotations are absent, `--zero-missing-rotations` explicitly asserts they are float zero; otherwise the conversion fails. |
 
 See [format limits](docs/SUPPORT.md) for other omissions and conditions.

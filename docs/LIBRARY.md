@@ -84,7 +84,7 @@ fn main() -> Result<()> {
 ```
 
 `Options` sets source format, result selection, and byte limits. For OP2 input,
-set `mesh` to a matching BDF, VTU, MSH,
+set `mesh` to a matching BDF, VTU, VTK, MSH,
 INP, or FRD file. Set `assume_basic_frame` for a non-BDF companion only when
 its coordinates and the OP2 displacements are known to use the basic frame.
 `read_path` returns a `ReadResult` if an application needs
@@ -129,6 +129,7 @@ stages no-clobber output. If those attributes matter, check the
 | Source-preserving BDF | `Document::write_to(writer)` | `&Document` |
 | Geometry-only BDF | `bdf::write_geometry(&mesh, writer)` | `&Mesh` |
 | VTU | `vtu::write(&mesh, writer)` or `vtu::write_data(&dataset, writer)` | `&Mesh` or `&Dataset` |
+| Legacy VTK | `vtk::write(&mesh, writer)` or `vtk::write_data(&dataset, writer)` | `&Mesh` or `&Dataset` |
 | MSH 4.1 | `msh::write(&dataset, writer)` | `&Dataset` |
 | Geometry-only INP | `inp::write(&mesh, writer)` | `&Mesh` |
 | FRD | `frd::write(&dataset, writer)` | `&Dataset` with supported nodal fields |

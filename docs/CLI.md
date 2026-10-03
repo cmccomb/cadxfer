@@ -28,19 +28,19 @@ JSON/human display of non-UTF-8 paths is lossy, not an exact path serialization.
 | `formats` | Actual read/write capabilities, not a roadmap |
 | `info INPUT` | Record counts and whether geometry projection is available |
 | `validate INPUT` | BDF geometry diagnostics or supported mesh/field subset checks |
-| `convert INPUT OUTPUT --accept-projection` | Explicit mesh/field projection to BDF, VTU, MSH, INP, FRD, or OP2 when the source has suitable results |
+| `convert INPUT OUTPUT --accept-projection` | Explicit mesh/field projection to BDF, VTU, legacy VTK, MSH, INP, FRD, or OP2 when the source has suitable results |
 
-Input extensions are `.bdf`, `.nas`, `.dat`, `.pch`, `.vtu`, `.msh`, `.inp`,
+Input extensions are `.bdf`, `.nas`, `.dat`, `.pch`, `.vtu`, `.vtk`, `.msh`, `.inp`,
 `.frd`, and `.op2` (case-insensitive). `--from FORMAT` overrides the extension;
 this is not content autodetection. Output extension selects the writer.
-`--mesh FILE` supplies geometry when reading OP2. It accepts BDF, VTU, MSH,
+`--mesh FILE` supplies geometry when reading OP2. It accepts BDF, VTU, VTK, MSH,
 INP, or FRD with the same node IDs as the displacement table. BDF input
 verifies `GRID CD=0`. The other formats do not carry that check, so
 `--assume-basic-frame` explicitly asserts that both mesh coordinates and OP2
 displacements use the basic frame. Any fields in the companion file are ignored.
 OP2 output carries one displacement table and needs a separately retained
 matching mesh. `--mesh-out FILE` optionally writes a geometry-only companion
-in BDF, VTU, MSH, INP, or FRD format. `--subcase N` and
+in BDF, VTU, VTK, MSH, INP, or FRD format. `--subcase N` and
 zero-based `--step N` select an OP2 result. For FRD, `--step N` selects the
 step number. These selection options also work with `info` and `validate`.
 `--zero-missing-rotations` is an OP2-output-only assertion that absent

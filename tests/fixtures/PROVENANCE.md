@@ -15,6 +15,10 @@ upstream three-clause BSD terms in `pyNastran-LICENSE.md`.
 with pyNastran 1.4.1. They contain only two GRID displacement rows per result
 step, with explicit values and times, to check independent OP2 decoding.
 
+`vtk-5.1-mixed.vtk` was serialized by VTK 9.6.1's
+`vtkUnstructuredGridWriter` from the authored mixed-linear mesh. Its VTK 5.1
+offsets/connectivity layout checks a reader independent of caexfer's writer.
+
 `mixed-linear.expected.json` records independent, explicit topology expectations
 for `mixed-linear.bdf`; it is not output claimed to come from a Rust execution.
 The cells overlap on purpose. They are an I/O fixture, not a simulation model.

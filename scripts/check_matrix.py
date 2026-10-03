@@ -54,7 +54,7 @@ def main() -> None:
         folder = Path(folder)
         sources = {'bdf': ROOT / 'examples/plate.bdf',
                    'frd': ROOT / 'tests/fixtures/linear-results.frd'}
-        for extension in ('vtu', 'msh', 'inp'):
+        for extension in ('vtu', 'vtk', 'msh', 'inp'):
             path = folder / f'source.{extension}'
             run('convert', sources['bdf'], path, '--accept-projection')
             sources[extension] = path
@@ -65,7 +65,7 @@ def main() -> None:
             extra = []
             if source_format == 'op2':
                 extra = ['--mesh', ROOT / 'tests/fixtures/solid_bending.bdf']
-            for target_format in ('bdf', 'vtu', 'msh', 'inp'):
+            for target_format in ('bdf', 'vtu', 'vtk', 'msh', 'inp'):
                 target = folder / f'{source_format}-to-{target_format}.{target_format}'
                 report = run('convert', source, target, '--accept-projection', *extra)
                 assert target.is_file() and report['points'] > 0 and report['cells'] > 0

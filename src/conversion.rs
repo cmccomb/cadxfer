@@ -14,7 +14,7 @@ use std::path::{Path, PathBuf};
 
 use crate::bdf::{self, Document, ParseOptions};
 use crate::core::{Dataset, Error, FieldLocation, Mesh, Result};
-use crate::{frd, inp, msh, op2, vtu};
+use crate::{frd, inp, msh, op2, vtk, vtu};
 
 /// Supported conversion format.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -23,6 +23,8 @@ pub enum Format {
     Bdf,
     /// VTK XML `UnstructuredGrid`.
     Vtu,
+    /// ASCII legacy VTK unstructured grid.
+    Vtk,
     /// Gmsh MSH 4.1.
     Msh,
     /// Abaqus or `CalculiX` input deck.
@@ -40,6 +42,7 @@ impl Format {
         match self {
             Self::Bdf => "bdf",
             Self::Vtu => "vtu",
+            Self::Vtk => "vtk",
             Self::Msh => "msh",
             Self::Inp => "inp",
             Self::Frd => "frd",
@@ -65,6 +68,7 @@ impl Format {
         match name.to_ascii_lowercase().as_str() {
             "bdf" => Ok(Self::Bdf),
             "vtu" => Ok(Self::Vtu),
+            "vtk" => Ok(Self::Vtk),
             "msh" => Ok(Self::Msh),
             "inp" => Ok(Self::Inp),
             "frd" => Ok(Self::Frd),
@@ -94,7 +98,7 @@ impl Format {
         let extension = extension(path);
         match extension.as_str() {
             "bdf" | "nas" | "dat" | "pch" => Ok(Self::Bdf),
-            "vtu" | "msh" | "inp" | "frd" | "op2" => Self::parse(&extension),
+            "vtu" | "vtk" | "msh" | "inp" | "frd" | "op2" => Self::parse(&extension),
             _ => Err(Error::new(
                 "E_FORMAT",
                 format!("no reader for extension {extension:?}; use --from"),
@@ -121,7 +125,7 @@ impl Format {
         let extension = extension(path);
         match extension.as_str() {
             "bdf" | "nas" => Ok(Self::Bdf),
-            "vtu" | "msh" | "inp" | "frd" | "op2" => Self::parse(&extension),
+            "vtu" | "vtk" | "msh" | "inp" | "frd" | "op2" => Self::parse(&extension),
             _ => Err(Error::new(
                 "E_FORMAT",
                 format!("no writer for extension {extension:?}"),
@@ -146,7 +150,7 @@ fn extension(path: &Path) -> String {
 pub struct Options {
     /// Override source extension detection.
     pub input_format: Option<Format>,
-    /// Matching BDF, VTU, MSH, INP, or FRD mesh required when reading OP2.
+    /// Matching BDF, VTU, VTK, MSH, INP, or FRD mesh required when reading OP2.
     pub mesh: Option<PathBuf>,
     /// Assert basic-frame coordinates and displacements for a non-BDF OP2 mesh.
     pub assume_basic_frame: bool,
@@ -449,6 +453,26 @@ pub fn read_path(path: &Path, options: &Options) -> Result<ReadResult> {
                 .map_err(|_| Error::new("E_VTU", "VTU must be UTF-8 XML"))?;
             (vtu::read(text)?, Vec::new(), false)
         }
+        Format::Vtk => {
+            let bytes = read_limited(path, options.max_bytes)?;
+            let text = std::str::from_utf8(&bytes)
+                .map_err(|_| Error::new("E_VTK", "legacy VTK must be ASCII text"))?;
+            let projection = vtk::read_projection(text)?;
+            let mut omissions = Vec::new();
+            if projection.generated_point_ids {
+                omissions.push(Omission::new(
+                    Stage::Source,
+                    "legacy VTK has no original point IDs; assigned one-based IDs",
+                ));
+            }
+            if projection.generated_cell_ids {
+                omissions.push(Omission::new(
+                    Stage::Source,
+                    "legacy VTK has no original cell IDs; assigned one-based IDs",
+                ));
+            }
+            (projection.dataset, omissions, false)
+        }
         Format::Msh => {
             // The MSH reader handles geometry and data; other sections are
             // recorded as source omissions for the caller to review.
@@ -648,6 +672,31 @@ pub fn convert(
                 }
             }
             vtu::write_data(dataset, &mut writer)?;
+        }
+        Format::Vtk => {
+            for field in &dataset.fields {
+                if field.step.is_some() || field.time.is_some() {
+                    omissions.push(Omission::new(
+                        Stage::Destination,
+                        format!(
+                            "field {} loses step/time metadata in legacy VTK",
+                            field.name
+                        ),
+                    ));
+                }
+                if field
+                    .components
+                    .iter()
+                    .enumerate()
+                    .any(|(index, name)| name != &format!("C{}", index + 1))
+                {
+                    omissions.push(Omission::new(
+                        Stage::Destination,
+                        format!("field {} loses component labels in legacy VTK", field.name),
+                    ));
+                }
+            }
+            vtk::write_data(dataset, &mut writer)?;
         }
         Format::Msh => {
             // MSH stores numeric tuples but loses these component labels and

@@ -20,7 +20,7 @@ USAGE
   caexfer convert INPUT OUTPUT --accept-projection [--json]
 
 OPTIONS
-  --from FORMAT               bdf, vtu, msh, inp, frd, op2; else infer extension
+  --from FORMAT               bdf, vtu, vtk, msh, inp, frd, op2; else infer extension
   --strict                    Fail validation on warnings or omissions
   --accept-projection         Required for conversion into the supported subset
   --step N                    Zero-based OP2 result step or FRD step number
@@ -31,7 +31,7 @@ OPTIONS
   -V, --version               Show version
 
 OP2 OPTIONS
-  --mesh FILE                 Matching BDF, VTU, MSH, INP, or FRD mesh for input
+  --mesh FILE                 Matching BDF, VTU, VTK, MSH, INP, or FRD mesh for input
   --assume-basic-frame        Assert basic frame for non-BDF mesh and OP2 results
   --subcase N                 Select a displacement subcase when reading
   --mesh-out FILE             Also write a separate mesh with OP2 output
@@ -629,6 +629,11 @@ fn run(args: &Args) -> Result<u8> {
                         "ASCII one-piece linear mesh + numeric fields",
                     ),
                     (
+                        "vtk",
+                        "ASCII legacy unstructured grid + numeric fields",
+                        "ASCII legacy unstructured grid + numeric fields",
+                    ),
+                    (
                         "msh",
                         "ASCII MSH 4.1 linear mesh + complete numeric fields",
                         "ASCII MSH 4.1 linear mesh + numeric fields",
@@ -665,7 +670,7 @@ fn run(args: &Args) -> Result<u8> {
                 ]))?;
             } else {
                 emit(
-                    "bdf  document + linear mesh; geometry export\nvtu  ASCII mesh + numeric fields, read/write\nmsh  ASCII 4.1 mesh + numeric fields, read/write\ninp  flat mesh subset, read/geometry write\nfrd  ASCII mesh + nodal fields, read/write\nop2  32-bit real OUGV1 displacement, read/write; explicit synthetic-zero option; optional companion mesh",
+                    "bdf  document + linear mesh; geometry export\nvtu  ASCII XML mesh + numeric fields, read/write\nvtk  ASCII legacy unstructured grid + numeric fields, read/write\nmsh  ASCII 4.1 mesh + numeric fields, read/write\ninp  flat mesh subset, read/geometry write\nfrd  ASCII mesh + nodal fields, read/write\nop2  32-bit real OUGV1 displacement, read/write; explicit synthetic-zero option; optional companion mesh",
                 )?;
             }
             return Ok(0);

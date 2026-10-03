@@ -14,6 +14,9 @@ projects is vendored into caexfer.
 - VTK XML File Formats: UnstructuredGrid, connectivity, offsets, cell types,
   and typed PointData/CellData arrays.
   https://docs.vtk.org/en/latest/vtk_file_formats/vtkxml_file_format.html
+- VTK Simple Legacy Formats: ASCII unstructured grids, cell types, and
+  point/cell attributes.
+  https://docs.vtk.org/en/v9.6.1/vtk_file_formats/vtk_legacy_file_format.html
 - meshio's Nastran implementation, `_convert_to_vtk_ordering`, inspected as a
   comparison for linear vs. higher-order connectivity conventions. File blob
   SHA at inspection: 0e1313c9d71c05eb002b618cf02c412bd5ef64ae.
@@ -27,7 +30,7 @@ projects is vendored into caexfer.
 - pyNastran OP2 NumPy demo: displacement table, node IDs and six result components.
   https://pynastran-git.readthedocs.io/en/latest/quick_start/op2_demo_numpy1.html
 - pyNastran result-object documentation: static/transient real table creation and
-  OP2 writing interfaces used by the optional displacement exporter.
+  OP2 writing interfaces used for independent test fixtures.
   https://pynastran-git.readthedocs.io/en/latest/reference/op2/result_objects/pyNastran.op2.result_objects.html
 
 Vendor dialects differ. These references establish the intended subset; they do

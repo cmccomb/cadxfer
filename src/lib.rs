@@ -36,4 +36,5 @@ pub mod inp;
 pub mod msh;
 pub mod op2;
 mod op2_binary;
+pub mod vtk;
 pub mod vtu;

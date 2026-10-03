@@ -1,9 +1,9 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1240" height="637" viewBox="0 0 1240 637" role="img" aria-labelledby="title description">
-<title id="title">Six engineering format representations</title>
-<desc id="description">The cards show BDF and INP geometry decks; VTU and MSH meshes with numeric fields; FRD mesh with nodal fields; and an OP2 displacement table with an optional separate mesh. Mesh-bearing representations share the same topology.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" width="1240" height="892" viewBox="0 0 1240 892" role="img" aria-labelledby="title description">
+<title id="title">Seven engineering format representations</title>
+<desc id="description">The cards show BDF and INP geometry decks; VTU, legacy VTK, and MSH meshes with numeric fields; FRD mesh with nodal fields; and an OP2 displacement table with an optional separate mesh. Mesh-bearing representations share the same topology.</desc>
 <defs><linearGradient id="background" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#122238"/><stop offset="1" stop-color="#0b1423"/></linearGradient></defs>
-<rect width="1240" height="637" rx="24" fill="url(#background)"/>
-<text x="45" y="49" fill="#f5f8ff" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="700" letter-spacing="0">SIX FORMAT REPRESENTATIONS</text>
+<rect width="1240" height="892" rx="24" fill="url(#background)"/>
+<text x="45" y="49" fill="#f5f8ff" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="700" letter-spacing="0">SEVEN FORMAT REPRESENTATIONS</text>
 <text x="46" y="76" fill="#b6c7d9" font-family="Arial, Helvetica, sans-serif" font-size="15" font-weight="400" letter-spacing="0">Mesh-bearing outputs retain cell topology; carried fields depend on the input.</text>
 <text x="46" y="97" fill="#758ba3" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="400" letter-spacing="0">Routes and conditions are specified in the matrix below.</text>
 <rect x="45" y="118" width="365" height="218" rx="20" fill="#17283e" stroke="#3c5875" stroke-width="1.3"/>
@@ -262,6 +262,51 @@
 <text x="1069" y="549" fill="#f6c76d" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="400" letter-spacing="0">DISP only</text>
 <path d="M849 562H1166" stroke="#38516b"/>
 <text x="849" y="583" fill="#b6c7d9" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="400" letter-spacing="0">Optional separate mesh export</text>
-<path d="M45 613H1190" stroke="#304761"/>
-<text x="46" y="630" fill="#b6c7d9" font-family="Arial, Helvetica, sans-serif" font-size="12" font-weight="400" letter-spacing="0">Schematic only: field availability depends on the source; OP2 needs a matching mesh for reading.</text>
+<rect x="45" y="628" width="365" height="218" rx="20" fill="#17283e" stroke="#3c5875" stroke-width="1.3"/>
+<rect x="69" y="638" width="317" height="5" rx="2.5" fill="#9fdaa5"/>
+<text x="69" y="665" fill="#9fdaa5" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="700" letter-spacing="1">VTK legacy</text>
+<text x="69" y="696" fill="#f5f8ff" font-family="Arial, Helvetica, sans-serif" font-size="23" font-weight="700" letter-spacing="0">mesh.vtk</text>
+<g aria-hidden="true">
+<polygon points="75,715 112,712 119,740 82,743" fill="#37546b" fill-opacity=".24" stroke="#9fdaa5" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="112,712 149,709 156,737 119,740" fill="#37546b" fill-opacity=".24" stroke="#9fdaa5" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="149,709 186,706 193,734 156,737" fill="#37546b" fill-opacity=".24" stroke="#9fdaa5" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="186,706 223,703 230,731 193,734" fill="#37546b" fill-opacity=".24" stroke="#9fdaa5" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="82,743 119,740 126,768 89,771" fill="#37546b" fill-opacity=".24" stroke="#9fdaa5" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="119,740 156,737 163,765 126,768" fill="#37546b" fill-opacity=".24" stroke="#9fdaa5" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="156,737 193,734 200,762 163,765" fill="#37546b" fill-opacity=".24" stroke="#9fdaa5" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="193,734 230,731 237,759 200,762" fill="#37546b" fill-opacity=".24" stroke="#9fdaa5" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="89,771 126,768 133,796 96,799" fill="#37546b" fill-opacity=".24" stroke="#9fdaa5" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="126,768 163,765 170,793 133,796" fill="#37546b" fill-opacity=".24" stroke="#9fdaa5" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="163,765 200,762 207,790 170,793" fill="#37546b" fill-opacity=".24" stroke="#9fdaa5" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="200,762 237,759 244,787 207,790" fill="#37546b" fill-opacity=".24" stroke="#9fdaa5" stroke-width="1.5" stroke-linejoin="round"/>
+<circle cx="75" cy="715" r="2.6" fill="#9fdaa5"/>
+<circle cx="112" cy="712" r="2.6" fill="#9fdaa5"/>
+<circle cx="149" cy="709" r="2.6" fill="#9fdaa5"/>
+<circle cx="186" cy="706" r="2.6" fill="#9fdaa5"/>
+<circle cx="223" cy="703" r="2.6" fill="#9fdaa5"/>
+<circle cx="82" cy="743" r="2.6" fill="#9fdaa5"/>
+<circle cx="119" cy="740" r="2.6" fill="#9fdaa5"/>
+<circle cx="156" cy="737" r="2.6" fill="#9fdaa5"/>
+<circle cx="193" cy="734" r="2.6" fill="#9fdaa5"/>
+<circle cx="230" cy="731" r="2.6" fill="#9fdaa5"/>
+<circle cx="89" cy="771" r="2.6" fill="#9fdaa5"/>
+<circle cx="126" cy="768" r="2.6" fill="#9fdaa5"/>
+<circle cx="163" cy="765" r="2.6" fill="#9fdaa5"/>
+<circle cx="200" cy="762" r="2.6" fill="#9fdaa5"/>
+<circle cx="237" cy="759" r="2.6" fill="#9fdaa5"/>
+<circle cx="96" cy="799" r="2.6" fill="#9fdaa5"/>
+<circle cx="133" cy="796" r="2.6" fill="#9fdaa5"/>
+<circle cx="170" cy="793" r="2.6" fill="#9fdaa5"/>
+<circle cx="207" cy="790" r="2.6" fill="#9fdaa5"/>
+<circle cx="244" cy="787" r="2.6" fill="#9fdaa5"/>
+</g>
+<path d="M276 710V809" stroke="#3c5875"/>
+<text x="289" y="734" fill="#758ba3" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="700" letter-spacing="1">TOPOLOGY</text>
+<text x="289" y="756" fill="#f5f8ff" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="400" letter-spacing="0">same cells</text>
+<text x="289" y="782" fill="#758ba3" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="700" letter-spacing="1">DATA</text>
+<text x="289" y="804" fill="#9fdaa5" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="400" letter-spacing="0">numeric</text>
+<path d="M69 817H386" stroke="#38516b"/>
+<text x="69" y="838" fill="#b6c7d9" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="400" letter-spacing="0">ASCII point and cell arrays</text>
+<path d="M45 868H1190" stroke="#304761"/>
+<text x="46" y="885" fill="#b6c7d9" font-family="Arial, Helvetica, sans-serif" font-size="12" font-weight="400" letter-spacing="0">Schematic only: field availability depends on the source; OP2 needs a matching mesh for reading.</text>
 </svg>
