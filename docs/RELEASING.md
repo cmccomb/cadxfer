@@ -37,7 +37,7 @@ registry publication replaces the local paths with registry dependencies.
 
 ## Publication order, after the gates
 
-`cadxfer-core` → `cadxfer-bdf` and `cadxfer-vtu` → `cadxfer-formats` → `cadxfer`.
+`caexfer-core` → `caexfer-bdf` and `caexfer-vtu` → `caexfer-formats` → `caexfer`.
 Wait for each published dependency to be visible in the registry before
 packaging its dependents. Before the dependencies exist there, a downstream
 `cargo publish --dry-run` may fail for registry resolution, not source-code

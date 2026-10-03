@@ -12,7 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def main() -> None:
     version = tomllib.loads((ROOT / "Cargo.toml").read_text())["workspace"]["package"]["version"]
-    name = f"cadxfer-{version}"
+    name = f"caexfer-{version}"
     output = ROOT / "dist"
     output.mkdir(exist_ok=True)
     files = [p for p in ROOT.rglob("*") if p.is_file() and not any(part in {".git", "target", "dist", "__pycache__"} for part in p.relative_to(ROOT).parts)]

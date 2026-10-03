@@ -1,0 +1,19 @@
+[package]
+name = "caexfer-bdf"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Source-preserving Nastran BDF documents and an explicit geometry projection"
+readme = "README.md"
+keywords = ["engineering", "nastran", "file-formats", "mesh"]
+categories = ["science", "parser-implementations"]
+
+[lints]
+workspace = true
+
+[dependencies]
+caexfer-core = { path = "../caexfer-core", version = "0.1.0" }

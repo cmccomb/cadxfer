@@ -1,9 +1,10 @@
 # Changelog
 
-## Unreleased — cadxfer rename
+## Unreleased — caexfer namespace
 
 Renamed the GitHub repository, five Rust packages, CLI, examples, scripts, and
-README branding from `caxifer` to `cadxfer`. Added a from/to conversion matrix.
+README branding from `caxifer`, briefly `cadxfer`, to `caexfer`. Added a from/to
+conversion matrix.
 Narrowed the BDF public API by hiding source field spans and removing the
 physical field format classification and redundant INCLUDE-line accessor.
 `Document::cards()` and `Document::card_text()` remain available for inspection.

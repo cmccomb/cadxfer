@@ -3,36 +3,36 @@
 version = 4
 
 [[package]]
-name = "cadxfer"
+name = "caexfer"
 version = "0.1.0"
 dependencies = [
- "cadxfer-core",
- "cadxfer-formats",
+ "caexfer-core",
+ "caexfer-formats",
 ]
 
 [[package]]
-name = "cadxfer-bdf"
+name = "caexfer-bdf"
 version = "0.1.0"
 dependencies = [
- "cadxfer-core",
+ "caexfer-core",
 ]
 
 [[package]]
-name = "cadxfer-core"
+name = "caexfer-core"
 version = "0.1.0"
 
 [[package]]
-name = "cadxfer-formats"
+name = "caexfer-formats"
 version = "0.1.0"
 dependencies = [
- "cadxfer-bdf",
- "cadxfer-core",
- "cadxfer-vtu",
+ "caexfer-bdf",
+ "caexfer-core",
+ "caexfer-vtu",
 ]
 
 [[package]]
-name = "cadxfer-vtu"
+name = "caexfer-vtu"
 version = "0.1.0"
 dependencies = [
- "cadxfer-core",
+ "caexfer-core",
 ]

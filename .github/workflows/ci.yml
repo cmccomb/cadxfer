@@ -30,11 +30,11 @@ jobs:
       - name: Test all packages, targets and doctests
         run: cargo test --workspace --all-features --locked --offline
       - name: Check the no-format facade
-        run: cargo check -p cadxfer-formats --no-default-features --locked --offline
+        run: cargo check -p caexfer-formats --no-default-features --locked --offline
       - name: Check BDF-only facade
-        run: cargo check -p cadxfer-formats --no-default-features --features bdf --locked --offline
+        run: cargo check -p caexfer-formats --no-default-features --features bdf --locked --offline
       - name: Check VTU-only facade
-        run: cargo check -p cadxfer-formats --no-default-features --features vtu --locked --offline
+        run: cargo check -p caexfer-formats --no-default-features --features vtu --locked --offline
       - name: Clippy
         run: cargo clippy --workspace --all-targets --all-features --locked --offline -- -D warnings
       - name: Documentation

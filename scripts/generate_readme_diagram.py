@@ -119,7 +119,7 @@ def render() -> str:
     parts = [
         '<svg xmlns="http://www.w3.org/2000/svg" width="1240" height="820" '
         'viewBox="0 0 1240 820" role="img" aria-labelledby="title description">',
-        '<title id="title">How cadxfer changes a BDF mesh and its surrounding data</title>',
+        '<title id="title">How caexfer changes a BDF mesh and its surrounding data</title>',
         '<desc id="description">A schematic BDF quad mesh branches into three outputs. The BDF copy has identical geometry and records. The edited BDF moves one mesh node but keeps other records. The VTU retains the original geometry and IDs while solver records are omitted and reported.</desc>',
         '<defs><linearGradient id="background" x1="0" y1="0" x2="1" y2="1">'
         '<stop offset="0" stop-color="#122238"/>'

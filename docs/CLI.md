@@ -1,6 +1,6 @@
 # CLI contract
 
-`cadxfer --help` lists all commands. Paths can occur before or after options; use
+`caexfer --help` lists all commands. Paths can occur before or after options; use
 `--` for paths beginning with a hyphen. `--xyz` consumes three values, so negative
 coordinates do not need escaping. Filenames use OS-native strings internally;
 JSON/human display of non-UTF-8 paths is lossy, not an exact path serialization.

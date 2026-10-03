@@ -1,0 +1,24 @@
+[package]
+name = "caexfer"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Inspect, check, edit, and export engineering files without silent data loss"
+readme = "README.md"
+keywords = ["engineering", "nastran", "file-formats", "mesh"]
+categories = ["science", "parser-implementations"]
+
+[lints]
+workspace = true
+
+[dependencies]
+caexfer-core = { path = "../caexfer-core", version = "0.1.0" }
+caexfer-formats = { path = "../caexfer-formats", version = "0.1.0", features = ["bdf", "vtu"] }
+
+[[bin]]
+name = "caexfer"
+path = "src/main.rs"

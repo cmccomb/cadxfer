@@ -1,12 +1,12 @@
 [workspace]
 members = [
-    "crates/cadxfer-core",
-    "crates/cadxfer-bdf",
-    "crates/cadxfer-vtu",
-    "crates/cadxfer-formats",
-    "crates/cadxfer",
+    "crates/caexfer-core",
+    "crates/caexfer-bdf",
+    "crates/caexfer-vtu",
+    "crates/caexfer-formats",
+    "crates/caexfer",
 ]
-default-members = ["crates/cadxfer"]
+default-members = ["crates/caexfer"]
 resolver = "2"
 
 [workspace.package]
@@ -15,8 +15,8 @@ edition = "2021"
 rust-version = "1.85"
 license = "MIT OR Apache-2.0"
 authors = ["Christopher McComb"]
-repository = "https://github.com/cmccomb/cadxfer"
-homepage = "https://github.com/cmccomb/cadxfer"
+repository = "https://github.com/cmccomb/caexfer"
+homepage = "https://github.com/cmccomb/caexfer"
 
 [workspace.lints.rust]
 unsafe_code = "forbid"

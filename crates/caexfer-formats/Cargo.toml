@@ -1,0 +1,32 @@
+[package]
+name = "caexfer-formats"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Feature-selected engineering file format libraries"
+readme = "README.md"
+keywords = ["engineering", "nastran", "file-formats", "mesh"]
+categories = ["science", "parser-implementations"]
+
+[lints]
+workspace = true
+
+[features]
+default = []
+bdf = ["dep:caexfer-bdf"]
+vtu = ["dep:caexfer-vtu"]
+all-formats = ["bdf", "vtu"]
+
+[dependencies]
+caexfer-core = { path = "../caexfer-core", version = "0.1.0" }
+caexfer-bdf = { path = "../caexfer-bdf", version = "0.1.0", optional = true }
+caexfer-vtu = { path = "../caexfer-vtu", version = "0.1.0", optional = true }
+
+[[example]]
+name = "project_geometry"
+path = "examples/project_geometry.rs"
+required-features = ["bdf", "vtu"]

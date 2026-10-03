@@ -1,12 +1,12 @@
-[![CI](https://github.com/cmccomb/cadxfer/actions/workflows/ci.yml/badge.svg)](https://github.com/cmccomb/cadxfer/actions/workflows/ci.yml)
+[![CI](https://github.com/cmccomb/caexfer/actions/workflows/ci.yml/badge.svg)](https://github.com/cmccomb/caexfer/actions/workflows/ci.yml)
 
-# cadxfer
+# caexfer
 
-<p align="center"><img src="assets/logo.png" alt="cadxfer logo" width="320"></p>
+<p align="center"><img src="assets/logo.png" alt="caexfer logo" width="320"></p>
 
 **Engineering files, without silent data loss.**
 
-cadxfer separates the original engineering document from the information a
+caexfer separates the original engineering document from the information a
 particular downstream tool can represent. Read and preserve the document first;
 project it into geometry only when that loss of information is explicit.
 
@@ -43,14 +43,14 @@ are required by this workspace. From this directory:
 
 ```sh
 cargo test --workspace --all-features --locked --offline
-cargo install --path crates/cadxfer --locked --offline
+cargo install --path crates/caexfer --locked --offline
 
-cadxfer formats
-cadxfer info examples/plate.bdf
-cadxfer validate examples/plate.bdf
-cadxfer roundtrip examples/plate.bdf plate-copy.bdf
-cadxfer set-grid examples/plate.bdf edited.bdf --id 20 --xyz 1.2 0 0
-cadxfer convert examples/plate.bdf plate.vtu --geometry-only
+caexfer formats
+caexfer info examples/plate.bdf
+caexfer validate examples/plate.bdf
+caexfer roundtrip examples/plate.bdf plate-copy.bdf
+caexfer set-grid examples/plate.bdf edited.bdf --id 20 --xyz 1.2 0 0
+caexfer convert examples/plate.bdf plate.vtu --geometry-only
 ```
 
 Output paths must be new. `plate-copy.bdf` preserves the original file bytes.
@@ -58,7 +58,7 @@ Output paths must be new. `plate-copy.bdf` preserves the original file bytes.
 `plate.vtu` contains geometry and original IDs, **not a runnable Nastran model**.
 The converter reports what it excludes. No command overwrites the source.
 
-`cargo install cadxfer` is **not** the installation instruction for this repository:
+`cargo install caexfer` is **not** the installation instruction for this repository:
 the package has not been published to a registry.
 
 ## What 0.1 does
@@ -94,10 +94,10 @@ The exact boundary is in [SUPPORT.md](docs/SUPPORT.md).
 ## Command-line use
 
 ```sh
-cadxfer info examples/plate.bdf --json
-cadxfer validate examples/plate.bdf --strict --json
-cadxfer info known-bdf-without-extension --from bdf
-cadxfer info larger.bdf --max-bytes 536870912
+caexfer info examples/plate.bdf --json
+caexfer validate examples/plate.bdf --strict --json
+caexfer info known-bdf-without-extension --from bdf
+caexfer info larger.bdf --max-bytes 536870912
 ```
 
 JSON output carries `schema_version: 1`. `validate` means **geometry-subset
@@ -112,11 +112,11 @@ For a local consuming project, use a path dependency to this repository:
 
 ```toml
 [dependencies]
-cadxfer-formats = { path = "../cadxfer/crates/cadxfer-formats", features = ["bdf", "vtu"] }
+caexfer-formats = { path = "../caexfer/crates/caexfer-formats", features = ["bdf", "vtu"] }
 ```
 
 ```rust
-use cadxfer_formats::{bdf::Document, vtu};
+use caexfer_formats::{bdf::Document, vtu};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let document = Document::open("model.bdf")?;
@@ -143,7 +143,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 A caller writing to its own stream owns output durability/error handling. The
 CLI additionally stages its file output before installing a new destination.
 
-For only BDF, depend directly on `crates/cadxfer-bdf`. The umbrella crate defaults
+For only BDF, depend directly on `crates/caexfer-bdf`. The umbrella crate defaults
 to **no format features**. It conditionally re-exports independent format crates;
 it does not contain a second implementation.
 
@@ -156,11 +156,11 @@ format classification are implementation details.
 
 | Package | Responsibility |
 | --- | --- |
-| `cadxfer` | CLI, JSON reporting, staged no-clobber output |
-| `cadxfer-bdf` | Native BDF document, field indexing, edits, geometry projection |
-| `cadxfer-vtu` | ASCII VTU geometry writer |
-| `cadxfer-formats` | Feature-selected facade (`bdf`, `vtu`, `all-formats`) |
-| `cadxfer-core` | Diagnostics and the minimal geometry types shared by adapters |
+| `caexfer` | CLI, JSON reporting, staged no-clobber output |
+| `caexfer-bdf` | Native BDF document, field indexing, edits, geometry projection |
+| `caexfer-vtu` | ASCII VTU geometry writer |
+| `caexfer-formats` | Feature-selected facade (`bdf`, `vtu`, `all-formats`) |
+| `caexfer-core` | Diagnostics and the minimal geometry types shared by adapters |
 
 No universal solver IR, runtime plugin registry, AI interface, or empty format
 crate is included. Those are not prerequisites for reading a file correctly.
@@ -169,9 +169,9 @@ crate is included. Those are not prerequisites for reading a file correctly.
 
 ```sh
 cargo test --workspace --all-features --locked --offline
-cargo check -p cadxfer-formats --no-default-features --locked --offline
-cargo check -p cadxfer-formats --no-default-features --features bdf --locked --offline
-cargo check -p cadxfer-formats --no-default-features --features vtu --locked --offline
+cargo check -p caexfer-formats --no-default-features --locked --offline
+cargo check -p caexfer-formats --no-default-features --features bdf --locked --offline
+cargo check -p caexfer-formats --no-default-features --features vtu --locked --offline
 cargo fmt --all -- --check
 cargo clippy --workspace --all-targets --all-features --locked --offline -- -D warnings
 RUSTDOCFLAGS='-D warnings' cargo doc --workspace --all-features --no-deps --locked --offline
