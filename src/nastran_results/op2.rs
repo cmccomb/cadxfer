@@ -235,4 +235,67 @@ mod tests {
             "E_OP2"
         );
     }
+
+    #[test]
+    fn writer_rejects_values_and_ids_that_binary_records_cannot_represent() {
+        let (dataset, field) = sample();
+        for subcase in [0, i64::from(i32::MAX) + 1] {
+            let error = write_displacements(&dataset, &field, subcase, true, false).unwrap_err();
+            assert!(error.message.contains("subcase"));
+        }
+
+        let mut timed = field.clone();
+        timed.time = Some(1e100);
+        assert!(
+            write_displacements(&dataset, &timed, 1, true, false)
+                .unwrap_err()
+                .message
+                .contains("time")
+        );
+
+        let mut wrong_location = field.clone();
+        wrong_location.location = FieldLocation::Cell;
+        assert!(
+            write_displacements(&dataset, &wrong_location, 1, true, false)
+                .unwrap_err()
+                .message
+                .contains("nodal")
+        );
+
+        let mut wrong_name = field.clone();
+        wrong_name.name = "TEMPERATURE".into();
+        assert!(
+            write_displacements(&dataset, &wrong_name, 1, true, false)
+                .unwrap_err()
+                .message
+                .contains("named DISP")
+        );
+
+        let mut large_id = dataset.clone();
+        large_id.mesh.points[0].id = i32::MAX as u64;
+        assert!(
+            write_displacements(&large_id, &field, 1, true, false)
+                .unwrap_err()
+                .message
+                .contains("node ID")
+        );
+
+        let mut too_large = field.clone();
+        too_large.values[0] = 1e100;
+        assert!(
+            write_displacements(&dataset, &too_large, 1, true, false)
+                .unwrap_err()
+                .message
+                .contains("float32 range")
+        );
+
+        let mut too_small = field;
+        too_small.values[0] = 1e-100;
+        assert!(
+            write_displacements(&dataset, &too_small, 1, true, false)
+                .unwrap_err()
+                .message
+                .contains("underflow")
+        );
+    }
 }

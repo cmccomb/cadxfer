@@ -741,4 +741,45 @@ mod tests {
         assert!(read(&source.replace("CELL_TYPES 1\n3", "CELL_TYPES 1\n22")).is_err());
         assert!(read(&source.replace("POINTS 2", "POINTS 999999999")).is_err());
     }
+
+    #[test]
+    fn scalar_vector_and_integer_attributes_are_preserved() {
+        let source = "# vtk DataFile Version 2.0\nattributes\nASCII\nDATASET UNSTRUCTURED_GRID\nPOINTS 2 double\n0 0 0 1 0 0\nCELLS 1 3\n2 0 1\nCELL_TYPES 1\n3\nPOINT_DATA 2\nSCALARS temperature int\nLOOKUP_TABLE default\n2 3\nVECTORS velocity float\n1 2 3 4 5 6\nCELL_DATA 1\nSCALARS pressure unsigned_short 1\nLOOKUP_TABLE default\n7\n";
+        let dataset = read(source).unwrap();
+        assert_eq!(dataset.fields.len(), 3);
+        assert_eq!(dataset.fields[0].values, [2.0, 3.0]);
+        assert_eq!(dataset.fields[1].values, [1., 2., 3., 4., 5., 6.]);
+        assert_eq!(dataset.fields[2].location, FieldLocation::Cell);
+        assert_eq!(dataset.fields[2].values, [7.]);
+    }
+
+    #[test]
+    fn malformed_legacy_attributes_and_offsets_are_rejected() {
+        let base = "# vtk DataFile Version 2.0\nmalformed\nASCII\nDATASET UNSTRUCTURED_GRID\nPOINTS 2 float\n0 0 0 1 0 0\nCELLS 1 3\n2 0 1\nCELL_TYPES 1\n3\n";
+        for suffix in [
+            "POINT_DATA 2\nSCALARS bad int 1\nLOOKUP_TABLE default\n9007199254740993 1\n",
+            "POINT_DATA 2\nSCALARS bad bit 1\nLOOKUP_TABLE default\n0 1\n",
+            "POINT_DATA 2\nSCALARS bad double 0\nLOOKUP_TABLE default\n0 1\n",
+            "POINT_DATA 2\nSCALARS bad double 1\nLOOKUP_TABLE rainbow\n0 1\n",
+            "POINT_DATA 2\nFIELD FieldData 1\nnastran_node_id 1 2 double\n1 2\n",
+            "POINT_DATA 2\nSCALARS same double 1\nLOOKUP_TABLE default\n0 1\nSCALARS same double 1\nLOOKUP_TABLE default\n0 1\n",
+            "POINT_DATA 2\nFIELD FieldData 1\nnastran_node_id 1 2 int\n0 2\n",
+            "CELL_DATA 2\nSCALARS bad double 1\nLOOKUP_TABLE default\n0 1\n",
+            "POINT_DATA 2\nFIELD FieldData 1\nshort 2 3 float\n0 1 2 3 4 5\n",
+            "POINT_DATA 2\nTEXTURE_COORDINATES uv 2 float\n0 0 1 0\n",
+        ] {
+            let error = read(&format!("{base}{suffix}")).unwrap_err();
+            assert_eq!(error.code, "E_VTK", "{suffix}");
+        }
+        let offset_base = base.replace(
+            "CELLS 1 3\n2 0 1",
+            "CELLS 2 2\nOFFSETS vtktypeint64\n0 1\nCONNECTIVITY vtktypeint64\n0 1",
+        );
+        assert_eq!(read(&offset_base).unwrap_err().code, "E_VTK");
+        let unsupported_type = base.replace(
+            "CELLS 1 3\n2 0 1",
+            "CELLS 2 2\nOFFSETS float\n0 2\nCONNECTIVITY vtktypeint64\n0 1",
+        );
+        assert_eq!(read(&unsupported_type).unwrap_err().code, "E_VTK");
+    }
 }

@@ -20,4 +20,4 @@ python3 scripts/check_interop.py
 
 cargo llvm-cov report --lcov --output-path target/coverage.lcov
 cargo llvm-cov report --json --output-path target/coverage.json
-cargo llvm-cov report --fail-under-lines 80
+cargo llvm-cov report --fail-under-lines 90

@@ -315,3 +315,130 @@ fn bounded_and_explicit_format_input_fail_before_output_creation() {
     assert_eq!(bad_source.status.code(), Some(1));
     assert!(!s.0.join("wrong.vtu").exists());
 }
+
+#[test]
+fn malformed_cli_options_fail_without_writing() {
+    let s = Scratch::new();
+    for command in [
+        vec!["info", "mesh.bdf", "--step", "bad"],
+        vec!["info", "mesh.bdf", "--max-bytes", "0"],
+        vec!["info", "mesh.bdf", "--max-bytes", "bad"],
+        vec!["info", "mesh.bdf", "--unknown"],
+        vec!["info", "mesh.bdf", "--from"],
+        vec!["info", "mesh.bdf", "--assume-basic-frame"],
+        vec!["info", "mesh.bdf", "--mesh", "mesh.bdf"],
+        vec!["formats", "--mesh", "mesh.bdf"],
+        vec![
+            "convert",
+            "mesh.bdf",
+            "bad.vtu",
+            "--accept-projection",
+            "--zero-missing-rotations",
+        ],
+        vec![
+            "convert",
+            "mesh.bdf",
+            "bad.vtu",
+            "--accept-projection",
+            "--assume-zero-displacement",
+        ],
+    ] {
+        let result = s.run(&command);
+        assert_eq!(result.status.code(), Some(2), "{command:?}");
+    }
+    let unknown_format = s.run(&["info", "mesh.bdf", "--from", "bogus", "--json"]);
+    assert_eq!(unknown_format.status.code(), Some(1));
+    assert!(
+        String::from_utf8(unknown_format.stdout)
+            .unwrap()
+            .contains("\"code\":\"E_FORMAT\"")
+    );
+    assert!(!s.0.join("bad.vtu").exists());
+}
+
+#[test]
+fn synthetic_result_rejects_nonbasic_output_frames_and_mesh_sources() {
+    let s = Scratch::new();
+    std::fs::write(
+        s.0.join("nonbasic.bdf"),
+        "GRID,1,,0,0,0,42\nGRID,2,,1,0,0\nCROD,1,7,1,2\n",
+    )
+    .unwrap();
+    let result = s.run(&[
+        "convert",
+        "nonbasic.bdf",
+        "bad.op2",
+        "--accept-projection",
+        "--assume-zero-displacement",
+        "--json",
+    ]);
+    assert_eq!(result.status.code(), Some(1));
+    assert!(String::from_utf8(result.stdout).unwrap().contains("E_OP2"));
+    assert!(!s.0.join("bad.op2").exists());
+
+    let converted = s.run(&["convert", "mesh.bdf", "mesh.vtu", "--accept-projection"]);
+    assert!(converted.status.success());
+    let result = s.run(&[
+        "convert",
+        "mesh.vtu",
+        "bad.op2",
+        "--accept-projection",
+        "--assume-zero-displacement",
+        "--json",
+    ]);
+    assert_eq!(result.status.code(), Some(2));
+    assert!(!s.0.join("bad.op2").exists());
+}
+
+#[test]
+fn entry_help_and_bdf_diagnostics_are_visible_to_human_users() {
+    let s = Scratch::new();
+    assert!(s.run(&[]).status.success());
+    assert!(s.run(&["info", "mesh.bdf", "--help"]).status.success());
+    assert_eq!(
+        s.run(&["info", "mesh.bdf", "--accept-projection"])
+            .status
+            .code(),
+        Some(2)
+    );
+    std::fs::write(s.0.join("invalid.bdf"), "GRID,1,42,0,0,0\n").unwrap();
+    let info = s.run(&["info", "invalid.bdf"]);
+    assert!(info.status.success());
+    assert!(
+        String::from_utf8(info.stdout)
+            .unwrap()
+            .contains("Geometry projection available: false")
+    );
+}
+
+#[test]
+fn synthetic_op2_can_stage_an_explicit_msh22_companion() {
+    let s = Scratch::new();
+    let result = s.run(&[
+        "convert",
+        "mesh.bdf",
+        "zeros.op2",
+        "--accept-projection",
+        "--assume-zero-displacement",
+        "--mesh-out",
+        "companion.msh",
+        "--msh-version",
+        "2.2",
+        "--json",
+    ]);
+    assert!(
+        result.status.success(),
+        "{}",
+        String::from_utf8_lossy(&result.stdout)
+    );
+    assert!(
+        String::from_utf8(result.stdout)
+            .unwrap()
+            .contains("\"format\":\"msh\"")
+    );
+    assert!(
+        std::fs::read_to_string(s.0.join("companion.msh"))
+            .unwrap()
+            .starts_with("$MeshFormat\n2.2 0 8")
+    );
+}

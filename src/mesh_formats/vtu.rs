@@ -947,4 +947,89 @@ mod tests {
             assert_eq!(output, Vec::<u8>::new());
         }
     }
+
+    #[test]
+    fn structural_xml_mutations_fail_before_geometry_can_change() {
+        let mut bytes = Vec::new();
+        write(&triangle(), &mut bytes).unwrap();
+        let source = String::from_utf8(bytes).unwrap();
+        for (old, new) in [
+            ("type=\"UnstructuredGrid\"", "type=\"PolyData\""),
+            ("version=\"0.1\"", "compressor=\"vtkZLibDataCompressor\""),
+            ("NumberOfPoints=\"3\"", "NumberOfPoints=\"4\""),
+            ("NumberOfCells=\"1\"", "NumberOfCells=\"2\""),
+            (
+                "type=\"UInt64\" Name=\"nastran_node_id\"",
+                "type=\"Int64\" Name=\"nastran_node_id\"",
+            ),
+            ("Name=\"connectivity\"", "Name=\"wrong_connectivity\""),
+            ("Name=\"offsets\"", "Name=\"wrong_offsets\""),
+            ("format=\"ascii\">\n0 0 0", "format=\"binary\">\n0 0 0"),
+            ("NumberOfComponents=\"3\"", "NumberOfComponents=\"2\""),
+            ("<Points>", "<Points><Unsupported/>"),
+            ("</Piece>", "<Unsupported/></Piece>"),
+            ("</UnstructuredGrid>", "<Piece/></UnstructuredGrid>"),
+            ("</VTKFile>", "<![CDATA[untrusted]]></VTKFile>"),
+        ] {
+            assert!(source.contains(old), "missing fixture marker {old}");
+            let changed = source.replacen(old, new, 1);
+            assert_eq!(read(&changed).unwrap_err().code, "E_VTU", "{new}");
+        }
+    }
+
+    #[test]
+    fn numeric_vtu_mutations_reject_incomplete_identity_and_fields() {
+        let dataset = Dataset {
+            mesh: triangle(),
+            fields: vec![Field {
+                name: "TEMP".into(),
+                location: FieldLocation::Point,
+                components: vec!["T".into()],
+                values: vec![1., 2., 3.],
+                step: Some(2),
+                time: Some(0.5),
+            }],
+        };
+        let mut bytes = Vec::new();
+        write_data(&dataset, &mut bytes).unwrap();
+        let source = String::from_utf8(bytes).unwrap();
+        for (old, new) in [
+            (
+                "Name=\"offsets\" format=\"ascii\">\n3",
+                "Name=\"offsets\" format=\"ascii\">\n4",
+            ),
+            (
+                "Name=\"types\" format=\"ascii\">\n5",
+                "Name=\"types\" format=\"ascii\">\n22",
+            ),
+            (
+                "Name=\"nastran_element_id\" format=\"ascii\">\n50",
+                "Name=\"nastran_element_id\" format=\"ascii\">\n50 51",
+            ),
+            (
+                "Name=\"nastran_property_id\" format=\"ascii\">\n7",
+                "Name=\"nastran_property_id\" format=\"ascii\">\n7 8",
+            ),
+            (
+                "Name=\"TEMP\" NumberOfComponents=\"1\" format=\"ascii\"",
+                "Name=\"TEMP\" NumberOfComponents=\"1\" format=\"binary\"",
+            ),
+            (
+                "Name=\"TEMP\" NumberOfComponents=\"1\"",
+                "Name=\"TEMP\" NumberOfComponents=\"0\"",
+            ),
+            (
+                "Name=\"TEMP\" NumberOfComponents=\"1\"",
+                "Name=\"TEMP\" NumberOfComponents=\"x\"",
+            ),
+            (
+                "type=\"Float64\" Name=\"TEMP\"",
+                "type=\"Int64\" Name=\"TEMP\"",
+            ),
+        ] {
+            assert!(source.contains(old), "missing fixture marker {old}");
+            let changed = source.replacen(old, new, 1);
+            assert_eq!(read(&changed).unwrap_err().code, "E_VTU", "{new}");
+        }
+    }
 }

@@ -806,4 +806,73 @@ mod tests {
         assert_eq!(dataset.mesh.cells[0].id, 1);
         assert_eq!(dataset.mesh.cells[6].kind, CellKind::Pyramid5);
     }
+
+    #[test]
+    fn nodes_only_meshes_preserve_ids_in_both_dialects() {
+        let dataset = Dataset {
+            mesh: Mesh {
+                points: vec![
+                    Point {
+                        id: 10,
+                        position: [0., 0., 0.],
+                    },
+                    Point {
+                        id: 20,
+                        position: [1., 2., 3.],
+                    },
+                ],
+                cells: vec![],
+            },
+            fields: vec![],
+        };
+        for version in [Version::V4_1, Version::V2_2] {
+            let mut output = Vec::new();
+            write_version(&dataset, version, &mut output).unwrap();
+            let decoded = read(std::str::from_utf8(&output).unwrap()).unwrap();
+            assert_eq!(decoded.mesh.points, dataset.mesh.points);
+            assert!(decoded.mesh.cells.is_empty());
+        }
+    }
+
+    #[test]
+    fn malformed_field_blocks_cannot_create_partial_results() {
+        let base = "$MeshFormat\n2.2 0 8\n$EndMeshFormat\n$Nodes\n2\n10 0 0 0\n20 1 0 0\n$EndNodes\n$Elements\n1\n30 1 0 10 20\n$EndElements\n$NodeData\n1\n\"temperature\"\n1\n0.5\n3\n2\n1\n2\n10 1\n20 2\n$EndNodeData\n";
+        let valid = read(base).unwrap();
+        assert_eq!(valid.fields[0].values, [1., 2.]);
+        for (old, new) in [
+            ("$NodeData\n1", "$NodeData\n2"),
+            ("\"temperature\"", "temperature"),
+            ("\"temperature\"\n1\n0.5", "\"temperature\"\n2\n0.5"),
+            ("0.5\n3\n2\n1\n2", "0.5\n2\n2\n1\n2"),
+            ("0.5\n3\n2\n1\n2", "0.5\n3\n2\n0\n2"),
+            ("0.5\n3\n2\n1\n2", "0.5\n3\n2\n1\n1"),
+            ("20 2\n$EndNodeData", "10 2\n$EndNodeData"),
+            ("20 2\n$EndNodeData", "99 2\n$EndNodeData"),
+            ("$EndNodeData", ""),
+        ] {
+            assert!(base.contains(old));
+            assert!(read(&base.replacen(old, new, 1)).is_err(), "{new}");
+        }
+    }
+
+    #[test]
+    fn msh22_rejects_extra_tokens_and_unrepresentable_ids() {
+        let base = "$MeshFormat\n2.2 0 8\n$EndMeshFormat\n$Nodes\n2\n10 0 0 0\n20 1 0 0\n$EndNodes\n$Elements\n1\n30 1 0 10 20\n$EndElements\n";
+        for (old, new) in [
+            ("20 1 0 0\n$EndNodes", "20 1 0 0 99\n$EndNodes"),
+            (
+                "30 1 0 10 20\n$EndElements",
+                "30 1 0 10 20 99\n$EndElements",
+            ),
+            ("30 1 0 10 20", "30 1 0 10 99"),
+            ("2.2 0 8", "2.2 1 8"),
+        ] {
+            assert!(read(&base.replacen(old, new, 1)).is_err(), "{new}");
+        }
+        let mut dataset = read(base).unwrap();
+        dataset.mesh.points[0].id = i32::MAX as u64 + 1;
+        let mut output = Vec::new();
+        assert_eq!(write_22(&dataset, &mut output).unwrap_err().code, "E_MSH");
+        assert!(output.is_empty());
+    }
 }

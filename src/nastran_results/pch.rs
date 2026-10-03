@@ -420,4 +420,81 @@ mod tests {
         let projection = read(&source, &mesh(&[101]), None, None).unwrap();
         assert_eq!(projection.skipped_blocks, 1);
     }
+
+    #[test]
+    fn invalid_headers_and_grid_records_are_rejected() {
+        let source = include_str!("../../tests/fixtures/msc-reference-displacement.pch");
+        for (old, new) in [
+            ("$REAL OUTPUT", "$SORT2"),
+            ("$REAL OUTPUT", "$FREQUENCY = 1.0"),
+            ("$REAL OUTPUT", "$REAL OUTPUT SEID = 1"),
+            ("$SUBCASE ID = 1", "$SUBCASE ID = nope"),
+            ("$SUBCASE ID = 1", "$SUBCASE ID = 0"),
+            ("101 G", "0 G"),
+            ("101 G", "101 X"),
+            ("-CONT- 0.000000E+00", "-CONT- NaN"),
+        ] {
+            assert!(source.contains(old));
+            let changed = source.replacen(old, new, 1);
+            assert_eq!(
+                read(&changed, &mesh(&[101]), None, None).unwrap_err().code,
+                "E_PCH"
+            );
+        }
+        let duplicate = source.replace("$SUBCASE ID = 1", "$SUBCASE ID = 1\n$SUBCASE ID = 1");
+        assert_eq!(
+            read(&duplicate, &mesh(&[101]), None, None)
+                .unwrap_err()
+                .code,
+            "E_PCH"
+        );
+        let absent = source.replace("$SUBCASE ID = 1\n", "");
+        assert_eq!(
+            read(&absent, &mesh(&[101]), None, None).unwrap_err().code,
+            "E_PCH"
+        );
+        let orphan = source.replace("101 G 0.000000E+00 9.994075E-04 0.000000E+00\n", "");
+        assert_eq!(
+            read(&orphan, &mesh(&[101]), None, None).unwrap_err().code,
+            "E_PCH"
+        );
+    }
+
+    #[test]
+    fn incomplete_transient_steps_do_not_mix_grid_values() {
+        let source = include_str!("../../tests/fixtures/pch-multiple.pch");
+        let mixed_width = source.replacen("-CONT- 4.0 5.0 6.0\n", "", 1);
+        assert_eq!(
+            read(&mixed_width, &mesh(&[10, 20]), Some(1), None)
+                .unwrap_err()
+                .code,
+            "E_PCH"
+        );
+        let duplicate = source.replacen("20 G 7.0 8.0 9.0", "10 G 7.0 8.0 9.0", 1);
+        assert_eq!(
+            read(&duplicate, &mesh(&[10, 20]), Some(1), None)
+                .unwrap_err()
+                .code,
+            "E_PCH"
+        );
+        let invalid_time = source.replace("$TIME = 0.5", "$TIME = NaN");
+        assert_eq!(
+            read(&invalid_time, &mesh(&[10, 20]), Some(2), Some(1))
+                .unwrap_err()
+                .code,
+            "E_PCH"
+        );
+        assert_eq!(
+            read(source, &mesh(&[10, 20]), Some(2), Some(99))
+                .unwrap_err()
+                .code,
+            "E_PCH"
+        );
+        assert_eq!(
+            read(source, &mesh(&[10, 20]), Some(99), Some(0))
+                .unwrap_err()
+                .code,
+            "E_PCH"
+        );
+    }
 }
