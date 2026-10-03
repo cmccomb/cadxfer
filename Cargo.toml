@@ -6,7 +6,6 @@ rust-version = "1.85"
 license = "MIT OR Apache-2.0"
 authors = ["Christopher McComb"]
 repository = "https://github.com/cmccomb/caexfer"
-homepage = "https://github.com/cmccomb/caexfer"
 description = "Inspect, check, edit, and export engineering files without silent data loss"
 readme = "README.md"
 keywords = ["engineering", "nastran", "file-formats", "mesh"]
@@ -14,8 +13,3 @@ categories = ["science", "parser-implementations"]
 
 [lints.rust]
 unsafe_code = "forbid"
-
-[profile.release]
-lto = "thin"
-codegen-units = 1
-strip = true

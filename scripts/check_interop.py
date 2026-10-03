@@ -5,7 +5,6 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
-import shutil
 import subprocess
 import sys
 import tempfile
@@ -16,17 +15,12 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--build", action="store_true", help="cargo build the CLI first")
     parser.add_argument("--binary", type=Path, help="path to an existing caexfer binary")
     parser.add_argument("--vtk", action="store_true", help="also require an independent Python VTK read")
     args = parser.parse_args()
-    if args.build:
-        if shutil.which("cargo") is None:
-            raise SystemExit("Cargo is unavailable; no Rust execution or interoperability checks were run.")
-        subprocess.run(["cargo", "build", "-p", "caexfer", "--locked", "--offline"], cwd=ROOT, check=True)
     binary = (args.binary or ROOT / "target/debug" / ("caexfer.exe" if sys.platform == "win32" else "caexfer")).resolve()
     if not binary.is_file():
-        raise SystemExit(f"No executable at {binary}; run with --build or --binary. No checks were run.")
+        raise SystemExit(f"No executable at {binary}; run cargo build first or pass --binary.")
     checks: list[str] = []
     def run(*cmd: str | Path, expected_code: int = 0) -> subprocess.CompletedProcess:
         result = subprocess.run([str(binary), *map(str, cmd)], cwd=ROOT, capture_output=True)

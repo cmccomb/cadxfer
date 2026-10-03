@@ -16,7 +16,7 @@ use json::{array, object, quote};
 const SYNTHETIC_OP2_SOURCE_NOTICE: &str =
     "OP2 title marks this as a synthetic all-zero displacement table, not solver results";
 
-const HELP: &str = "caexfer 0.1.0 — inspect, preserve, and explicitly project engineering files
+const HELP: &str = "caexfer — inspect, preserve, and explicitly project engineering files
 
 USAGE
   caexfer formats [--json]
@@ -41,17 +41,11 @@ COMMON OPTIONS
   -V, --version    Show version
 
 SCOPE
-  BDF: source-preserving small/large/free fields, GRID editing, linear geometry.
-  VTU: ASCII linear mesh and numeric fields. MSH: ASCII 4.1 subset.
-  INP: flat mesh subset. FRD: ASCII mesh and nodal results subset.
-  OP2: real displacement table via optional pyNastran; read needs matching BDF.
-  validate checks the GEOMETRY SUBSET, not complete solver validity.
-  set-grid coordinates are in the GRID's native CP frame.
-  convert requires --geometry-only and reports omitted solver information.
-  Unresolved INCLUDEs, nonbasic CP, GRDSET, higher-order/unknown geometry fail.
-  OP2 output contains results only; export a matching BDF separately.
-  --assume-zero-displacement writes hypothetical values, not solver results.
-  Output files must not already exist.
+  BDF copy and GRID edits preserve the native document; conversion projects a subset.
+  validate is scoped, not full solver validation. Conversion reports omissions.
+  OP2 needs pyNastran; reading needs a matching BDF; output contains no mesh.
+  Assumed-zero OP2 values are hypothetical, not solver results.
+  Output paths must be new. See docs/SUPPORT.md for precise format limits.
 ";
 
 #[derive(Debug, Default)]
@@ -350,30 +344,14 @@ fn report_json(report: &ValidationReport) -> String {
     ])
 }
 
-fn open_document(args: &Args) -> Result<Document> {
-    let path = &args.paths[0];
-    if let Some(format) = &args.from {
-        if format != "bdf" {
-            return Err(Error::new(
-                "E_FORMAT",
-                "set-grid and native BDF document operations require --from bdf",
-            ));
-        }
-    } else {
-        let extension = path
-            .extension()
-            .and_then(OsStr::to_str)
-            .unwrap_or("")
-            .to_ascii_lowercase();
-        if !matches!(extension.as_str(), "bdf" | "nas" | "dat" | "pch") {
-            return Err(Error::new("E_FORMAT", format!("BDF document operations require a BDF extension or --from bdf; got {extension:?}")));
-        }
-    }
-    let options = ParseOptions {
-        max_bytes: args.max_bytes.unwrap_or(ParseOptions::default().max_bytes),
-        ..ParseOptions::default()
-    };
-    Document::read_with_options(File::open(path)?, options)
+fn read_bdf(path: &Path, max_bytes: usize) -> Result<Document> {
+    Document::read_with_options(
+        File::open(path)?,
+        ParseOptions {
+            max_bytes,
+            ..ParseOptions::default()
+        },
+    )
 }
 
 fn path_json(path: &Path) -> String {
@@ -423,13 +401,7 @@ fn read_dataset(args: &Args) -> Result<(Dataset, Vec<String>)> {
     }
     match format.as_str() {
         "bdf" => {
-            let doc = Document::read_with_options(
-                File::open(&args.paths[0])?,
-                ParseOptions {
-                    max_bytes: max,
-                    ..ParseOptions::default()
-                },
-            )?;
+            let doc = read_bdf(&args.paths[0], max)?;
             if args.assume_zero_displacement {
                 for grid in doc.grids() {
                     if grid?.cd != 0 {
@@ -522,13 +494,7 @@ fn read_dataset(args: &Args) -> Result<(Dataset, Vec<String>)> {
                 .mesh
                 .as_ref()
                 .ok_or_else(|| usage("OP2 requires --mesh matching.bdf"))?;
-            let mesh_doc = Document::read_with_options(
-                File::open(mesh_path)?,
-                ParseOptions {
-                    max_bytes: max,
-                    ..ParseOptions::default()
-                },
-            )?;
+            let mesh_doc = read_bdf(mesh_path, max)?;
             for grid in mesh_doc.grids() {
                 if grid?.cd != 0 {
                     return Err(Error::new(
@@ -979,7 +945,16 @@ fn run(args: Args) -> Result<u8> {
         }
         return Ok(0);
     }
-    let mut doc = open_document(&args)?;
+    if format != "bdf" {
+        return Err(Error::new(
+            "E_FORMAT",
+            "set-grid requires a BDF input; use --from bdf when the extension differs",
+        ));
+    }
+    let mut doc = read_bdf(
+        &args.paths[0],
+        args.max_bytes.unwrap_or(ParseOptions::default().max_bytes),
+    )?;
     match args.command.as_str() {
         "info" => {
             let counts = doc.card_counts();

@@ -112,11 +112,10 @@ streams; the CLI handles staged output files.
 - [CLI reference](docs/CLI.md): commands, flags, JSON output, and exit codes.
 - [Support contract](docs/SUPPORT.md): format subsets and conversion limits.
 - [Design](docs/DESIGN.md): preservation, projection, and validation decisions.
-- [Build status](docs/BUILD-STATUS.md), [contributing](CONTRIBUTING.md), and
-  [release gates](docs/RELEASING.md).
+- [Implementation references](docs/REFERENCES.md) and [contributing](CONTRIBUTING.md).
 
 Run `cargo test --locked --offline` for Rust tests. CI also checks formatting,
-Clippy, rustdoc, the generated diagram, source packaging, and independent
+Clippy, rustdoc, the generated diagram, Cargo packaging, and independent
 conversion routes on Linux, macOS, Windows, and Rust 1.85. Regenerate the figure
 with `python3 scripts/generate_readme_diagram.py` after changing format support.
 

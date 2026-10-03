@@ -29,17 +29,7 @@ projects is vendored into caexfer.
 - pyNastran result-object documentation: static/transient real table creation and
   OP2 writing interfaces used by the optional displacement exporter.
   https://pynastran-git.readthedocs.io/en/latest/reference/op2/result_objects/pyNastran.op2.result_objects.html
-- Cargo documentation: package layout, local installation, and packaging.
-  https://doc.rust-lang.org/cargo/guide/project-layout.html
-  https://doc.rust-lang.org/cargo/commands/cargo-install.html
-  https://doc.rust-lang.org/cargo/commands/cargo-package.html
 
 Vendor dialects differ. These references establish the intended subset; they do
 not justify claiming complete MSC/NX/OptiStruct interoperability. Revisit the
 relevant primary specification before extending any card or result-table schema.
-
-## Real-field writing
-
-pyNastran developer documentation explains Nastran's lexical distinction between integer and real fields. Edited coordinate values always retain a decimal point, including integer-valued and scientific representations.
-
-https://pynastran-git.readthedocs.io/en/latest/manual/bdf_developer.html

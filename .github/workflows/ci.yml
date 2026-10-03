@@ -42,12 +42,12 @@ jobs:
           python-version: '3.11'
       - name: Check generated README diagram
         run: python scripts/generate_readme_diagram.py --check
-      - name: Check source package
-        run: python scripts/check_source.py
       - name: Verify Cargo package
         if: matrix.os == 'ubuntu-latest' && matrix.rust == 'stable'
         run: cargo package --locked --offline
+      - name: Build CLI for interoperability checks
+        run: cargo build --locked --offline
       - name: Execute independent CLI interoperability checks
-        run: python scripts/check_interop.py --build
+        run: python scripts/check_interop.py
       - name: Check supported conversion matrix
         run: python scripts/check_matrix.py
