@@ -4,8 +4,7 @@
 
 A document is not a mesh. Keeping a BDF source buffer and an index of its native
 fields prevents unfamiliar records from disappearing simply because an adapter
-does not understand them. It also supports precise, reviewable edits without
-regenerating an entire deck.
+does not understand them. The original document can be copied byte-for-byte.
 
 The geometry projection is explicitly narrower. It returns geometry plus an
 omission report, refuses unknown geometry-affecting inputs, and never invents
@@ -39,8 +38,7 @@ reports it. OP2 has no typed null slot for unknown displacement values.
 
 Source node/element IDs are not array offsets. Mapping to contiguous indices
 occurs only at projection time; IDs remain separate UInt64 attributes. Never
-round a large ID through f64. Coordinate edits try exact f64-round-trippable
-text forms; they do not consume a tolerance budget the user did not provide.
+round a large ID through f64.
 
 No physical units are inferred from coordinate magnitudes or from the suffix
 `.bdf`. Native-frame GRID coordinates are not global coordinates unless their
@@ -64,7 +62,7 @@ The library writes to caller-provided streams and documents partial-I/O behavior
 ## What remains to earn a wider claim
 
 Run the Rust suite on all supported platforms, add independently produced
-solver decks with redistribution permission, cross-check native edits against
+solver decks with redistribution permission, cross-check projections against
 pyNastran and at least one solver, fuzz the lexical layer, and benchmark measured
 memory/runtime. Only then advertise broader compatibility or performance.
 The included deterministic byte-input tests are not a completed fuzz campaign.

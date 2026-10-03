@@ -4,7 +4,6 @@ use std::io::{Read, Write};
 use std::ops::Range;
 use std::path::Path;
 
-use super::number::format_real;
 use crate::core::{Error, Result};
 
 /// Resource limits apply before semantic interpretation. No INCLUDE is opened.
@@ -38,8 +37,6 @@ impl Default for ParseOptions {
 #[derive(Debug, Clone)]
 pub(crate) struct Field {
     pub(crate) range: Option<Range<usize>>,
-    pub(crate) width: Option<usize>,
-    pub(crate) line: usize,
 }
 
 /// Indexed BDF card; source data remains owned by its [`Document`].
@@ -63,7 +60,6 @@ impl Card {
 pub struct Document {
     pub(crate) source: Vec<u8>,
     pub(crate) cards: Vec<Card>,
-    pub(crate) options: ParseOptions,
     pub(crate) full_deck: bool,
     pub(crate) has_grdset: bool,
     pub(crate) include_lines: Vec<usize>,
@@ -200,8 +196,6 @@ fn physical(source: &[u8], line: &Line, content_end: usize) -> Result<Physical> 
         let fields = (0..capacity)
             .map(|i| Field {
                 range: ranges.get(i + 1).cloned(),
-                width: None,
-                line: line.number,
             })
             .collect();
         Ok(Physical { head, fields, tail })
@@ -227,9 +221,6 @@ fn physical(source: &[u8], line: &Line, content_end: usize) -> Result<Physical> 
                     } else {
                         None
                     },
-                    // The entire width must physically exist for an in-place edit.
-                    width: Some(width),
-                    line: line.number,
                 }
             })
             .collect();
@@ -444,7 +435,6 @@ impl Document {
         Ok(Self {
             source,
             cards,
-            options,
             full_deck,
             has_grdset,
             include_lines,
@@ -471,7 +461,7 @@ impl Document {
     pub fn cards(&self) -> &[Card] {
         &self.cards
     }
-    /// Current document bytes, unchanged unless a supported edit succeeded.
+    /// Original document bytes, unchanged by inspection or projection.
     pub fn to_bytes(&self) -> &[u8] {
         &self.source
     }
@@ -512,86 +502,5 @@ impl Document {
             *counts.entry(card.name.clone()).or_default() += 1;
         }
         counts
-    }
-
-    /// Edit GRID X1/X2/X3 *in its native CP frame*, not in the basic frame.
-    /// All other source bytes stay unchanged. All three edits are transactional.
-    /// No field is rounded to fit; implicit/missing fields must first be made
-    /// explicit in the source. On failure `self` is unchanged.
-    pub fn set_grid_coordinates(&mut self, id: u64, coordinates: [f64; 3]) -> Result<()> {
-        let mut found = None;
-        for (index, card) in self
-            .cards
-            .iter()
-            .enumerate()
-            .filter(|(_, card)| card.name() == "GRID")
-        {
-            let grid = self.parse_grid(card)?;
-            if grid.id == id {
-                if found.is_some() {
-                    return Err(
-                        Error::new("E_DUPLICATE_GRID", format!("GRID {id} is duplicated"))
-                            .at(card.line),
-                    );
-                }
-                found = Some(index);
-            }
-        }
-        let index = found.ok_or_else(|| Error::new("E_NOT_FOUND", format!("no GRID {id}")))?;
-        let card = &self.cards[index];
-        let mut edits = Vec::new();
-        for (axis, &value) in coordinates.iter().enumerate() {
-            let field = card.fields.get(axis + 2).ok_or_else(|| {
-                Error::new(
-                    "E_IMPLICIT_FIELD",
-                    "coordinate has no explicit source field",
-                )
-                .at(card.line)
-            })?;
-            let range = field.range.clone().ok_or_else(|| {
-                Error::new(
-                    "E_IMPLICIT_FIELD",
-                    "coordinate has no explicit source field",
-                )
-                .at(field.line)
-            })?;
-            if field.width.is_some_and(|width| range.len() != width) {
-                return Err(Error::new(
-                    "E_IMPLICIT_FIELD",
-                    "fixed-width coordinate field is physically truncated; pad it before editing",
-                )
-                .at(field.line));
-            }
-            let replacement =
-                format_real(value, field.width).map_err(|error| error.at(field.line))?;
-            let replacement = if field.width.is_none() {
-                let original = &self.source[range.clone()];
-                let left = original
-                    .iter()
-                    .take_while(|b| b.is_ascii_whitespace())
-                    .count();
-                let right = original
-                    .iter()
-                    .rev()
-                    .take_while(|b| b.is_ascii_whitespace())
-                    .count()
-                    .min(original.len() - left);
-                let mut output = original[..left].to_vec();
-                output.extend_from_slice(replacement.as_bytes());
-                output.extend_from_slice(&original[original.len() - right..]);
-                output
-            } else {
-                replacement.into_bytes()
-            };
-            edits.push((range, replacement));
-        }
-        edits.sort_by_key(|(range, _)| range.start);
-        let mut changed = self.source.clone();
-        for (range, replacement) in edits.into_iter().rev() {
-            changed.splice(range, replacement);
-        }
-        let replacement = Self::parse_with_options(changed, self.options)?;
-        *self = replacement;
-        Ok(())
     }
 }

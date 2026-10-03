@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Removed BDF GRID editing from the public library API and CLI to keep the
+  package focused on inspection, preservation, and conversion.
 - Renamed the project to `caexfer` and consolidated five crates into one
   dependency-free Rust package.
 - Added MSH, INP, FRD, and pyNastran-backed OP2 conversion paths, with an

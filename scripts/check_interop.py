@@ -82,11 +82,6 @@ def main() -> None:
             id_array = mesh.GetPointData().GetArray("nastran_node_id")
             assert [id_array.GetValue(i) for i in range(9)] == node_ids
             checks.append("independent VTK reader accepts the actual Rust output and original IDs")
-        edited = temp / "edited.bdf"
-        original = (ROOT / "examples/plate.bdf").read_bytes()
-        run("set-grid", "examples/plate.bdf", edited, "--id", "20", "--xyz", "1.2", "0", "0")
-        assert edited.read_bytes() == original.replace(b"GRID,20,,1.,0.,0.", b"GRID,20,,1.2,0.,0.")
-        checks.append("actual CLI edit changes exactly the requested coordinate fields")
         run("convert", source, temp / "no-ack.vtu", expected_code=2)
         assert not (temp / "no-ack.vtu").exists()
         run("convert", "examples/unsupported.bdf", temp / "unknown.vtu", "--geometry-only", expected_code=1)

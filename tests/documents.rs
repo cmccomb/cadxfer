@@ -408,67 +408,6 @@ fn all_linear_cell_families() {
 }
 
 #[test]
-fn free_edit_changes_only_coordinate_tokens() {
-    let source = b"$ header\r\nGRID, 1 , , 0. , 2. , 3. ,0,,0 $ note\r\nMYSTERY,keep\n";
-    let mut doc = Document::parse(source).unwrap();
-    doc.set_grid_coordinates(1, [10., -2., 0.125]).unwrap();
-    assert_eq!(
-        doc.to_bytes(),
-        b"$ header\r\nGRID, 1 , , 10. , -2. , 0.125 ,0,,0 $ note\r\nMYSTERY,keep\n"
-    );
-}
-
-#[test]
-fn fixed_edit_preserves_card_width_and_comment() {
-    let source = fixed("GRID", &["1", "", "0.", "0.", "0."], 8, "") + "$ keep\n";
-    let mut doc = Document::parse(&source).unwrap();
-    doc.set_grid_coordinates(1, [1., 2., 3.]).unwrap();
-    assert_eq!(doc.to_bytes().len(), source.len());
-    assert_eq!(&doc.to_bytes()[..24], &source.as_bytes()[..24]);
-    assert_eq!(&doc.to_bytes()[48..], &source.as_bytes()[48..]);
-}
-
-#[test]
-fn failed_edit_is_transactional() {
-    let source = fixed("GRID", &["1", "", "0.", "0.", "0."], 8, "");
-    let mut doc = Document::parse(&source).unwrap();
-    assert_eq!(
-        doc.set_grid_coordinates(1, [1., std::f64::consts::PI, 3.])
-            .unwrap_err()
-            .code,
-        "E_FIELD_WIDTH"
-    );
-    assert_eq!(doc.to_bytes(), source.as_bytes());
-}
-
-#[test]
-fn edit_can_be_repeated_without_stale_spans() {
-    let mut doc = Document::parse("GRID,1,,0.,0.,0.\n").unwrap();
-    doc.set_grid_coordinates(1, [123456., 0., 0.]).unwrap();
-    doc.set_grid_coordinates(1, [1., 2., 3.]).unwrap();
-    assert_eq!(
-        doc.grids().next().unwrap().unwrap().coordinates,
-        [1., 2., 3.]
-    );
-}
-
-#[test]
-fn edit_uses_native_not_basic_frame() {
-    let mut doc = Document::parse("GRID,1,42,0.,0.,0.\n").unwrap();
-    doc.set_grid_coordinates(1, [1., 2., 3.]).unwrap();
-    assert!(String::from_utf8_lossy(doc.to_bytes()).starts_with("GRID,1,42,"));
-}
-
-#[test]
-fn refuses_implicit_field_edits() {
-    let mut doc = Document::parse("GRID,1\n").unwrap();
-    assert_eq!(
-        doc.set_grid_coordinates(1, [0.; 3]).unwrap_err().code,
-        "E_IMPLICIT_FIELD"
-    );
-}
-
-#[test]
 fn write_propagates_failures() {
     struct Broken;
     impl std::io::Write for Broken {

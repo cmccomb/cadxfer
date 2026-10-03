@@ -81,20 +81,6 @@ system card can be ignored only when every exported GRID explicitly or by the
 supported default uses the basic frame; nonzero CP is always an error.
 Any card outside the geometry subset and this allowlist blocks projection.
 
-## Editing
-
-`set_grid_coordinates` changes X1/X2/X3 in the native CP frame. It does not
-translate the model in global coordinates or update loads/boundaries. The
-method requires GRID interpretation to be unambiguous and therefore refuses
-decks with INCLUDE or GRDSET. Existing GRID numeric fields must parse.
-
-Only coordinate field byte ranges change. Unknown cards, comments, and all
-other fields remain identical. Free-field surrounding whitespace is retained;
-fixed fields retain their widths. Fixed-width edits that would require rounding
-fail with E_FIELD_WIDTH. Physically omitted/truncated fixed fields are not
-expanded. All three coordinate edits commit together after reparsing; any error
-leaves the original document unchanged.
-
 ## Conversion formats
 
 All `convert` operations require `--geometry-only`, including routes that carry
@@ -189,7 +175,7 @@ pyNastran-backed interoperability check.
 `convert` can emit basic-frame GRID and linear element cards. It preserves known
 property IDs or uses placeholder PID 1 when absent. No property, material,
 load, constraint or case-control cards are generated. Use the native BDF
-`roundtrip` or `set-grid` commands when source preservation matters.
+`roundtrip` command when source preservation matters.
 
 ## Resource and storage limits
 

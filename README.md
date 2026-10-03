@@ -6,8 +6,8 @@
 
 **Preserve engineering documents. Transfer the parts another format can represent.**
 
-`caexfer` preserves Nastran BDF source bytes, supports precise GRID edits, and
-projects supported linear meshes and numeric results between BDF, VTU, MSH 4.1,
+`caexfer` preserves Nastran BDF source bytes and projects supported linear
+meshes and numeric results between BDF, VTU, MSH 4.1,
 INP, FRD, and OP2. Conversions report information the destination cannot carry.
 
 ## Install and try the CLI
@@ -28,7 +28,6 @@ cd caexfer
 caexfer formats
 caexfer info examples/plate.bdf
 caexfer roundtrip examples/plate.bdf plate-copy.bdf
-caexfer set-grid examples/plate.bdf edited.bdf --id 20 --xyz 1.2 0 0
 caexfer convert examples/plate.bdf plate.vtu --geometry-only
 ```
 
@@ -36,14 +35,13 @@ For a local checkout without installing, replace `caexfer` with
 `cargo run --locked --`. OP2 routes additionally need Python with pyNastran;
 the other routes have no non-Rust runtime dependency.
 
-`roundtrip` writes a byte-identical copy. `set-grid` changes only the requested
-native-frame coordinates. `convert` requires `--geometry-only` to acknowledge
+`roundtrip` writes a byte-identical copy. `convert` requires `--geometry-only` to acknowledge
 projection into the supported mesh and field subset. Output files must be new;
 the CLI never overwrites an existing path.
 
 ## Conversion routes
 
-[![Schematic of native BDF copy and GRID edit above BDF, VTU, MSH, INP, FRD, and OP2 representations](assets/conversion-flow.svg)](assets/conversion-flow.svg)
+[![Schematic of a byte-identical BDF copy and BDF, VTU, MSH, INP, FRD, and OP2 representations](assets/conversion-flow.svg)](assets/conversion-flow.svg)
 
 The figure shows what each format can carry. The matrix gives the actual routes:
 
@@ -58,7 +56,7 @@ The figure shows what each format can carry. The matrix gives the actual routes:
 
 | Key | Result |
 | --- | --- |
-| **C** | Native byte copy via `roundtrip`; BDF also supports `set-grid`. |
+| **C** | Native byte copy via `roundtrip`. |
 | **M** | Linear mesh projection with original node and element IDs. |
 | **F** | Mesh plus supported numeric fields. |
 | **D** | One real displacement table written to OP2 via pyNastran. |
@@ -76,8 +74,7 @@ values. See [format limits](docs/SUPPORT.md) for other omissions and conditions.
 ## Scope
 
 - BDF parsing preserves comments, unknown cards, line endings, and other source
-  bytes. Coordinate edits are transactional and reject fixed-width values that
-  cannot fit without rounding.
+  bytes. The original document can be copied without rewriting its contents.
 - Projection supports linear lines, triangles, quads, tetrahedra, wedges,
   hexahedra, and pyramids. Bars and beams contribute centerlines only;
   higher-order geometry is rejected.

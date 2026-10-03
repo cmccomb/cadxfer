@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 
 use caexfer::core::{Dataset, Error, Field, FieldLocation, Result, Severity, ValidationReport};
 use caexfer::{
-    bdf::{self, parse_real, Document, ParseOptions},
+    bdf::{self, Document, ParseOptions},
     frd, inp, msh, op2, vtu,
 };
 use json::{array, object, quote};
@@ -23,7 +23,6 @@ USAGE
   caexfer info INPUT [--json]
   caexfer validate INPUT [--strict] [--json]
   caexfer roundtrip INPUT OUTPUT [--json]
-  caexfer set-grid INPUT OUTPUT --id ID --xyz X Y Z [--json]
   caexfer convert INPUT OUTPUT --geometry-only [--json]
 
 COMMON OPTIONS
@@ -41,7 +40,7 @@ COMMON OPTIONS
   -V, --version    Show version
 
 SCOPE
-  BDF copy and GRID edits preserve the native document; conversion projects a subset.
+  BDF copy preserves the native document; conversion projects a subset.
   validate is scoped, not full solver validation. Conversion reports omissions.
   OP2 needs pyNastran; reading needs a matching BDF; output contains no mesh.
   Assumed-zero OP2 values are hypothetical, not solver results.
@@ -70,8 +69,6 @@ struct Args {
     subcase: Option<i64>,
     step: Option<usize>,
     max_bytes: Option<usize>,
-    id: Option<u64>,
-    xyz: Option<[f64; 3]>,
 }
 
 fn usage(message: impl Into<String>) -> Error {
@@ -142,7 +139,7 @@ fn parse_args(raw: Vec<OsString>) -> Result<Args> {
     }
     if !matches!(
         command.as_str(),
-        "formats" | "info" | "validate" | "roundtrip" | "set-grid" | "convert"
+        "formats" | "info" | "validate" | "roundtrip" | "convert"
     ) {
         return Err(usage(format!("unknown command {command:?}; use --help")));
     }
@@ -219,26 +216,6 @@ fn parse_args(raw: Vec<OsString>) -> Result<Args> {
                 Ok(limit)
             })?;
             index += 1;
-        } else if options && arg == "--id" {
-            set_option(&mut args.id, "--id", || {
-                let id = value(1)?
-                    .parse()
-                    .map_err(|_| usage("--id requires a positive integer"))?;
-                if id == 0 {
-                    return Err(usage("--id must be positive"));
-                }
-                Ok(id)
-            })?;
-            index += 1;
-        } else if options && arg == "--xyz" {
-            set_option(&mut args.xyz, "--xyz", || {
-                Ok([
-                    parse_real(value(1)?)?,
-                    parse_real(value(2)?)?,
-                    parse_real(value(3)?)?,
-                ])
-            })?;
-            index += 3;
         } else if options && arg.to_string_lossy().starts_with('-') {
             return Err(usage(format!(
                 "unknown option {}; use -- before a path beginning with '-'",
@@ -282,13 +259,6 @@ fn parse_args(raw: Vec<OsString>) -> Result<Args> {
     }
     if args.command == "convert" && !args.geometry_only {
         return Err(usage("conversion projects the supported mesh/field subset; pass --geometry-only to acknowledge omitted information"));
-    }
-    if args.command == "set-grid" {
-        if args.id.is_none() || args.xyz.is_none() {
-            return Err(usage("set-grid requires --id and --xyz"));
-        }
-    } else if args.id.is_some() || args.xyz.is_some() {
-        return Err(usage("--id and --xyz are only for set-grid"));
     }
     if args.command == "formats"
         && (args.from.is_some()
@@ -952,13 +922,7 @@ fn run(args: Args) -> Result<u8> {
         }
         return Ok(0);
     }
-    if format != "bdf" {
-        return Err(Error::new(
-            "E_FORMAT",
-            "set-grid requires a BDF input; use --from bdf when the extension differs",
-        ));
-    }
-    let mut doc = read_bdf(
+    let doc = read_bdf(
         &args.paths[0],
         args.max_bytes.unwrap_or(ParseOptions::default().max_bytes),
     )?;
@@ -1038,12 +1002,7 @@ fn run(args: Args) -> Result<u8> {
             }
             return Ok(if passed { 0 } else { 1 });
         }
-        "roundtrip" | "set-grid" => {
-            if args.command == "set-grid" {
-                let id = args.id.ok_or_else(|| usage("missing --id"))?;
-                let xyz = args.xyz.ok_or_else(|| usage("missing --xyz"))?;
-                doc.set_grid_coordinates(id, xyz)?;
-            }
+        "roundtrip" => {
             output::create_new(&args.paths[1], |writer| doc.write_to(writer))?;
             if args.json {
                 emit(&object([
@@ -1057,11 +1016,7 @@ fn run(args: Args) -> Result<u8> {
                     "Wrote {} ({} bytes; {}).",
                     args.paths[1].display(),
                     doc.to_bytes().len(),
-                    if args.command == "roundtrip" {
-                        "source bytes unchanged"
-                    } else {
-                        "only requested native-frame GRID coordinate fields changed"
-                    }
+                    "source bytes unchanged"
                 ))?;
             }
         }
@@ -1122,13 +1077,8 @@ mod tests {
         assert!(args(&["convert", "x.bdf", "x.vtu"]).is_err());
     }
     #[test]
-    fn negative_coordinate_values_are_not_options() {
-        assert_eq!(
-            args(&["set-grid", "x.bdf", "y.bdf", "--id", "1", "--xyz", "-1", "2", "-3"])
-                .unwrap()
-                .xyz,
-            Some([-1., 2., -3.])
-        );
+    fn grid_edit_is_not_a_cli_command() {
+        assert!(args(&["set-grid", "x.bdf", "y.bdf"]).is_err());
     }
     #[test]
     fn duplicate_option_rejected() {

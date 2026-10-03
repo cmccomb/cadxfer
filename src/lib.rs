@@ -1,6 +1,6 @@
 //! Preserve engineering documents and explicitly project supported geometry and fields.
 //!
-//! Start with [`bdf::Document`] for byte-preserving BDF inspection or GRID edits.
+//! Start with [`bdf::Document`] for byte-preserving BDF inspection and copying.
 //! Call [`bdf::Document::geometry`] only when a mesh projection is intended,
 //! and inspect its omissions. [`core::Mesh`] holds geometry and original IDs;
 //! [`core::Dataset`] adds complete numeric fields. Format modules expose their

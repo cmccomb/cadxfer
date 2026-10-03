@@ -17,7 +17,6 @@ MUTED = "#b6c7d9"
 DIM = "#758ba3"
 SOURCE = "#f4bc72"
 COPY = "#69dfc0"
-EDIT = "#77baff"
 
 
 @dataclass(frozen=True)
@@ -32,12 +31,10 @@ class Card:
 
 
 NATIVE = (
-    Card(45, 137, "SOURCE DOCUMENT", "model.bdf", SOURCE, "source",
+    Card(235, 137, "SOURCE DOCUMENT", "model.bdf", SOURCE, "source",
          "PSHELL  MAT1  FORCE  SPC1"),
-    Card(435, 137, "BYTE-IDENTICAL COPY", "copy.bdf", COPY, "copy",
+    Card(640, 137, "BYTE-IDENTICAL COPY", "copy.bdf", COPY, "copy",
          "Every source byte retained"),
-    Card(825, 137, "GRID COORDINATE EDIT", "edited.bdf", EDIT, "edited",
-         "Other source bytes retained"),
 )
 
 PROJECTED = (
@@ -59,14 +56,11 @@ def text(x: int, y: int, value: str, *, size: int = 16, color: str = WHITE,
 
 
 def mesh(x: int, y: int, accent: str, variant: str) -> str:
-    """Keep topology fixed; only the native GRID edit changes coordinates."""
+    """Show the same linear topology in each mesh-bearing representation."""
     points = {}
     for row in range(4):
         for col in range(5):
             px, py = x + col * 37 + row * 7, y + row * 28 - col * 3
-            if variant == "edited" and (col, row) == (4, 1):
-                px += 20
-                py -= 11
             points[col, row] = px, py
 
     parts = ['<g aria-hidden="true">']
@@ -81,17 +75,7 @@ def mesh(x: int, y: int, accent: str, variant: str) -> str:
                          f'stroke="{accent}" stroke-width="1.5" stroke-linejoin="round"/>')
     for (col, row), (px, py) in points.items():
         color = ("#ffe2a5" if (col + row) % 3 == 0 else accent) if variant == "frd" else accent
-        radius = 5 if variant == "edited" and (col, row) == (4, 1) else 2.6
-        parts.append(f'<circle cx="{px}" cy="{py}" r="{radius}" fill="{color}"/>')
-    if variant == "edited":
-        old_x, old_y = x + 4 * 37 + 7, y + 28 - 4 * 3
-        new_x, new_y = points[4, 1]
-        parts.extend((
-            f'<circle cx="{old_x}" cy="{old_y}" r="7" fill="none" '
-            'stroke="#a9bdd1" stroke-dasharray="3 3"/>',
-            f'<path d="M{old_x + 8} {old_y - 2}L{new_x - 7} {new_y + 2}" '
-            'stroke="#ffae75" stroke-width="2.5"/>',
-        ))
+        parts.append(f'<circle cx="{px}" cy="{py}" r="2.6" fill="{color}"/>')
     if variant == "msh":
         for col, row, label in ((0, 0, "10"), (2, 0, "20"), (4, 3, "30")):
             px, py = points[col, row]
@@ -150,24 +134,24 @@ def render() -> str:
         '<svg xmlns="http://www.w3.org/2000/svg" width="1240" height="1037" '
         'viewBox="0 0 1240 1037" role="img" aria-labelledby="title description">',
         '<title id="title">Caexfer preserves native BDF bytes and projects six format subsets</title>',
-        '<desc id="description">The top row compares a BDF source, exact copy, and one moved GRID node. '
+        '<desc id="description">The top row compares a BDF source and its byte-identical copy. '
         'The lower cards show BDF and INP geometry decks; VTU and MSH meshes with numeric fields; '
         'FRD mesh with nodal fields; and an OP2 displacement table without embedded geometry. '
-        'The meshes share topology except for the deliberate native GRID edit.</desc>',
+        'Mesh-bearing representations share the same topology.</desc>',
         '<defs><linearGradient id="background" x1="0" y1="0" x2="1" y2="1">'
         '<stop offset="0" stop-color="#122238"/>'
         f'<stop offset="1" stop-color="{BACKGROUND}"/>'
         '</linearGradient></defs>',
         '<rect width="1240" height="1037" rx="24" fill="url(#background)"/>',
         text(45, 58, "One mesh, different promises", size=32, weight=700),
-        text(46, 87, "Native BDF operations preserve the document. Conversions project supported geometry and results.",
+        text(46, 87, "Native BDF copies preserve the document. Conversions project supported geometry and results.",
              size=16, color=MUTED),
-        text(46, 120, "NATIVE BDF OPERATIONS", size=13, color=SOURCE, weight=700, spacing=1),
+        text(46, 120, "NATIVE BDF COPY", size=13, color=SOURCE, weight=700, spacing=1),
     ]
     parts.extend(card(item, native=True) for item in NATIVE)
     parts.extend((
-        '<path d="M410 248H428 M800 248H818" stroke="#89a3ba" stroke-width="2.5"/>',
-        '<path d="M427 243l7 5-7 5 M817 243l7 5-7 5" fill="none" '
+        '<path d="M600 248H633" stroke="#89a3ba" stroke-width="2.5"/>',
+        '<path d="M632 243l7 5-7 5" fill="none" '
         'stroke="#89a3ba" stroke-width="2"/>',
         '<path d="M45 400H1190" stroke="#304761"/>',
         text(45, 449, "SIX FORMAT REPRESENTATIONS", size=22, weight=700),

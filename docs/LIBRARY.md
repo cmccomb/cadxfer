@@ -17,7 +17,7 @@ checkout to browse every public type and method.
 
 | Need | Start with | Outcome |
 | --- | --- | --- |
-| Inspect, copy, or edit a BDF without rewriting unrelated source | `bdf::Document` | Original bytes, indexed cards, typed GRID access |
+| Inspect or copy a BDF without rewriting its source | `bdf::Document` | Original bytes, indexed cards, typed GRID access |
 | Extract supported BDF geometry | `Document::geometry()` | `GeometryProjection { mesh, omissions }` |
 | Read a mesh and numeric results | `vtu::read`, `msh::read`, or `frd::read` | `core::Dataset` |
 | Read a flat INP mesh | `inp::read` | `Inspection { mesh, omitted_keywords }` |
@@ -31,32 +31,28 @@ or cells. `Mesh::validate()` and `Dataset::validate()` check structural
 invariants, not solver correctness or whether a specific output format can
 represent every field.
 
-## Copy, edit, and project BDF
+## Inspect, copy, and project BDF
 
 ```rust
 use caexfer::bdf::Document;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let mut doc = Document::open("model.bdf")?;
+    let doc = Document::open("model.bdf")?;
     for grid in doc.grids() {
         println!("GRID {}: {:?}", grid?.id, grid?.coordinates);
     }
-    doc.set_grid_coordinates(20, [1.2, 0.0, 0.0])?;
     let output = std::fs::OpenOptions::new()
-        .write(true).create_new(true).open("edited.bdf")?;
+        .write(true).create_new(true).open("model-copy.bdf")?;
     doc.write_to(output)?;
     Ok(())
 }
 ```
 
-GRID coordinates are in the card's native CP frame. The edit changes only
-the requested coordinate fields, fails rather than rounding values to fit,
-and leaves the document unchanged on failure. For byte-identical copying,
-skip the edit and call `write_to`. For conversion, call `geometry()` and inspect
-`omissions` before writing its mesh. The executable
-[`edit_grid.rs`](../examples/edit_grid.rs) and
-[`project_geometry.rs`](../examples/project_geometry.rs) examples can be run
-with `cargo run --example edit_grid` and `cargo run --example project_geometry`.
+GRID coordinates are in the card's native CP frame. `write_to` copies the
+original bytes. For conversion, call `geometry()` and inspect `omissions`
+before writing its mesh. Run the executable
+[`project_geometry.rs`](../examples/project_geometry.rs) example with
+`cargo run --example project_geometry`.
 
 ## Convert a dataset with numeric fields
 

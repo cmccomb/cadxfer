@@ -9,7 +9,6 @@ caexfer formats
 caexfer info model.bdf
 caexfer validate model.bdf --json
 caexfer roundtrip model.bdf model-copy.bdf
-caexfer set-grid model.bdf edited.bdf --id 20 --xyz 1.2 0 0
 caexfer convert model.bdf model.vtu --geometry-only
 caexfer convert results.op2 results.vtu --mesh model.bdf --geometry-only
 ```
@@ -30,7 +29,6 @@ JSON/human display of non-UTF-8 paths is lossy, not an exact path serialization.
 | `info INPUT` | Record counts and whether geometry projection is available |
 | `validate INPUT` | BDF geometry diagnostics or supported mesh/field subset checks |
 | `roundtrip INPUT OUTPUT` | Source bytes reproduced unchanged (only BDF parses first) |
-| `set-grid INPUT OUTPUT --id ID --xyz X Y Z` | Native-frame GRID coordinate edit |
 | `convert INPUT OUTPUT --geometry-only` | Explicit mesh/field projection to BDF, VTU, MSH, INP, FRD, or OP2 when the source has suitable results |
 
 Input extensions are `.bdf`, `.nas`, `.dat`, `.pch`, `.vtu`, `.msh`, `.inp`,
@@ -56,7 +54,7 @@ is intentionally small; consumers should tolerate new keys.
 
 Exit 0 means the requested scoped operation succeeded. `info` succeeds after
 native parsing even when geometry cannot be projected; consult its report.
-Exit 1 means I/O, parsing, editing, projection, or validation failed. `validate
+Exit 1 means I/O, parsing, projection, or validation failed. `validate
 --strict` also exits 1 on a warning. Exit 2 means invalid CLI usage, including
 conversion without `--geometry-only`. Use stable diagnostic `code` values rather
 than parsing human descriptions. The version's code list can grow.

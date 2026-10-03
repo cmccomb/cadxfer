@@ -145,25 +145,3 @@ fn op2_requires_matching_mesh() {
         .unwrap()
         .contains("OP2 requires --mesh"));
 }
-
-#[test]
-fn grid_edit_changes_only_requested_coordinates() {
-    let s = Scratch::new();
-    assert!(s
-        .run(&[
-            "set-grid",
-            "mesh.bdf",
-            "edited.bdf",
-            "--id",
-            "1",
-            "--xyz",
-            "-1",
-            "2",
-            "3"
-        ])
-        .status
-        .success());
-    let text = std::fs::read_to_string(s.0.join("edited.bdf")).unwrap();
-    assert!(text.starts_with("GRID,1,,-1.,2.,3.\n"));
-    assert!(text.contains("GRID,2,,1.,0.,0.\nCROD,1,7,1,2\n"));
-}
