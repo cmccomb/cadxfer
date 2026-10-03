@@ -91,22 +91,27 @@ fn geometry_conversion_creates_vtu_and_reports_losses() {
         "{}",
         String::from_utf8_lossy(&result.stdout)
     );
-    assert!(String::from_utf8(result.stdout)
-        .unwrap()
-        .contains("\"omissions\""));
-    assert!(std::fs::read_to_string(s.0.join("mesh.vtu"))
-        .unwrap()
-        .contains("nastran_node_id"));
+    assert!(
+        String::from_utf8(result.stdout)
+            .unwrap()
+            .contains("\"omissions\"")
+    );
+    assert!(
+        std::fs::read_to_string(s.0.join("mesh.vtu"))
+            .unwrap()
+            .contains("nastran_node_id")
+    );
 }
 
 #[test]
 fn source_file_is_never_overwritten() {
     let s = Scratch::new();
     let before = std::fs::read(s.0.join("mesh.bdf")).unwrap();
-    assert!(!s
-        .run(&["convert", "mesh.bdf", "mesh.bdf", "--accept-projection"])
-        .status
-        .success());
+    assert!(
+        !s.run(&["convert", "mesh.bdf", "mesh.bdf", "--accept-projection"])
+            .status
+            .success()
+    );
     assert_eq!(before, std::fs::read(s.0.join("mesh.bdf")).unwrap());
 }
 
@@ -158,9 +163,11 @@ fn strict_validation_fails_on_opaque_material() {
 fn missing_file_json_error() {
     let result = Scratch::new().run(&["info", "absent.bdf", "--json"]);
     assert_eq!(result.status.code(), Some(1));
-    assert!(String::from_utf8(result.stdout)
-        .unwrap()
-        .contains("\"code\":\"E_IO\""));
+    assert!(
+        String::from_utf8(result.stdout)
+            .unwrap()
+            .contains("\"code\":\"E_IO\"")
+    );
 }
 
 #[test]
@@ -173,7 +180,9 @@ fn op2_requires_matching_mesh() {
         "--json",
     ]);
     assert_eq!(result.status.code(), Some(2));
-    assert!(String::from_utf8(result.stdout)
-        .unwrap()
-        .contains("OP2 requires --mesh"));
+    assert!(
+        String::from_utf8(result.stdout)
+            .unwrap()
+            .contains("OP2 requires --mesh")
+    );
 }

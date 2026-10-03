@@ -289,7 +289,9 @@ fn parse_args(raw: &[OsString]) -> Result<Args> {
         ));
     }
     if args.command == "convert" && !args.accept_projection {
-        return Err(usage("conversion projects the supported mesh/field subset; pass --accept-projection to acknowledge omitted information"));
+        return Err(usage(
+            "conversion projects the supported mesh/field subset; pass --accept-projection to acknowledge omitted information",
+        ));
     }
     if args.command == "formats"
         && (args.from.is_some()
@@ -643,11 +645,7 @@ fn run(args: &Args) -> Result<u8> {
         "formats" => {
             if args.json {
                 let rows = [
-                    (
-                        "bdf",
-                        "document + linear mesh",
-                        "geometry mesh projection",
-                    ),
+                    ("bdf", "document + linear mesh", "geometry mesh projection"),
                     (
                         "vtu",
                         "ASCII one-piece linear mesh + numeric fields",
@@ -689,7 +687,9 @@ fn run(args: &Args) -> Result<u8> {
                     ),
                 ]))?;
             } else {
-                emit("bdf  document + linear mesh; geometry export\nvtu  ASCII mesh + numeric fields, read/write\nmsh  ASCII 4.1 mesh + numeric fields, read/write\ninp  flat mesh subset, read/geometry write\nfrd  ASCII mesh + nodal fields, read/write\nop2  real displacement via pyNastran, read/write; explicit synthetic-zero option; optional companion mesh")?;
+                emit(
+                    "bdf  document + linear mesh; geometry export\nvtu  ASCII mesh + numeric fields, read/write\nmsh  ASCII 4.1 mesh + numeric fields, read/write\ninp  flat mesh subset, read/geometry write\nfrd  ASCII mesh + nodal fields, read/write\nop2  real displacement via pyNastran, read/write; explicit synthetic-zero option; optional companion mesh",
+                )?;
             }
             return Ok(0);
         }
@@ -837,11 +837,7 @@ fn main() {
             }
 
             // Usage failures use the conventional distinct CLI exit code.
-            if error.code == "E_USAGE" {
-                2
-            } else {
-                1
-            }
+            if error.code == "E_USAGE" { 2 } else { 1 }
         }
     };
     std::process::exit(i32::from(status));
@@ -891,30 +887,36 @@ mod tests {
     }
     #[test]
     fn assumed_zero_requires_op2_output_and_no_rotation_fill_flag() {
-        assert!(args(&[
-            "convert",
-            "x.bdf",
-            "x.op2",
-            "--accept-projection",
-            "--assume-zero-displacement"
-        ])
-        .is_ok());
-        assert!(args(&[
-            "convert",
-            "x.bdf",
-            "x.vtu",
-            "--accept-projection",
-            "--assume-zero-displacement"
-        ])
-        .is_err());
-        assert!(args(&[
-            "convert",
-            "x.bdf",
-            "x.op2",
-            "--accept-projection",
-            "--assume-zero-displacement",
-            "--zero-missing-rotations"
-        ])
-        .is_err());
+        assert!(
+            args(&[
+                "convert",
+                "x.bdf",
+                "x.op2",
+                "--accept-projection",
+                "--assume-zero-displacement"
+            ])
+            .is_ok()
+        );
+        assert!(
+            args(&[
+                "convert",
+                "x.bdf",
+                "x.vtu",
+                "--accept-projection",
+                "--assume-zero-displacement"
+            ])
+            .is_err()
+        );
+        assert!(
+            args(&[
+                "convert",
+                "x.bdf",
+                "x.op2",
+                "--accept-projection",
+                "--assume-zero-displacement",
+                "--zero-missing-rotations"
+            ])
+            .is_err()
+        );
     }
 }

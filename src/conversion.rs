@@ -826,7 +826,10 @@ pub fn convert(
                 })
                 .collect();
             if matches.len() != 1 {
-                return Err(Error::new("E_OP2", "OP2 output requires exactly one 3- or 6-component nodal DISP field; select one result step"));
+                return Err(Error::new(
+                    "E_OP2",
+                    "OP2 output requires exactly one 3- or 6-component nodal DISP field; select one result step",
+                ));
             }
             let field = matches[0];
 

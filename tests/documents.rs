@@ -17,10 +17,12 @@ fn fixed(head: &str, fields: &[&str], width: usize, tail: &str) -> String {
 }
 
 fn assert_coordinates(actual: [f64; 3], expected: [f64; 3]) {
-    assert!(actual
-        .iter()
-        .zip(expected)
-        .all(|(a, b)| (*a - b).abs() < 1e-12));
+    assert!(
+        actual
+            .iter()
+            .zip(expected)
+            .all(|(a, b)| (*a - b).abs() < 1e-12)
+    );
 }
 
 #[test]
@@ -372,12 +374,13 @@ fn materials_are_opaque_warnings_not_false_validation() {
     let report = doc.validate_geometry();
     assert!(report.valid_in_scope());
     assert_eq!(report.warning_count(), 1);
-    assert!(doc
-        .geometry()
-        .unwrap()
-        .omissions
-        .iter()
-        .any(|o| o.category == "MAT1"));
+    assert!(
+        doc.geometry()
+            .unwrap()
+            .omissions
+            .iter()
+            .any(|o| o.category == "MAT1")
+    );
 }
 
 #[test]
@@ -406,7 +409,8 @@ fn all_linear_cell_families() {
     for id in 1..=8 {
         writeln!(&mut nodes, "GRID,{id},,{id},0,0").unwrap();
     }
-    let source = nodes + "CROD,1,7,1,2\nCONROD,2,1,2,8,1.\nCBAR,3,7,1,2,0.,1.,0.\nCBEAM,4,7,1,2,0.,1.,0.\nCTRIA3,5,7,1,2,3\nCQUAD4,6,7,1,2,3,4\nCTETRA,7,7,1,2,3,4\nCHEXA,8,7,1,2,3,4,5,6\n+,7,8\nCPENTA,9,7,1,2,3,4,5,6\nCPYRAM,10,7,1,2,3,4,5\n";
+    let source = nodes
+        + "CROD,1,7,1,2\nCONROD,2,1,2,8,1.\nCBAR,3,7,1,2,0.,1.,0.\nCBEAM,4,7,1,2,0.,1.,0.\nCTRIA3,5,7,1,2,3\nCQUAD4,6,7,1,2,3,4\nCTETRA,7,7,1,2,3,4\nCHEXA,8,7,1,2,3,4,5,6\n+,7,8\nCPENTA,9,7,1,2,3,4,5,6\nCPYRAM,10,7,1,2,3,4,5\n";
     let mesh = Document::parse(source).unwrap().geometry().unwrap().mesh;
     assert_eq!(mesh.cells.len(), 10);
     assert_eq!(mesh.cells[1].property_id, None);

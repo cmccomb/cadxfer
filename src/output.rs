@@ -201,11 +201,13 @@ mod tests {
     fn failed_write_leaves_no_output_or_temp() {
         let dir = directory();
         let dest = dir.join("output");
-        assert!(create_new(&dest, |writer| {
-            writer.write_all(b"partial")?;
-            Err(Error::new("E_TEST", "deliberate failure"))
-        })
-        .is_err());
+        assert!(
+            create_new(&dest, |writer| {
+                writer.write_all(b"partial")?;
+                Err(Error::new("E_TEST", "deliberate failure"))
+            })
+            .is_err()
+        );
         assert!(!dest.exists());
         assert_eq!(fs::read_dir(&dir).unwrap().count(), 0);
         fs::remove_dir_all(dir).unwrap();
@@ -230,16 +232,18 @@ mod tests {
         let dir = directory();
         let first = dir.join("results.op2");
         let second = dir.join("mesh.bdf");
-        assert!(create_pair(
-            &first,
-            |writer| {
-                writer.write_all(b"results")?;
-                Ok(())
-            },
-            &second,
-            |_writer| Err(Error::new("E_TEST", "mesh write failed")),
-        )
-        .is_err());
+        assert!(
+            create_pair(
+                &first,
+                |writer| {
+                    writer.write_all(b"results")?;
+                    Ok(())
+                },
+                &second,
+                |_writer| Err(Error::new("E_TEST", "mesh write failed")),
+            )
+            .is_err()
+        );
         assert!(!first.exists() && !second.exists());
         assert_eq!(fs::read_dir(&dir).unwrap().count(), 0);
         fs::remove_dir_all(dir).unwrap();

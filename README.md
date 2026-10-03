@@ -13,7 +13,7 @@ Conversions report information the destination cannot carry.
 
 ## Install and try the CLI
 
-Requires Rust 1.85 or newer. Install directly from GitHub:
+Uses the Rust 2024 edition and requires Rust 1.85 or newer. Install directly from GitHub:
 
 ```sh
 cargo install --git https://github.com/cmccomb/caexfer.git

@@ -1,8 +1,8 @@
 # Rust library guide
 
-`caexfer` is one Rust package with a library and a CLI. It has no Rust crate
-dependencies and requires Rust 1.85 or newer. It is available from GitHub, not
-yet from crates.io:
+`caexfer` is one Rust package with a library and a CLI. It uses the Rust 2024
+edition, requires Rust 1.85 or newer, and uses `quick-xml` for VTU parsing. It
+is available from GitHub, not yet from crates.io:
 
 ```toml
 [dependencies]

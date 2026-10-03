@@ -188,7 +188,10 @@ pub fn write_data(dataset: &Dataset, mut writer: impl Write) -> Result<()> {
             point.position[0], point.position[1], point.position[2]
         )?;
     }
-    writeln!(writer, "</DataArray></Points><Cells><DataArray type=\"Int64\" Name=\"connectivity\" format=\"ascii\">")?;
+    writeln!(
+        writer,
+        "</DataArray></Points><Cells><DataArray type=\"Int64\" Name=\"connectivity\" format=\"ascii\">"
+    )?;
 
     // Connectivity refers to positions in the Points array, not node IDs.
     for cell in &mesh.cells {
@@ -825,9 +828,11 @@ mod tests {
         mesh.points[0].id = 9_007_199_254_740_993;
         let mut output = Vec::new();
         write(&mesh, &mut output).unwrap();
-        assert!(String::from_utf8(output)
-            .unwrap()
-            .contains("9007199254740993"));
+        assert!(
+            String::from_utf8(output)
+                .unwrap()
+                .contains("9007199254740993")
+        );
     }
 
     #[test]

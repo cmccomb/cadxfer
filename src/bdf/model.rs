@@ -1,6 +1,6 @@
-use std::collections::{btree_map::Entry, BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, btree_map::Entry};
 
-use super::{parse_real, Card, Document};
+use super::{Card, Document, parse_real};
 use crate::core::{
     Cell, CellKind, Diagnostic, Error, Mesh, Point, Result, Severity, ValidationReport,
 };
