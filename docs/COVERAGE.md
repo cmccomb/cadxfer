@@ -2,10 +2,13 @@
 
 The coverage workflow measures Rust source lines executed by the unit and
 integration tests, independent CLI interoperability checks, and the full
-conversion matrix with pyNastran. Its README badge reports whether that workflow
-passes, including an **80% Rust line-coverage floor**. The run publishes
-`coverage.json` and `coverage.lcov` as downloadable artifacts with the current
-numbers.
+conversion matrix with pyNastran. The README badge displays the measured Rust
+line percentage from the latest `main` run that produced a report. The workflow
+also enforces an **80% Rust line-coverage floor**. Each report, including one
+below that floor, updates the badge and is available as downloadable
+`coverage.json` and `coverage.lcov` artifacts. If a run fails before producing a
+report, the badge retains the last measurement; follow its link to inspect the
+workflow status.
 
 ## Baseline
 

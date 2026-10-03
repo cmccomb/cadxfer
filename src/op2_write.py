@@ -24,6 +24,8 @@ assumed_zero = assumed_zero_text == '1'
 if count <= 0 or components not in (3, 6):
     raise ValueError('OP2 writer requires complete 3- or 6-component nodal displacements')
 ids = np.empty((count, 2), dtype=np.int32)
+# Six columns are required by OP2; rotations stay zero only when Rust has
+# explicitly authorized filling the missing three components.
 values = np.zeros((1, count, 6), dtype=np.float32)
 for index in range(count):
     row = sys.stdin.readline().rstrip('\n').split('\t')
@@ -42,6 +44,8 @@ if len(set(ids[:, 0])) != count:
 
 title = ('CAEXFER ASSUMED ZERO DISPLACEMENT - NOT SOLVER RESULTS'
          if assumed_zero else '')
+# Embed the synthetic-result marker in the OP2 itself so a later read can
+# distinguish it from a solver-produced zero result.
 if time_text == '-':
     table = RealDisplacementArray.add_static_case('OUGV1', ids, values, subcase,
                                                    title=title)
@@ -54,6 +58,7 @@ else:
         title=title)
 
 with tempfile.TemporaryDirectory(prefix='caexfer-op2-') as directory:
+    # Re-read with pyNastran before any binary bytes reach the Rust caller.
     path = pathlib.Path(directory) / 'result.op2'
     with contextlib.redirect_stdout(sys.stderr):
         model = OP2(mode='msc', debug=False)

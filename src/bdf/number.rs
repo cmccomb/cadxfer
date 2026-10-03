@@ -2,6 +2,16 @@ use crate::core::{Error, Result};
 
 /// Parse a finite Nastran real, including `1.2-3`, `.7+2`, and `1D+3`.
 /// A blank is deliberately an error: defaults belong to the card schema.
+///
+/// # Examples
+///
+/// ```
+/// use caexfer::bdf::parse_real;
+/// assert_eq!(parse_real("1.2-3")?, 0.0012);
+/// assert_eq!(parse_real(".7+2")?, 70.0);
+/// assert_eq!(parse_real(" ").unwrap_err().code, "E_REAL");
+/// # Ok::<(), caexfer::core::Error>(())
+/// ```
 pub fn parse_real(input: &str) -> Result<f64> {
     let trimmed = input.trim();
     if trimmed.is_empty() || !trimmed.is_ascii() || trimmed.bytes().any(|b| b.is_ascii_whitespace())

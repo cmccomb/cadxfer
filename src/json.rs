@@ -1,6 +1,8 @@
 //! A write-only JSON formatter. User input is never evaluated as JSON.
 use std::fmt::Write;
 
+/// Quote a string as JSON, escaping controls, quotes, and backslashes.
+/// Used for user-facing CLI reports; input is never evaluated as JSON.
 pub fn quote(text: &str) -> String {
     let mut output = String::from("\"");
     for ch in text.chars() {
@@ -20,6 +22,8 @@ pub fn quote(text: &str) -> String {
     output
 }
 
+/// Assemble an object from quoted keys and values already encoded as JSON.
+/// Callers must use `quote` for string values.
 pub fn object<K: AsRef<str>>(fields: impl IntoIterator<Item = (K, String)>) -> String {
     format!(
         "{{{}}}",
@@ -31,6 +35,7 @@ pub fn object<K: AsRef<str>>(fields: impl IntoIterator<Item = (K, String)>) -> S
     )
 }
 
+/// Assemble an array from values already encoded as JSON.
 pub fn array(values: impl IntoIterator<Item = String>) -> String {
     format!("[{}]", values.into_iter().collect::<Vec<_>>().join(","))
 }

@@ -3,7 +3,8 @@
 //! [`convert_path`] reads a supported source and writes its supported projection
 //! to a caller-owned stream. The returned [`ConversionReport`] describes what
 //! was carried and what was omitted. File persistence and overwrite policy
-//! belong to the caller.
+//! belong to the caller. Use [`read_path`] followed by [`convert`] when the
+//! projected dataset needs inspection or modification between those steps.
 
 use std::collections::BTreeSet;
 use std::ffi::OsStr;
@@ -46,6 +47,15 @@ impl Format {
     }
 
     /// Parse a canonical format name, as used by `--from`.
+    /// Names are case-insensitive; filename aliases such as `.nas` belong to
+    /// [`Self::from_input_path`] instead.
+    ///
+    /// ```
+    /// use caexfer::conversion::Format;
+    /// assert_eq!(Format::parse("VTU")?, Format::Vtu);
+    /// assert_eq!(Format::parse("nas").unwrap_err().code, "E_FORMAT");
+    /// # Ok::<(), caexfer::core::Error>(())
+    /// ```
     pub fn parse(name: &str) -> Result<Self> {
         match name.to_ascii_lowercase().as_str() {
             "bdf" => Ok(Self::Bdf),
@@ -61,7 +71,16 @@ impl Format {
         }
     }
 
-    /// Infer a source format from its extension. BDF aliases are accepted.
+    /// Infer a source format from its case-insensitive extension.
+    /// `.nas`, `.dat`, and `.pch` are accepted BDF input aliases.
+    ///
+    /// ```
+    /// use caexfer::conversion::Format;
+    /// use std::path::Path;
+    /// assert_eq!(Format::from_input_path(Path::new("model.NAS"))?, Format::Bdf);
+    /// assert_eq!(Format::from_input_path(Path::new("result.op2"))?, Format::Op2);
+    /// # Ok::<(), caexfer::core::Error>(())
+    /// ```
     pub fn from_input_path(path: &Path) -> Result<Self> {
         let extension = extension(path);
         match extension.as_str() {
@@ -74,7 +93,17 @@ impl Format {
         }
     }
 
-    /// Infer a writable destination from its extension.
+    /// Infer a writable destination from its extension. Only `.bdf` and `.nas`
+    /// are BDF output aliases; `.dat` and `.pch` are input-only.
+    ///
+    /// ```
+    /// use caexfer::conversion::Format;
+    /// use std::path::Path;
+    /// assert_eq!(Format::from_output_path(Path::new("mesh.NAS"))?, Format::Bdf);
+    /// assert_eq!(Format::from_output_path(Path::new("mesh.dat")).unwrap_err().code,
+    ///            "E_FORMAT");
+    /// # Ok::<(), caexfer::core::Error>(())
+    /// ```
     pub fn from_output_path(path: &Path) -> Result<Self> {
         let extension = extension(path);
         match extension.as_str() {
@@ -88,6 +117,7 @@ impl Format {
     }
 }
 
+/// Normalize a path suffix for format dispatch without guessing from content.
 fn extension(path: &Path) -> String {
     path.extension()
         .and_then(OsStr::to_str)
@@ -96,6 +126,9 @@ fn extension(path: &Path) -> String {
 }
 
 /// Source selection, limits, and explicit result assumptions.
+/// Defaults detect the input format from its extension, bound reads to the BDF
+/// parser's default byte limit, and do not silently assert an OP2 result frame
+/// or missing rotation values.
 #[derive(Debug, Clone)]
 pub struct Options {
     /// Override source extension detection.
@@ -117,6 +150,7 @@ pub struct Options {
 }
 
 impl Default for Options {
+    /// Start with conservative read limits and no asserted OP2 assumptions.
     fn default() -> Self {
         Self {
             input_format: None,
@@ -163,6 +197,7 @@ pub struct Omission {
 }
 
 impl Omission {
+    /// Retain the origin of one omission for machine-readable reports.
     fn new(stage: Stage, detail: impl Into<String>) -> Self {
         Self {
             stage,
@@ -172,6 +207,8 @@ impl Omission {
 }
 
 /// Supported source data and its read-side omissions.
+/// The `dataset` is a projection; `omissions` explains what was not carried
+/// from the source format. Retain the original file when those details matter.
 #[derive(Debug, Clone)]
 pub struct ReadResult {
     /// Detected or explicitly selected source format.
@@ -185,6 +222,8 @@ pub struct ReadResult {
 }
 
 /// Counts and omissions for one conversion.
+/// `fields` counts fields before destination filtering, while `omissions`
+/// records source losses, destination losses, and explicit assumptions.
 #[derive(Debug, Clone)]
 pub struct ConversionReport {
     /// Number of source mesh points.
@@ -197,6 +236,7 @@ pub struct ConversionReport {
     pub omissions: Vec<Omission>,
 }
 
+/// Read BDF through its source-preserving parser under the requested byte cap.
 fn read_bdf(path: &Path, max_bytes: usize) -> Result<Document> {
     Document::read_with_options(
         File::open(path)?,
@@ -207,6 +247,8 @@ fn read_bdf(path: &Path, max_bytes: usize) -> Result<Document> {
     )
 }
 
+/// Bound non-BDF file reads with both a metadata check and an actual read cap.
+/// The second check handles files growing between the metadata and read calls.
 fn read_limited(path: &Path, max_bytes: usize) -> Result<Vec<u8>> {
     if std::fs::metadata(path)?.len() > max_bytes as u64 {
         return Err(Error::new(
@@ -227,6 +269,9 @@ fn read_limited(path: &Path, max_bytes: usize) -> Result<Vec<u8>> {
     Ok(bytes)
 }
 
+/// Load an OP2 companion mesh and report any source-side projection losses.
+/// BDF grid output frames are checked; other formats require the caller's
+/// explicit basic-frame assertion because that metadata is unavailable.
 fn read_op2_mesh(path: &Path, options: &Options) -> Result<(Mesh, Vec<Omission>)> {
     let format = Format::from_input_path(path)?;
     match format {
@@ -264,6 +309,8 @@ fn read_op2_mesh(path: &Path, options: &Options) -> Result<(Mesh, Vec<Omission>)
                     "non-BDF OP2 mesh lacks GRID CD; pass --assume-basic-frame to assert basic-frame coordinates and displacements",
                 ));
             }
+            // A companion supplies geometry only; OP2 result-selection options
+            // must not be reapplied while reading its mesh-bearing file.
             let mesh_options = Options {
                 input_format: None,
                 mesh: None,
@@ -304,6 +351,19 @@ fn read_op2_mesh(path: &Path, options: &Options) -> Result<(Mesh, Vec<Omission>)
 /// Read a supported source file into a mesh and fields, reporting omitted data.
 /// OP2 input requires `options.mesh` and a pyNastran interpreter. A non-BDF
 /// companion additionally requires `options.assume_basic_frame`.
+///
+/// # Examples
+///
+/// ```
+/// use caexfer::conversion::{read_path, Format, Options};
+/// use std::path::Path;
+/// let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("examples/plate.bdf");
+/// let source = read_path(&path, &Options::default())?;
+/// assert_eq!(source.format, Format::Bdf);
+/// assert_eq!(source.dataset.mesh.points.len(), 4);
+/// assert!(!source.omissions.is_empty());
+/// # Ok::<(), caexfer::core::Error>(())
+/// ```
 pub fn read_path(path: &Path, options: &Options) -> Result<ReadResult> {
     let format = options
         .input_format
@@ -462,7 +522,21 @@ pub fn read_path(path: &Path, options: &Options) -> Result<ReadResult> {
 /// Read a file and write its supported projection to `writer`.
 ///
 /// This does not create or replace a destination file. Callers decide how to
-/// persist the stream. The report identifies information lost or assumed.
+/// persist the stream. The report identifies information lost or assumed. A
+/// writer I/O error may leave partial bytes in the caller-owned stream.
+///
+/// # Examples
+///
+/// ```
+/// use caexfer::conversion::{convert_path, Format, Options};
+/// use std::path::Path;
+/// let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("examples/plate.bdf");
+/// let mut vtu = Vec::new();
+/// let report = convert_path(&path, Format::Vtu, &Options::default(), &mut vtu)?;
+/// assert_eq!(report.points, 4);
+/// assert!(std::str::from_utf8(&vtu).unwrap().contains("<VTKFile"));
+/// # Ok::<(), caexfer::core::Error>(())
+/// ```
 pub fn convert_path(
     path: &Path,
     target: Format,
@@ -477,12 +551,36 @@ pub fn convert_path(
 /// OP2 output requires exactly one nodal displacement field and a pyNastran
 /// interpreter. A caller may supply a synthetic field, but must set
 /// `source.assumed_zero` to mark that provenance in the OP2 title.
+///
+/// # Examples
+///
+/// ```
+/// use caexfer::bdf::Document;
+/// use caexfer::conversion::{convert, Format, Options, ReadResult, Stage};
+/// use caexfer::core::Dataset;
+/// let document = Document::parse(
+///     "GRID,10,,0,0,0\nGRID,20,,1,0,0\nCROD,30,7,10,20\n"
+/// )?;
+/// let source = ReadResult {
+///     format: Format::Bdf,
+///     dataset: Dataset { mesh: document.geometry()?.mesh, fields: vec![] },
+///     omissions: vec![], assumed_zero: false,
+/// };
+/// let mut inp = Vec::new();
+/// let report = convert(source, Format::Inp, &Options::default(), &mut inp)?;
+/// assert_eq!(report.cells, 1);
+/// assert!(report.omissions.iter().any(|item| item.stage == Stage::Destination));
+/// assert!(std::str::from_utf8(&inp).unwrap().contains("*ELEMENT"));
+/// # Ok::<(), caexfer::core::Error>(())
+/// ```
 pub fn convert(
     mut source: ReadResult,
     target: Format,
     options: &Options,
     mut writer: impl Write,
 ) -> Result<ConversionReport> {
+    // Count fields before destination-specific filtering; the report describes
+    // the source dataset as well as any losses during output.
     let source_fields = source.dataset.fields.len();
     let dataset = &mut source.dataset;
     let omissions = &mut source.omissions;

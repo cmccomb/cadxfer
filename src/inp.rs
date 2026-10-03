@@ -3,9 +3,11 @@ use crate::core::{Cell, CellKind, Error, Mesh, Point, Result};
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::Write;
 
+/// Construct an INP-specific diagnostic without a source line.
 fn err(message: impl Into<String>) -> Error {
     Error::new("E_INP", message)
 }
+/// Resolve supported INP element names to a linear topology.
 fn kind(name: &str) -> Result<CellKind> {
     match name {
         "B31" | "T3D2" => Ok(CellKind::Line2),
@@ -18,6 +20,7 @@ fn kind(name: &str) -> Result<CellKind> {
         _ => Err(err(format!("unsupported element type {name}"))),
     }
 }
+/// Choose the canonical INP element name for mesh-only output.
 fn name(kind: CellKind) -> &'static str {
     match kind {
         CellKind::Line2 => "B31",
@@ -29,7 +32,10 @@ fn name(kind: CellKind) -> &'static str {
         CellKind::Hex8 => "C3D8",
     }
 }
-/// Supported INP mesh plus solver keywords omitted during inspection.
+/// Supported INP mesh and names of solver keywords omitted during inspection.
+///
+/// Inspect [`Self::omitted_keywords`] before projecting the mesh to another
+/// format; these cards are not represented by [`Mesh`].
 #[derive(Debug, Clone)]
 pub struct Inspection {
     /// Global nodes and linear elements from supported blocks.
@@ -38,7 +44,22 @@ pub struct Inspection {
     pub omitted_keywords: BTreeSet<String>,
 }
 
-/// Read global *NODE and *ELEMENT blocks. Part instances, includes and generated elements require expansion and fail.
+/// Read global `*NODE` and `*ELEMENT` blocks into a linear mesh.
+///
+/// Part instances, includes, coordinate systems, and generated elements need
+/// expansion and fail explicitly. Other solver keywords are recorded in
+/// [`Inspection::omitted_keywords`] without interpreting their contents.
+///
+/// # Examples
+///
+/// ```
+/// use caexfer::inp;
+/// let input = "*NODE\n1,0,0,0\n2,1,0,0\n*ELEMENT, TYPE=T3D2\n10,1,2\n*MATERIAL, NAME=STEEL\n";
+/// let inspected = inp::read(input)?;
+/// assert_eq!(inspected.mesh.cells[0].id, 10);
+/// assert!(inspected.omitted_keywords.contains("MATERIAL"));
+/// # Ok::<(), caexfer::core::Error>(())
+/// ```
 pub fn read(source: &str) -> Result<Inspection> {
     enum Mode {
         None,
@@ -170,7 +191,12 @@ pub fn read(source: &str) -> Result<Inspection> {
     })
 }
 
-/// Emit mesh-only INP. The caller must acknowledge omission of solver semantics and result fields.
+/// Write a mesh-only INP deck with global nodes and linear elements.
+///
+/// Materials, sections, loads, constraints, and result fields are absent from
+/// [`Mesh`] and therefore cannot be emitted. Property IDs are rejected because
+/// no lossless INP mapping exists here. The caller owns the output stream;
+/// write errors can leave partial bytes.
 pub fn write(mesh: &Mesh, mut writer: impl Write) -> Result<()> {
     mesh.validate()?;
     if mesh.cells.iter().any(|c| c.property_id.is_some()) {

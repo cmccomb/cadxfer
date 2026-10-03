@@ -3,15 +3,18 @@ use crate::core::{Cell, CellKind, Dataset, Error, Field, FieldLocation, Mesh, Po
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::Write;
 
+/// Attach the MSH-specific diagnostic code to a parsing or writing failure.
 fn err(message: impl Into<String>) -> Error {
     Error::new("E_MSH", message)
 }
+/// Parse a required token, preserving its field name in the diagnostic.
 fn number<T: std::str::FromStr>(value: Option<&str>, what: &str) -> Result<T> {
     value
         .ok_or_else(|| err(format!("missing {what}")))?
         .parse()
         .map_err(|_| err(format!("invalid {what}")))
 }
+/// Decode a Gmsh linear element code; reject unsupported element orders.
 fn kind(code: u32) -> Result<CellKind> {
     match code {
         1 => Ok(CellKind::Line2),
@@ -24,6 +27,7 @@ fn kind(code: u32) -> Result<CellKind> {
         _ => Err(err(format!("unsupported element type {code}"))),
     }
 }
+/// Return the Gmsh element code and topological dimension for a cell.
 fn code(kind: CellKind) -> (u32, u32) {
     match kind {
         CellKind::Line2 => (1, 1),
@@ -35,6 +39,7 @@ fn code(kind: CellKind) -> (u32, u32) {
         CellKind::Pyramid5 => (7, 3),
     }
 }
+/// Borrow the first named section body, checking that its end marker exists.
 fn section<'a>(source: &'a str, name: &str) -> Result<Option<&'a str>> {
     let begin = format!("${name}\n");
     let end = format!("$End{name}");
@@ -48,6 +53,7 @@ fn section<'a>(source: &'a str, name: &str) -> Result<Option<&'a str>> {
         + body_start;
     Ok(Some(&source[body_start..stop]))
 }
+/// Borrow all repeated field sections in source order, rejecting truncation.
 fn data_sections<'a>(source: &'a str, name: &str) -> Result<Vec<&'a str>> {
     let mut out = Vec::new();
     let mut rest = source;
@@ -64,7 +70,24 @@ fn data_sections<'a>(source: &'a str, name: &str) -> Result<Vec<&'a str>> {
     Ok(out)
 }
 
-/// Read an ASCII MSH 4.1 file. Binary, parametric nodes and unknown element types fail closed.
+/// Read an ASCII MSH 4.1 file with linear elements and numeric data blocks.
+///
+/// Binary files, parametric nodes, and unknown element types are rejected.
+/// Node and element tags remain the original IDs; connectivity becomes indices
+/// into [`Mesh::points`].
+///
+/// # Examples
+///
+/// ```
+/// use caexfer::{core::Dataset, inp, msh};
+/// let mesh = inp::read("*NODE\n1,0,0,0\n2,1,0,0\n*ELEMENT, TYPE=T3D2\n10,1,2\n")?.mesh;
+/// let mut bytes = Vec::new();
+/// msh::write(&Dataset { mesh, fields: vec![] }, &mut bytes)?;
+/// let decoded = msh::read(std::str::from_utf8(&bytes).unwrap())?;
+/// assert_eq!(decoded.mesh.cells[0].id, 10);
+/// assert_eq!(decoded.mesh.cells[0].connectivity, vec![0, 1]);
+/// # Ok::<(), caexfer::core::Error>(())
+/// ```
 pub fn read(source: &str) -> Result<Dataset> {
     let normalized = source.replace("\r\n", "\n");
     let source = normalized.as_str();
@@ -222,6 +245,10 @@ pub fn read(source: &str) -> Result<Dataset> {
 }
 
 /// Write ASCII MSH 4.1 geometry and complete numeric fields.
+///
+/// Property IDs cannot be represented by this writer and cause an error.
+/// Validate the returned bytes with [`read`] when interoperability matters;
+/// external Gmsh entity and physical-group semantics are outside this model.
 pub fn write(dataset: &Dataset, mut writer: impl Write) -> Result<()> {
     dataset.validate()?;
     if dataset.mesh.cells.iter().any(|c| c.property_id.is_some()) {

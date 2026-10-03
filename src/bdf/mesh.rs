@@ -2,6 +2,7 @@
 use crate::core::{CellKind, Error, Mesh, Result};
 use std::io::Write;
 
+/// Map a linear topology to the BDF geometry card emitted by this writer.
 fn name(kind: CellKind) -> &'static str {
     match kind {
         CellKind::Line2 => "CROD",
@@ -16,6 +17,22 @@ fn name(kind: CellKind) -> &'static str {
 
 /// Write only basic-frame GRID and linear element cards. PID is retained when
 /// present, otherwise a placeholder PID 1 is used; no property cards are made.
+/// The result is a mesh exchange deck, not a runnable solver model.
+///
+/// # Examples
+///
+/// ```
+/// use caexfer::bdf::{mesh, Document};
+/// let source = Document::parse(
+///     "GRID,10,,0,0,0\nGRID,20,,1,0,0\nCROD,30,7,10,20\n"
+/// )?;
+/// let mut bytes = Vec::new();
+/// mesh::write(&source.geometry()?.mesh, &mut bytes)?;
+/// let exported = Document::parse(&bytes)?;
+/// assert_eq!(exported.geometry()?.mesh.cells[0].id, 30);
+/// assert_ne!(exported.to_bytes(), source.to_bytes()); // projection is not a byte copy
+/// # Ok::<(), caexfer::core::Error>(())
+/// ```
 pub fn write(mesh: &Mesh, mut writer: impl Write) -> Result<()> {
     mesh.validate()?;
     writeln!(

@@ -1,5 +1,5 @@
 [![CI](https://github.com/cmccomb/caexfer/actions/workflows/ci.yml/badge.svg)](https://github.com/cmccomb/caexfer/actions/workflows/ci.yml)
-[![Coverage](https://github.com/cmccomb/caexfer/actions/workflows/coverage.yml/badge.svg)](https://github.com/cmccomb/caexfer/actions/workflows/coverage.yml)
+[![Measured Rust line coverage](https://raw.githubusercontent.com/cmccomb/caexfer/coverage-badge/coverage.svg)](https://github.com/cmccomb/caexfer/actions/workflows/coverage.yml)
 
 # caexfer
 

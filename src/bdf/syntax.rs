@@ -7,6 +7,8 @@ use std::path::Path;
 use crate::core::{Error, Result};
 
 /// Resource limits apply before semantic interpretation. No INCLUDE is opened.
+/// Reduce these limits when accepting untrusted or unusually large input; they
+/// bound source bytes, physical lines, cards, and fields independently.
 #[derive(Debug, Clone, Copy)]
 pub struct ParseOptions {
     /// Maximum input bytes (default: 256 MiB).
@@ -22,6 +24,7 @@ pub struct ParseOptions {
 }
 
 impl Default for ParseOptions {
+    /// Apply conservative independent limits for source bytes and parse shape.
     fn default() -> Self {
         Self {
             max_bytes: 256 * 1024 * 1024,
@@ -49,7 +52,7 @@ pub struct Card {
 }
 
 impl Card {
-    /// Normalized card keyword.
+    /// Uppercase card keyword, independent of its spelling in the source.
     pub fn name(&self) -> &str {
         &self.name
     }
@@ -72,6 +75,8 @@ struct Line {
     number: usize,
 }
 
+/// Find the first unquoted BDF comment marker, or the end of the line.
+/// Quoted dollars remain literal in paths such as `INCLUDE` arguments.
 fn comment_end(bytes: &[u8]) -> usize {
     // Quotes matter for INCLUDE paths, where a dollar sign can be literal.
     let mut quote = None;
@@ -86,6 +91,7 @@ fn comment_end(bytes: &[u8]) -> usize {
     bytes.len()
 }
 
+/// Borrow the non-whitespace span without decoding arbitrary comment bytes.
 fn trim_ascii(bytes: &[u8]) -> &[u8] {
     let start = bytes
         .iter()
@@ -98,6 +104,8 @@ fn trim_ascii(bytes: &[u8]) -> &[u8] {
     &bytes[start..end]
 }
 
+/// Decode a data field as ASCII and attach its one-based physical line on error.
+/// Source comments may contain arbitrary bytes; typed data fields may not.
 fn text_ascii(bytes: &[u8], line: usize) -> Result<&str> {
     if !bytes.is_ascii() {
         return Err(Error::new(
@@ -110,12 +118,14 @@ fn text_ascii(bytes: &[u8], line: usize) -> Result<&str> {
         .map_err(|_| Error::new("E_ENCODING", "invalid data encoding").at(line))
 }
 
+/// Recognize a `BEGIN BULK` marker across supported comma/space spellings.
 fn is_begin(bytes: &[u8]) -> bool {
     let text = String::from_utf8_lossy(bytes).replace(',', " ");
     let mut words = text.split_ascii_whitespace();
     matches!((words.next(), words.next(), words.next()), (Some(a), Some(b), None) if a.eq_ignore_ascii_case("BEGIN") && b.eq_ignore_ascii_case("BULK"))
 }
 
+/// Identify executive/case-control markers that make input a full deck.
 fn is_full_marker(bytes: &[u8]) -> bool {
     let upper = String::from_utf8_lossy(bytes).to_ascii_uppercase();
     upper == "CEND"
@@ -124,6 +134,7 @@ fn is_full_marker(bytes: &[u8]) -> bool {
         || upper.starts_with("BEGIN")
 }
 
+/// Match an `INCLUDE` keyword only at a complete token boundary.
 fn is_include(bytes: &[u8]) -> bool {
     let prefix = bytes.get(..7).unwrap_or(&[]);
     prefix.eq_ignore_ascii_case(b"INCLUDE")
@@ -132,6 +143,8 @@ fn is_include(bytes: &[u8]) -> bool {
             .is_none_or(|b| b.is_ascii_whitespace() || *b == b',')
 }
 
+/// Carry quote state across a physical line, stopping at unquoted comments.
+/// This permits multiline `INCLUDE` path detection without opening files.
 fn quote_open(bytes: &[u8], mut quote: Option<u8>) -> Option<u8> {
     for &byte in bytes {
         if (byte == b'\'' || byte == b'"') && quote.is_none() {
@@ -151,6 +164,9 @@ struct Physical {
     tail: String,
 }
 
+/// Index one free-, small-, or large-field physical line into source ranges.
+/// Tabs and overfull free-field lines fail because their interpretation varies
+/// by BDF dialect; source byte ownership remains with `Document`.
 fn physical(source: &[u8], line: &Line, content_end: usize) -> Result<Physical> {
     let bytes = &source[line.start..content_end];
     if bytes.contains(&b'\t') {
@@ -236,12 +252,35 @@ fn physical(source: &[u8], line: &Line, content_end: usize) -> Result<Physical> 
 }
 
 impl Document {
-    /// Parse bytes using default resource limits; no INCLUDE path is opened.
+    /// Index source bytes using default resource limits.
+    ///
+    /// Comments, unknown cards, and line endings remain in the document. An
+    /// `INCLUDE` reference is indexed but its path is never opened.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use caexfer::bdf::Document;
+    /// let source = b"$ note\r\nGRID,7,,0.,0.,0.\r\n";
+    /// let doc = Document::parse(source)?;
+    /// assert_eq!(doc.to_bytes(), source);
+    /// assert_eq!(doc.card_counts()["GRID"], 1);
+    /// # Ok::<(), caexfer::core::Error>(())
+    /// ```
     pub fn parse(input: impl AsRef<[u8]>) -> Result<Self> {
         Self::parse_with_options(input, ParseOptions::default())
     }
 
     /// Parse bytes under explicit resource limits.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use caexfer::bdf::{Document, ParseOptions};
+    /// let limits = ParseOptions { max_bytes: 4, ..ParseOptions::default() };
+    /// let error = Document::parse_with_options(b"GRID,1,,0,0,0\n", limits).unwrap_err();
+    /// assert_eq!(error.code, "E_LIMIT");
+    /// ```
     pub fn parse_with_options(input: impl AsRef<[u8]>, options: ParseOptions) -> Result<Self> {
         let input = input.as_ref();
         if input.len() > options.max_bytes {
@@ -476,6 +515,8 @@ impl Document {
         Ok(())
     }
 
+    /// Borrow and trim one indexed data field; an implied blank yields `""`.
+    /// Ranges are always interpreted against this document's preserved bytes.
     fn field_text(&self, field: &Field) -> &str {
         field
             .range
@@ -487,7 +528,21 @@ impl Document {
     }
 
     /// Read a zero-based data field from a card returned by this document's
-    /// `cards()`. For GRID, index 0 is ID, 1 is CP, and 2 is X1.
+    /// [`Self::cards`]. For GRID, index 0 is ID, 1 is CP, and 2 is X1. A blank
+    /// or absent field returns `""`; this method does not apply card defaults.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use caexfer::bdf::Document;
+    /// let doc = Document::parse("GRID,7,,1.,0.,0.\n")?;
+    /// let card = &doc.cards()[0];
+    /// assert_eq!(card.name(), "GRID");
+    /// assert_eq!(doc.card_text(card, 0), "7");
+    /// assert_eq!(doc.card_text(card, 1), ""); // blank CP field
+    /// assert_eq!(doc.card_text(card, 2), "1.");
+    /// # Ok::<(), caexfer::core::Error>(())
+    /// ```
     pub fn card_text(&self, card: &Card, data_index: usize) -> &str {
         card.fields
             .get(data_index)

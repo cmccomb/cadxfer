@@ -7,6 +7,7 @@ use crate::core::{Cell, CellKind, Dataset, Error, Field, FieldLocation, Mesh, Po
 use std::collections::BTreeSet;
 use std::io::Write;
 
+/// Map a supported linear topology to VTK's unstructured-cell type number.
 fn vtk_type(kind: CellKind) -> u8 {
     match kind {
         CellKind::Line2 => 3,
@@ -19,10 +20,26 @@ fn vtk_type(kind: CellKind) -> u8 {
     }
 }
 
-/// Write geometry and original node/element/property IDs.
-/// Topology is validated before any bytes are written. A writer I/O failure may
-/// still leave partial output; the CLI uses a staged no-clobber file operation.
-/// Input node ordering must be VTK-compatible for the specified linear cells.
+/// Write geometry and original node, element, and property IDs.
+///
+/// This is a geometry-only projection; use [`write_data`] to include numeric
+/// fields. The mesh is validated before writing, but an I/O failure can leave
+/// partial bytes in the caller's stream. Connectivity order must already match
+/// the VTK convention for each linear cell.
+///
+/// # Examples
+///
+/// ```
+/// use caexfer::{bdf::Document, vtu};
+/// let mesh = Document::parse("GRID,1,,0,0,0\nGRID,2,,1,0,0\nCROD,10,7,1,2\n")?
+///     .geometry()?.mesh;
+/// let mut bytes = Vec::new();
+/// vtu::write(&mesh, &mut bytes)?;
+/// let decoded = vtu::read(std::str::from_utf8(&bytes).unwrap())?;
+/// assert_eq!(decoded.mesh.points[0].id, 1);
+/// assert!(decoded.fields.is_empty());
+/// # Ok::<(), caexfer::core::Error>(())
+/// ```
 pub fn write(mesh: &Mesh, writer: impl Write) -> Result<()> {
     write_data(
         &Dataset {
@@ -33,8 +50,12 @@ pub fn write(mesh: &Mesh, writer: impl Write) -> Result<()> {
     )
 }
 
-/// Write one dataset as an ASCII VTU piece. Step and time metadata are retained
-/// in caexfer attributes on numeric arrays.
+/// Write one dataset as a single ASCII VTU piece.
+///
+/// Point and cell fields must be complete and numeric. Their step and time
+/// metadata are stored in caexfer attributes on the VTK data arrays. Reserved
+/// ID array names cannot be reused as field names. Validation completes before
+/// the first write; a later stream error may still leave partial output.
 pub fn write_data(dataset: &Dataset, mut writer: impl Write) -> Result<()> {
     dataset.validate()?;
     let mesh = &dataset.mesh;
@@ -150,6 +171,8 @@ pub fn write_data(dataset: &Dataset, mut writer: impl Write) -> Result<()> {
     Ok(())
 }
 
+/// Escape the XML attribute characters emitted by this bounded ASCII writer.
+/// Field and component names pass through here before interpolation into tags.
 fn escape(value: &str) -> String {
     value
         .replace('&', "&amp;")
@@ -157,6 +180,8 @@ fn escape(value: &str) -> String {
         .replace('<', "&lt;")
         .replace('>', "&gt;")
 }
+/// Emit one complete numeric `DataArray` with caexfer step/time metadata.
+/// The caller validates tuple lengths and finite values before writing begins.
 fn write_field(field: &Field, writer: &mut impl Write) -> Result<()> {
     write!(
         writer,
@@ -184,6 +209,8 @@ fn write_field(field: &Field, writer: &mut impl Write) -> Result<()> {
     Ok(())
 }
 
+/// Decode the small entity subset accepted in names and component attributes.
+/// General XML entity processing is outside the supported VTU subset.
 fn unescape(value: &str) -> String {
     value
         .replace("&quot;", "\"")
@@ -191,12 +218,16 @@ fn unescape(value: &str) -> String {
         .replace("&gt;", ">")
         .replace("&amp;", "&")
 }
+/// Borrow a quoted attribute value from a tag in the supported XML layout.
+/// This parser is deliberately bounded and is not a general XML parser.
 fn attr<'a>(tag: &'a str, key: &str) -> Option<&'a str> {
     let pattern = format!("{key}=\"");
     let start = tag.find(&pattern)? + pattern.len();
     let end = tag[start..].find('"')? + start;
     Some(&tag[start..end])
 }
+/// Borrow the opening tag and body of the first named element.
+/// Missing or unterminated tags fail with `E_VTU`.
 fn element<'a>(source: &'a str, tag: &str) -> Result<(&'a str, &'a str)> {
     let start = source
         .find(&format!("<{tag}"))
@@ -213,6 +244,8 @@ fn element<'a>(source: &'a str, tag: &str) -> Result<(&'a str, &'a str)> {
         + 1;
     Ok((&source[start..=open_end], &source[open_end + 1..end]))
 }
+/// Return an optional element body, including empty self-closing elements.
+/// Malformed present elements remain errors rather than acting as absent.
 fn optional_body<'a>(source: &'a str, tag: &str) -> Result<&'a str> {
     if !source.contains(&format!("<{tag}")) {
         return Ok("");
@@ -227,6 +260,8 @@ fn optional_body<'a>(source: &'a str, tag: &str) -> Result<&'a str> {
     }
     Ok(element(source, tag)?.1)
 }
+/// Collect `DataArray` tags and bodies in encounter order within one section.
+/// Each array must have a complete closing tag.
 fn arrays(body: &str) -> Result<Vec<(&str, &str)>> {
     let mut out = Vec::new();
     let mut rest = body;
@@ -241,6 +276,8 @@ fn arrays(body: &str) -> Result<Vec<(&str, &str)>> {
     }
     Ok(out)
 }
+/// Parse whitespace-separated ASCII array values as the required number type.
+/// Invalid tokens map to the stable VTU diagnostic code.
 fn numbers<T: std::str::FromStr>(body: &str) -> Result<Vec<T>> {
     body.split_whitespace()
         .map(|v| {
@@ -249,12 +286,16 @@ fn numbers<T: std::str::FromStr>(body: &str) -> Result<Vec<T>> {
         })
         .collect()
 }
+/// Find one required named `DataArray` among a section's arrays.
+/// A missing array is an error because geometry cannot be reconstructed.
 fn array<'a>(body: &'a str, name: &str) -> Result<(&'a str, &'a str)> {
     arrays(body)?
         .into_iter()
         .find(|(tag, _)| attr(tag, "Name") == Some(name))
         .ok_or_else(|| Error::new("E_VTU", format!("missing array {name}")))
 }
+/// Map a VTK cell type number to a supported linear topology.
+/// Higher-order and unknown numbers fail instead of losing nodes.
 fn cell_kind(code: u8) -> Result<CellKind> {
     match code {
         3 => Ok(CellKind::Line2),
@@ -268,7 +309,11 @@ fn cell_kind(code: u8) -> Result<CellKind> {
     }
 }
 
-/// Read one ASCII UnstructuredGrid piece with linear cells and complete Float32/Float64 fields.
+/// Read one ASCII `UnstructuredGrid` piece into a mesh and numeric fields.
+///
+/// Original IDs are taken from caexfer's ID arrays when present. Binary,
+/// compressed, appended, multi-piece, and unsupported cell layouts fail with
+/// [`Error`] rather than being silently omitted.
 pub fn read(source: &str) -> Result<Dataset> {
     if source.contains("<AppendedData") || source.contains("<FieldData") {
         return Err(Error::new(

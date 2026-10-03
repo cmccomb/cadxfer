@@ -7,6 +7,19 @@ use std::collections::BTreeSet;
 use std::fmt;
 
 /// An actionable failure with a stable machine-readable code.
+///
+/// Match on [`Self::code`] rather than the human-readable message. Source
+/// locations, when known, use one-based physical line numbers.
+///
+/// # Examples
+///
+/// ```
+/// use caexfer::core::Error;
+/// let error = Error::new("E_SAMPLE", "bad field").at(4);
+/// assert_eq!(error.code, "E_SAMPLE");
+/// assert_eq!(error.line, Some(4));
+/// assert_eq!(error.to_string(), "E_SAMPLE at line 4: bad field");
+/// ```
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Error {
     /// Stable diagnostic identifier; callers should branch on this, not `message`.
@@ -35,6 +48,7 @@ impl Error {
 }
 
 impl fmt::Display for Error {
+    /// Render the stable code, optional physical line, and human message.
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.code)?;
         if let Some(line) = self.line {
@@ -47,6 +61,7 @@ impl fmt::Display for Error {
 impl std::error::Error for Error {}
 
 impl From<std::io::Error> for Error {
+    /// Retain an I/O failure's explanation under caexfer's `E_IO` code.
     fn from(value: std::io::Error) -> Self {
         Self::new("E_IO", value.to_string())
     }
@@ -78,6 +93,7 @@ pub struct Diagnostic {
 }
 
 impl From<Error> for Diagnostic {
+    /// Convert a blocking error into one scoped validation finding.
     fn from(error: Error) -> Self {
         Self {
             severity: Severity::Error,
@@ -89,6 +105,24 @@ impl From<Error> for Diagnostic {
 }
 
 /// Findings from validation of a documented subset, not solver correctness.
+/// Warnings leave a report valid *within its stated scope*; errors do not.
+///
+/// # Examples
+///
+/// ```
+/// use caexfer::core::{Diagnostic, Severity, ValidationReport};
+/// let mut report = ValidationReport::default();
+/// report.diagnostics.push(Diagnostic {
+///     severity: Severity::Warning,
+///     code: "W_OPAQUE",
+///     message: "material card not interpreted".into(),
+///     line: Some(2),
+/// });
+/// assert!(report.valid_in_scope());
+/// assert_eq!(report.warning_count(), 1);
+/// report.diagnostics[0].severity = Severity::Error;
+/// assert!(!report.valid_in_scope());
+/// ```
 #[derive(Debug, Default, Clone)]
 pub struct ValidationReport {
     /// Findings in source order.
@@ -151,6 +185,12 @@ pub enum CellKind {
 
 impl CellKind {
     /// Required number of point indices for this topology.
+    ///
+    /// ```
+    /// use caexfer::core::CellKind;
+    /// assert_eq!(CellKind::Triangle3.node_count(), 3);
+    /// assert_eq!(CellKind::Hex8.node_count(), 8);
+    /// ```
     pub fn node_count(self) -> usize {
         match self {
             Self::Line2 => 2,
@@ -186,8 +226,29 @@ pub struct Mesh {
 }
 
 impl Mesh {
-    /// Check memory/index invariants before a writer emits any bytes.
-    /// This does not check Jacobians, inverted cells, or physical adequacy.
+    /// Check positive unique IDs, finite coordinates, and valid connectivity.
+    /// Connectivity contains **indices into `points`**, never original point
+    /// IDs. This does not check Jacobians, inverted cells, or physical adequacy.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use caexfer::core::{Cell, CellKind, Mesh, Point};
+    /// let mut mesh = Mesh {
+    ///     points: vec![
+    ///         Point { id: 10, position: [0.0, 0.0, 0.0] },
+    ///         Point { id: 20, position: [1.0, 0.0, 0.0] },
+    ///     ],
+    ///     cells: vec![Cell {
+    ///         id: 100, kind: CellKind::Line2,
+    ///         connectivity: vec![0, 1], property_id: None,
+    ///     }],
+    /// };
+    /// mesh.validate()?;
+    /// mesh.cells[0].connectivity = vec![10, 20];
+    /// assert_eq!(mesh.validate().unwrap_err().code, "E_CONNECTIVITY");
+    /// # Ok::<(), caexfer::core::Error>(())
+    /// ```
     pub fn validate(&self) -> Result<()> {
         let mut points = BTreeSet::new();
         for point in &self.points {
@@ -274,8 +335,30 @@ pub struct Dataset {
 }
 
 impl Dataset {
-    /// Check mesh invariants, field lengths, and finite numeric values.
+    /// Check mesh invariants, field tuple lengths, and finite numeric values.
+    /// Values are grouped by entity, with components in the declared order.
     /// This does not validate solver physics or format-specific representability.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use caexfer::core::{Dataset, Field, FieldLocation, Mesh, Point};
+    /// let mut data = Dataset {
+    ///     mesh: Mesh {
+    ///         points: vec![Point { id: 7, position: [0.0; 3] }],
+    ///         cells: vec![],
+    ///     },
+    ///     fields: vec![Field {
+    ///         name: "DISP".into(), location: FieldLocation::Point,
+    ///         components: vec!["T1".into(), "T2".into(), "T3".into()],
+    ///         values: vec![0.1, 0.0, 0.0], step: None, time: None,
+    ///     }],
+    /// };
+    /// data.validate()?;
+    /// data.fields[0].values.pop();
+    /// assert_eq!(data.validate().unwrap_err().code, "E_FIELD");
+    /// # Ok::<(), caexfer::core::Error>(())
+    /// ```
     pub fn validate(&self) -> Result<()> {
         self.mesh.validate()?;
         for field in &self.fields {

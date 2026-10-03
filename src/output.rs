@@ -10,11 +10,15 @@ static COUNTER: AtomicU64 = AtomicU64::new(0);
 
 struct Temporary(PathBuf);
 impl Drop for Temporary {
+    /// Remove the staged file when it falls out of scope, including on error.
+    /// A successfully installed hard link remains at the destination path.
     fn drop(&mut self) {
         let _ = fs::remove_file(&self.0);
     }
 }
 
+/// Reject any existing destination, including a dangling symlink.
+/// The later hard-link install repeats the no-clobber guarantee atomically.
 fn ensure_new(path: &Path) -> Result<()> {
     if fs::symlink_metadata(path).is_ok() {
         return Err(Error::new(
@@ -31,6 +35,8 @@ struct Staged {
 }
 
 impl Staged {
+    /// Write, flush, and sync to an exclusive temporary file beside `path`.
+    /// Nothing is visible at the destination until `install` succeeds.
     fn new(path: &Path, write: impl FnOnce(&mut BufWriter<File>) -> Result<()>) -> Result<Self> {
         let name = path
             .file_name()
@@ -80,6 +86,8 @@ impl Staged {
         })
     }
 
+    /// Link a complete staged file into a still-new destination name.
+    /// Hard links make the no-overwrite step atomic on supported filesystems.
     fn install(&self) -> Result<()> {
         fs::hard_link(&self.temporary.0, &self.path).map_err(|error| {
             if error.kind() == std::io::ErrorKind::AlreadyExists {

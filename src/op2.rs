@@ -13,6 +13,10 @@ use std::process::{Command, Stdio};
 /// components must be in the basic frame. This function does not transform
 /// frames or verify mesh coordinates against OP2. The bool reports whether the
 /// OP2 title marks a synthetic all-zero table.
+///
+/// Returns `E_OP2` when pyNastran cannot run, when the selected table is
+/// unsupported, or when its node IDs do not exactly match `mesh`. The returned
+/// [`Dataset`] uses the supplied mesh and the selected displacement values.
 pub fn read_displacements(
     path: &Path,
     mesh: &Mesh,
@@ -116,6 +120,26 @@ pub fn read_displacements(
 /// three-component displacement is promoted to six components with typed 0.0
 /// rotations only when `zero_missing_rotations` is true. The OP2 carries no mesh.
 /// `assumed_zero` marks a synthetic, non-solver table in the OP2 title.
+///
+/// The returned bytes have been reread by pyNastran before return. A malformed
+/// field or empty mesh is rejected before Python is launched. The caller must
+/// save both the OP2 and a matching mesh for later reading.
+///
+/// # Examples
+///
+/// ```
+/// use caexfer::{core::{Dataset, Field, FieldLocation}, op2};
+/// use std::path::Path;
+/// let field = Field {
+///     name: "DISP".into(), location: FieldLocation::Point,
+///     components: vec!["T1".into(), "T2".into(), "T3".into()],
+///     values: vec![], step: None, time: None,
+/// };
+/// let error = op2::write_displacements(
+///     &Dataset::default(), &field, Path::new("python3"), 1, false, false,
+/// ).unwrap_err();
+/// assert_eq!(error.code, "E_OP2"); // A complete mesh and values are required.
+/// ```
 pub fn write_displacements(
     dataset: &Dataset,
     field: &Field,

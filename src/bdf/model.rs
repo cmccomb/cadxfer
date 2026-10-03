@@ -44,6 +44,7 @@ pub struct GeometryProjection {
     pub omissions: Vec<Omission>,
 }
 
+/// Parse a required positive BDF ID with the originating physical line.
 fn positive(input: &str, field: &str, line: usize) -> Result<u64> {
     let value = input.parse::<u64>().map_err(|_| {
         Error::new(
@@ -58,6 +59,7 @@ fn positive(input: &str, field: &str, line: usize) -> Result<u64> {
     Ok(value)
 }
 
+/// Parse an optional nonnegative BDF integer; a blank means the defined zero.
 fn nonnegative(input: &str, field: &str, line: usize) -> Result<u64> {
     if input.is_empty() {
         return Ok(0);
@@ -139,6 +141,8 @@ fn opaque_nongeometry(name: &str) -> bool {
     )
 }
 
+/// Recognize element cards that have a supported linear mesh projection.
+/// Other cards remain in the original document and are reported as omissions.
 fn element_kind(name: &str) -> Option<CellKind> {
     match name {
         "CROD" | "CONROD" | "CBAR" | "CBEAM" => Some(CellKind::Line2),
@@ -161,6 +165,8 @@ struct NativeElement {
 }
 
 impl Document {
+    /// Decode one GRID's native values without resolving external defaults.
+    /// GRDSET and INCLUDE make those defaults ambiguous and block typed access.
     pub(crate) fn parse_grid(&self, card: &Card) -> Result<Grid> {
         if self.has_grdset {
             return Err(Error::new(
@@ -220,7 +226,20 @@ impl Document {
     }
 
     /// Iterate over GRID cards in source order, reporting a parse error per card.
-    /// Coordinates remain in each GRID's native CP frame.
+    /// Coordinates remain in each GRID's native CP frame. A blank CP is zero;
+    /// an unresolved GRDSET or INCLUDE blocks typed interpretation.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use caexfer::bdf::Document;
+    /// let doc = Document::parse("GRID,42,,1.0,2.0,3.0\n")?;
+    /// let grid = doc.grids().next().unwrap()?;
+    /// assert_eq!(grid.id, 42);
+    /// assert_eq!(grid.cp, 0);
+    /// assert_eq!(grid.coordinates, [1.0, 2.0, 3.0]);
+    /// # Ok::<(), caexfer::core::Error>(())
+    /// ```
     pub fn grids(&self) -> impl Iterator<Item = Result<Grid>> + '_ {
         self.cards
             .iter()
@@ -228,6 +247,9 @@ impl Document {
             .map(|card| self.parse_grid(card))
     }
 
+    /// Read one supported element's ID, explicit property, and GRID references.
+    /// Extra solid-element fields are rejected to avoid silently linearizing
+    /// higher-order cells; BDF source bytes are never modified here.
     fn parse_element(&self, card: &Card, kind: CellKind) -> Result<NativeElement> {
         let f = |i| self.card_text(card, i);
         let id = positive(f(0), "element ID", card.line)?;
@@ -266,6 +288,9 @@ impl Document {
         })
     }
 
+    /// Project all supported GRID and element cards into a mesh and findings.
+    /// Keeps collecting scoped diagnostics so callers can inspect multiple
+    /// omissions or errors from one document in a single pass.
     fn analyze_geometry(&self) -> (ValidationReport, Mesh) {
         let mut report = ValidationReport::default();
         let mut points = BTreeMap::new();
@@ -376,9 +401,21 @@ impl Document {
         (report, mesh)
     }
 
-    /// Check the documented geometry subset, NOT solver correctness.
-    /// Unimplemented geometry-affecting cards, defaults and coordinate frames
-    /// cause errors. Materials/properties/loads are opaque and cause warnings.
+    /// Check the documented geometry subset, **not** solver correctness.
+    /// Unimplemented geometry-affecting cards, defaults, and coordinate frames
+    /// cause errors. Materials, properties, and loads are opaque warnings.
+    /// Call this before [`Self::geometry`] when all diagnostics are needed.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use caexfer::bdf::Document;
+    /// let doc = Document::parse("GRID,1,,0,0,0\nMAT1,5,1.0\n")?;
+    /// let report = doc.validate_geometry();
+    /// assert!(report.valid_in_scope());
+    /// assert!(report.warning_count() > 0); // MAT1 is outside the geometry view
+    /// # Ok::<(), caexfer::core::Error>(())
+    /// ```
     pub fn validate_geometry(&self) -> ValidationReport {
         self.analyze_geometry().0
     }
@@ -386,6 +423,23 @@ impl Document {
     /// Explicitly lossy projection. Original IDs survive; materials, loads,
     /// constraints, section details, element offsets/orientations, GRID CD/PS,
     /// comments, and source formatting do not. Always inspect `omissions`.
+    /// Geometry requiring unresolved coordinate frames or unknown elements
+    /// returns an error instead of a partial mesh.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use caexfer::bdf::Document;
+    /// let doc = Document::parse(
+    ///     "GRID,10,,0,0,0\nGRID,20,,1,0,0\nCROD,30,7,10,20\n"
+    /// )?;
+    /// let projection = doc.geometry()?;
+    /// assert_eq!(projection.mesh.points[0].id, 10);
+    /// assert_eq!(projection.mesh.cells[0].id, 30);
+    /// assert_eq!(projection.mesh.cells[0].connectivity, [0, 1]);
+    /// assert!(!projection.omissions.is_empty());
+    /// # Ok::<(), caexfer::core::Error>(())
+    /// ```
     pub fn geometry(&self) -> Result<GeometryProjection> {
         let (report, mesh) = self.analyze_geometry();
         if let Some(diagnostic) = report

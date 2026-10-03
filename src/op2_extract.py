@@ -9,6 +9,7 @@ import sys
 from pyNastran.op2.op2 import read_op2
 
 path, subcase_text, step_text = sys.argv[1:4]
+# pyNastran logs during parsing; keep stdout reserved for the Rust wire format.
 with contextlib.redirect_stdout(sys.stderr):
     model = read_op2(path, build_dataframe=False, debug=False,
                      include_results=['displacements'])
@@ -16,6 +17,7 @@ keys = list(model.displacements)
 if not keys:
     raise ValueError('OP2 contains no displacement table')
 if subcase_text == '-':
+    # An implicit selection is safe only when there is exactly one table.
     if len(keys) != 1:
         raise ValueError('multiple displacement subcases; select --subcase')
     key = keys[0]
@@ -29,6 +31,7 @@ if disp.is_complex:
 if disp.data.ndim != 3 or disp.data.shape[2] != 6:
     raise ValueError('expected six displacement components')
 if step_text == '-':
+    # Do not guess which time/frequency step the caller intended.
     if disp.data.shape[0] != 1:
         raise ValueError('multiple result steps; select --step (zero-based)')
     step = 0
@@ -40,6 +43,7 @@ time = float(disp._times[step])
 if not math.isfinite(time):
     time = 0.0
 assumed_zero = 'CAEXFER ASSUMED ZERO DISPLACEMENT' in str(disp.title)
+# Provenance is credible only if every stored component is actually zero.
 if assumed_zero and not (disp.data[step] == 0).all():
     raise ValueError('OP2 assumed-zero title conflicts with nonzero displacement data')
 print(f'OK\t{len(disp.node_gridtype)}\t{key}\t{step}\t{time:.17g}\t{int(assumed_zero)}')
