@@ -19,35 +19,30 @@ USAGE
   caexfer validate INPUT [--strict] [--json]
   caexfer convert INPUT OUTPUT --accept-projection [--json]
 
-COMMON OPTIONS
-  --from FORMAT    bdf, vtu, msh, inp, frd, or op2; otherwise infer extension
-  --mesh FILE      Matching BDF, VTU, MSH, INP, or FRD mesh for OP2 input
-  --assume-basic-frame  Assert basic-frame coordinates and displacements with non-BDF OP2 mesh
-  --mesh-out FILE  Write an optional companion mesh alongside OP2 output
-  --python PATH    Python with pyNastran installed for OP2 (or CAEXFER_PYTHON; default: python3)
-  --zero-missing-rotations  Confirm absent R1/R2/R3 are known float 0.0 for OP2 output
-  --assume-zero-displacement  Create a synthetic all-zero OP2 displacement table from BDF/INP
-  --subcase N      OP2 displacement subcase if more than one exists
-  --step N         Zero-based OP2 result step, or FRD step number
-  --max-bytes N    Input byte limit (default: 268435456)
-  --json           Machine-readable output (schema_version=1)
-  --               Treat remaining arguments as file paths
-  -h, --help       Show this help
-  -V, --version    Show version
+OPTIONS
+  --from FORMAT               bdf, vtu, msh, inp, frd, op2; else infer extension
+  --strict                    Fail validation on warnings or omissions
+  --accept-projection         Required for conversion into the supported subset
+  --step N                    Zero-based OP2 result step or FRD step number
+  --max-bytes N               Input byte limit (default: 268435456)
+  --json                      Machine-readable output (schema_version=1)
+  --                          Treat remaining arguments as file paths
+  -h, --help                  Show this help
+  -V, --version               Show version
 
-SCOPE
-  BDF library documents preserve source bytes; conversion projects a subset.
-  validate is scoped, not full solver validation. Conversion reports omissions.
-  OP2 needs pyNastran; reading needs a matching mesh; output contains no mesh.
-  Assumed-zero OP2 values are hypothetical, not solver results.
-  Output paths must be new.
+OP2 OPTIONS
+  --mesh FILE                 Matching BDF, VTU, MSH, INP, or FRD mesh for input
+  --assume-basic-frame        Assert basic frame for non-BDF mesh and OP2 results
+  --subcase N                 Select a displacement subcase when reading
+  --python PATH               Python with pyNastran (or CAEXFER_PYTHON)
+  --mesh-out FILE             Also write a separate mesh with OP2 output
+  --zero-missing-rotations    Assert absent R1/R2/R3 are zero when writing
+  --assume-zero-displacement  Synthesize zero OP2 from BDF/INP (no solver)
 
 EXAMPLES
   caexfer info model.bdf
   caexfer convert model.bdf model.vtu --accept-projection
   caexfer convert results.op2 results.vtu --mesh model.bdf --accept-projection
-
-Format limits: https://github.com/cmccomb/caexfer/blob/main/docs/SUPPORT.md
 ";
 
 #[derive(Debug, Default)]
