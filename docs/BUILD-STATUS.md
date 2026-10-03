@@ -52,8 +52,10 @@ formatting and Clippy. `scripts/check_matrix.py` exercised 20 mesh routes and
 five native copies. With pyNastran 1.4.1 in Python 3.12, it exercised all 24
 mesh routes and six native copies using a real upstream OP2/BDF pair. The
 emitted MSH, VTU and INP files were also read by independent meshio 5.3.5.
-The new GitHub CI workflow has not yet been observed here; its status should
-be checked after push.
+The [GitHub CI run for the expanded matrix](https://github.com/cmccomb/caexfer/actions/runs/37084246758)
+passed all four jobs: stable Rust on Linux, macOS and Windows, plus Rust 1.85.0
+on Linux. CI runs the 20 routes that need no optional Python package; the four
+OP2 routes were checked locally with pyNastran.
 
 ## Cross-platform CI
 
