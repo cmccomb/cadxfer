@@ -38,6 +38,13 @@ and the generated-diagram check also passed. The [renamed repository's CI run](h
 passed all four jobs: stable Rust on Linux, macOS, and Windows, plus Rust 1.85.0
 on Linux.
 
+## caexfer rename verification on macOS
+
+The subsequent `caexfer` namespace change passed the same local Rust test,
+feature-isolation, formatting, Clippy, rustdoc, source-package, diagram, and CLI
+interoperability checks. The [caexfer CI run](https://github.com/cmccomb/caexfer/actions/runs/37081354637)
+passed all four Linux, macOS, and Windows jobs, including Rust 1.85.0 on Linux.
+
 ## Cross-platform CI
 
 The [initial GitHub Actions run](https://github.com/cmccomb/caxifer/actions/runs/37034376490)
