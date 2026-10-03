@@ -50,11 +50,17 @@ pub struct Inspection {
 /// expansion and fail explicitly. Other solver keywords are recorded in
 /// [`Inspection::omitted_keywords`] without interpreting their contents.
 ///
+/// # Errors
+///
+/// Returns an error for unsupported scoped geometry, malformed node or element
+/// rows, unresolved references, or invalid projected connectivity.
+///
 /// # Examples
 ///
 /// ```
 /// use caexfer::inp;
 /// let input = "*NODE\n1,0,0,0\n2,1,0,0\n*ELEMENT, TYPE=T3D2\n10,1,2\n*MATERIAL, NAME=STEEL\n";
+/// // Material data is reported as omitted rather than interpreted.
 /// let inspected = inp::read(input)?;
 /// assert_eq!(inspected.mesh.cells[0].id, 10);
 /// assert!(inspected.omitted_keywords.contains("MATERIAL"));
@@ -93,6 +99,8 @@ pub fn read(source: &str) -> Result<Inspection> {
                     | "INSTANCE"
                     | "END INSTANCE"
                     | "SYSTEM"
+                    | "NGEN"
+                    | "ELGEN"
             ) {
                 return Err(
                     err(format!("{keyword} needs scoped/expanded geometry")).at(line_no + 1)
@@ -207,6 +215,11 @@ pub fn read(source: &str) -> Result<Inspection> {
 /// [`Mesh`] and therefore cannot be emitted. Property IDs are rejected because
 /// no lossless INP mapping exists here. The caller owns the output stream;
 /// write errors can leave partial bytes.
+///
+/// # Errors
+///
+/// Returns an error for invalid geometry, property IDs without a mapping, or
+/// an output-stream failure.
 pub fn write(mesh: &Mesh, mut writer: impl Write) -> Result<()> {
     // Property IDs have no mapping here, so reject them before any output.
     mesh.validate()?;

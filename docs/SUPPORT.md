@@ -115,9 +115,10 @@ not have mappings in this exporter.
 
 Read global `*NODE` and supported linear `*ELEMENT, TYPE=...` blocks. Node IDs
 and element IDs remain intact. `*PART`, `*ASSEMBLY`, `*INSTANCE`, `*SYSTEM`, and
-`*INCLUDE` require expansion/scoping and fail. Other keyword blocks are omitted
-from the mesh projection and listed by keyword. The writer emits only nodes and
-elements, without properties, materials, sets, loads, steps or results. It is not
+`*INCLUDE`, `*NGEN`, and `*ELGEN` require expansion/scoping and fail. Other
+keyword blocks are omitted from the mesh projection and listed by keyword. The
+writer emits only nodes and elements, without properties, materials, sets, loads,
+steps or results. It is not
 a runnable solver deck. `C3D5` is an Abaqus pyramid type; not every solver
 accepts every emitted element type.
 

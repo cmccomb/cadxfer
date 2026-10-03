@@ -110,6 +110,9 @@ pub fn read(source: &str) -> Result<Dataset> {
     let total: usize = number(t.next(), "node count")?;
     let _: u64 = number(t.next(), "minimum node tag")?;
     let _: u64 = number(t.next(), "maximum node tag")?;
+    if blocks > t.clone().count() / 4 || total > t.clone().count() / 4 {
+        return Err(err("node counts exceed available input"));
+    }
     for _ in 0..blocks {
         let _: u32 = number(t.next(), "entity dimension")?;
         let _: u64 = number(t.next(), "entity tag")?;
@@ -118,6 +121,9 @@ pub fn read(source: &str) -> Result<Dataset> {
             return Err(err("parametric nodes are unsupported"));
         }
         let count: usize = number(t.next(), "block node count")?;
+        if count > total.saturating_sub(mesh.points.len()) || count > t.clone().count() / 4 {
+            return Err(err("block node count exceeds available input"));
+        }
         let mut tags = Vec::with_capacity(count);
         for _ in 0..count {
             tags.push(number::<u64>(t.next(), "node tag")?);
@@ -145,6 +151,9 @@ pub fn read(source: &str) -> Result<Dataset> {
     let total: usize = number(t.next(), "element count")?;
     let _: u64 = number(t.next(), "minimum element tag")?;
     let _: u64 = number(t.next(), "maximum element tag")?;
+    if blocks > t.clone().count() / 4 || total > t.clone().count() / 3 {
+        return Err(err("element counts exceed available input"));
+    }
     for _ in 0..blocks {
         let dim: u32 = number(t.next(), "entity dimension")?;
         let _: u64 = number(t.next(), "entity tag")?;
@@ -154,6 +163,12 @@ pub fn read(source: &str) -> Result<Dataset> {
             return Err(err("element dimension mismatch"));
         }
         let count: usize = number(t.next(), "block element count")?;
+        let tokens_per_element = cell_kind.node_count() + 1;
+        if count > total.saturating_sub(mesh.cells.len())
+            || count > t.clone().count() / tokens_per_element
+        {
+            return Err(err("block element count exceeds available input"));
+        }
         for _ in 0..count {
             let id = number(t.next(), "element tag")?;
             let mut connectivity = Vec::with_capacity(cell_kind.node_count());
@@ -218,6 +233,12 @@ pub fn read(source: &str) -> Result<Dataset> {
             if components == 0 {
                 return Err(err("zero-component field"));
             }
+            let values_len = entries
+                .checked_mul(components)
+                .ok_or_else(|| err("data value count overflows usize"))?;
+            if components > source.len() || entries > t.clone().count() / (components + 1) {
+                return Err(err("data counts exceed available input"));
+            }
             let ids: Vec<u64> = match location {
                 FieldLocation::Point => dataset.mesh.points.iter().map(|p| p.id).collect(),
                 FieldLocation::Cell => dataset.mesh.cells.iter().map(|c| c.id).collect(),
@@ -231,7 +252,7 @@ pub fn read(source: &str) -> Result<Dataset> {
             // Reorder each complete block into the mesh's entity-major order.
             let index: BTreeMap<u64, usize> =
                 ids.iter().enumerate().map(|(i, id)| (*id, i)).collect();
-            let mut values = vec![0.; entries * components];
+            let mut values = vec![0.; values_len];
             let mut seen = BTreeSet::new();
             for _ in 0..entries {
                 let id: u64 = number(t.next(), "data entity tag")?;
