@@ -98,7 +98,8 @@ writer uses Float64. Original IDs use UInt64 `nastran_node_id` and
 Zero in `nastran_property_id` means no property ID. The writer retains component
 names and optional step/time through caexfer XML attributes. Binary, compressed,
 appended, parallel, multi-piece, and `FieldData` layouts are rejected or outside
-the reader's scope. This is a bounded XML subset, not a full VTK XML parser.
+the reader's scope. XML tags, attributes, and comments are tokenized before
+geometry is read. This is a bounded XML subset, not a full VTK XML parser.
 
 ### Gmsh MSH
 

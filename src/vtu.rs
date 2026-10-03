@@ -4,7 +4,9 @@
 //! this bounded reader/writer.
 
 use crate::core::{Cell, CellKind, Dataset, Error, Field, FieldLocation, Mesh, Point, Result};
-use std::collections::BTreeSet;
+use quick_xml::events::{BytesStart, Event};
+use quick_xml::reader::Reader;
+use std::collections::{BTreeMap, BTreeSet};
 use std::io::Write;
 
 /// Map a supported linear topology to VTK's unstructured-cell type number.
@@ -28,12 +30,18 @@ fn vtk_type(kind: CellKind) -> u8 {
 /// partial bytes in the caller's stream. Connectivity order must already match
 /// the VTK convention for each linear cell.
 ///
+/// # Errors
+///
+/// Returns a mesh validation or VTU representation error, or an I/O error
+/// while writing to the caller's stream.
+///
 /// # Examples
 ///
 /// ```
 /// use caexfer::{bdf::Document, vtu};
 /// let mesh = Document::parse("GRID,1,,0,0,0\nGRID,2,,1,0,0\nCROD,10,7,1,2\n")?
 ///     .geometry()?.mesh;
+/// // Geometry-only output still retains the original node IDs.
 /// let mut bytes = Vec::new();
 /// vtu::write(&mesh, &mut bytes)?;
 /// let decoded = vtu::read(std::str::from_utf8(&bytes).unwrap())?;
@@ -59,6 +67,11 @@ pub fn write(mesh: &Mesh, writer: impl Write) -> Result<()> {
 /// metadata are stored in caexfer attributes on the VTK data arrays. Reserved
 /// ID array names cannot be reused as field names. Validation completes before
 /// the first write; a later stream error may still leave partial output.
+///
+/// # Errors
+///
+/// Returns an error for invalid mesh or fields, reserved field names, oversized
+/// offsets, or an output-stream failure.
 pub fn write_data(dataset: &Dataset, mut writer: impl Write) -> Result<()> {
     // Finish all checks that can fail independently of I/O before emitting XML.
     dataset.validate()?;
@@ -66,6 +79,13 @@ pub fn write_data(dataset: &Dataset, mut writer: impl Write) -> Result<()> {
 
     // These names carry original mesh IDs, so fields cannot replace them.
     for field in &dataset.fields {
+        if !valid_xml_text(&field.name) || field.components.iter().any(|name| !valid_xml_text(name))
+        {
+            return Err(Error::new(
+                "E_VTU",
+                "field name contains an invalid XML character",
+            ));
+        }
         if field.name == "nastran_node_id"
             || field.name == "nastran_element_id"
             || field.name == "nastran_property_id"
@@ -199,6 +219,13 @@ pub fn write_data(dataset: &Dataset, mut writer: impl Write) -> Result<()> {
     Ok(())
 }
 
+fn valid_xml_text(value: &str) -> bool {
+    value.chars().all(|character| {
+        matches!(character, '\t' | '\n' | '\r')
+            || matches!(character as u32, 0x20..=0xD7FF | 0xE000..=0xFFFD | 0x10000..=0x10FFFF)
+    })
+}
+
 /// Escape the XML attribute characters emitted by this bounded ASCII writer.
 /// Field and component names pass through here before interpolation into tags.
 fn escape(value: &str) -> String {
@@ -248,84 +275,129 @@ fn write_field(field: &Field, writer: &mut impl Write) -> Result<()> {
 
 /// Decode the small entity subset accepted in names and component attributes.
 /// General XML entity processing is outside the supported VTU subset.
-fn unescape(value: &str) -> String {
-    // Decode ampersands last so an encoded literal entity stays literal.
-    value
-        .replace("&quot;", "\"")
-        .replace("&lt;", "<")
-        .replace("&gt;", ">")
-        .replace("&amp;", "&")
+struct XmlNode {
+    name: String,
+    attributes: BTreeMap<String, String>,
+    children: Vec<Self>,
+    text: String,
 }
-/// Borrow a quoted attribute value from a tag in the supported XML layout.
-/// This parser is deliberately bounded and is not a general XML parser.
-fn attr<'a>(tag: &'a str, key: &str) -> Option<&'a str> {
-    // This bounded parser expects the writer's key="value" attribute form.
-    let pattern = format!("{key}=\"");
-    let start = tag.find(&pattern)? + pattern.len();
 
-    // Return a slice of the original tag; callers decode entities as needed.
-    let end = tag[start..].find('"')? + start;
-    Some(&tag[start..end])
-}
-/// Borrow the opening tag and body of the first named element.
-/// Missing or unterminated tags fail with `E_VTU`.
-fn element<'a>(source: &'a str, tag: &str) -> Result<(&'a str, &'a str)> {
-    // Only the first matching element is relevant within each expected section.
-    let start = source
-        .find(&format!("<{tag}"))
-        .ok_or_else(|| Error::new("E_VTU", format!("missing {tag}")))?;
-    let open_end = source[start..]
-        .find('>')
-        .ok_or_else(|| Error::new("E_VTU", "unclosed XML tag"))?
-        + start;
-
-    // Keep the opening tag for attributes and the body for nested arrays.
-    let close = format!("</{tag}>");
-    let end = source[open_end + 1..]
-        .find(&close)
-        .ok_or_else(|| Error::new("E_VTU", format!("unclosed {tag}")))?
-        + open_end
-        + 1;
-    Ok((&source[start..=open_end], &source[open_end + 1..end]))
-}
-/// Return an optional element body, including empty self-closing elements.
-/// Malformed present elements remain errors rather than acting as absent.
-fn optional_body<'a>(source: &'a str, tag: &str) -> Result<&'a str> {
-    // Missing PointData/CellData means there are no arrays in that section.
-    if !source.contains(&format!("<{tag}")) {
-        return Ok("");
-    }
-    let start = source.find(&format!("<{tag}")).unwrap_or(0);
-    let open_end = source[start..]
-        .find('>')
-        .ok_or_else(|| Error::new("E_VTU", "unclosed XML tag"))?
-        + start;
-
-    // An empty self-closing section has the same data content as an absent one.
-    if source[start..=open_end].ends_with("/>") {
-        return Ok("");
+impl XmlNode {
+    fn attr(&self, key: &str) -> Option<&str> {
+        self.attributes.get(key).map(String::as_str)
     }
 
-    // A present nonempty section must have its matching closing tag.
-    Ok(element(source, tag)?.1)
-}
-/// Collect `DataArray` tags and bodies in encounter order within one section.
-/// Each array must have a complete closing tag.
-fn arrays(body: &str) -> Result<Vec<(&str, &str)>> {
-    let mut out = Vec::new();
-    let mut rest = body;
-
-    // Advance past each closing tag so encounter order matches file order.
-    while let Some(start) = rest.find("<DataArray") {
-        rest = &rest[start..];
-        let (tag, values) = element(rest, "DataArray")?;
-        out.push((tag, values));
-        let close = rest
-            .find("</DataArray>")
-            .ok_or_else(|| Error::new("E_VTU", "unclosed array"))?;
-        rest = &rest[close + 12..];
+    fn children(&self, name: &str) -> Result<Vec<&Self>> {
+        if self.children.iter().any(|child| child.name != name) {
+            return Err(Error::new("E_VTU", "unsupported XML element"));
+        }
+        Ok(self.children.iter().collect())
     }
-    Ok(out)
+
+    fn one(&self, name: &str) -> Result<&Self> {
+        let mut matches = self.children.iter().filter(|child| child.name == name);
+        let node = matches
+            .next()
+            .ok_or_else(|| Error::new("E_VTU", format!("missing {name}")))?;
+        if matches.next().is_some() {
+            return Err(Error::new("E_VTU", format!("duplicate {name}")));
+        }
+        Ok(node)
+    }
+
+    fn optional(&self, name: &str) -> Result<Option<&Self>> {
+        let mut matches = self.children.iter().filter(|child| child.name == name);
+        let node = matches.next();
+        if matches.next().is_some() {
+            return Err(Error::new("E_VTU", format!("duplicate {name}")));
+        }
+        Ok(node)
+    }
+}
+
+fn xml_start(start: &BytesStart<'_>, reader: &Reader<&[u8]>) -> Result<XmlNode> {
+    let name = std::str::from_utf8(start.name().as_ref())
+        .map_err(|_| Error::new("E_VTU", "invalid XML element name"))?
+        .to_owned();
+    let mut attributes = BTreeMap::new();
+    for attribute in start.attributes() {
+        let attribute = attribute.map_err(|e| Error::new("E_VTU", e.to_string()))?;
+        let key = std::str::from_utf8(attribute.key.as_ref())
+            .map_err(|_| Error::new("E_VTU", "invalid XML attribute name"))?
+            .to_owned();
+        let value = attribute
+            .decode_and_unescape_value(reader.decoder())
+            .map_err(|e| Error::new("E_VTU", e.to_string()))?
+            .into_owned();
+        if attributes.insert(key, value).is_some() {
+            return Err(Error::new("E_VTU", "duplicate XML attribute"));
+        }
+    }
+    Ok(XmlNode {
+        name,
+        attributes,
+        children: Vec::new(),
+        text: String::new(),
+    })
+}
+
+fn xml_tree(source: &str) -> Result<XmlNode> {
+    let mut reader = Reader::from_str(source);
+    let mut stack: Vec<XmlNode> = Vec::new();
+    let mut root = None;
+    loop {
+        let event = reader
+            .read_event()
+            .map_err(|e| Error::new("E_VTU", e.to_string()))?;
+        match event {
+            Event::Start(start) => {
+                if stack.len() >= 16 {
+                    return Err(Error::new("E_VTU", "XML nesting limit exceeded"));
+                }
+                stack.push(xml_start(&start, &reader)?);
+            }
+            Event::Empty(start) => {
+                let node = xml_start(&start, &reader)?;
+                if let Some(parent) = stack.last_mut() {
+                    parent.children.push(node);
+                } else if root.replace(node).is_some() {
+                    return Err(Error::new("E_VTU", "multiple XML roots"));
+                }
+            }
+            Event::End(end) => {
+                let node = stack
+                    .pop()
+                    .ok_or_else(|| Error::new("E_VTU", "unexpected XML close"))?;
+                if node.name.as_bytes() != end.name().as_ref() {
+                    return Err(Error::new("E_VTU", "mismatched XML close"));
+                }
+                if let Some(parent) = stack.last_mut() {
+                    parent.children.push(node);
+                } else if root.replace(node).is_some() {
+                    return Err(Error::new("E_VTU", "multiple XML roots"));
+                }
+            }
+            Event::Text(value) => {
+                let text = value
+                    .xml_content()
+                    .map_err(|e| Error::new("E_VTU", e.to_string()))?;
+                if let Some(node) = stack.last_mut() {
+                    node.text.push_str(&text);
+                } else if !text.trim().is_empty() {
+                    return Err(Error::new("E_VTU", "text outside XML root"));
+                }
+            }
+            Event::Comment(_) | Event::Decl(_) | Event::PI(_) => {}
+            Event::Eof => break,
+            Event::CData(_) | Event::DocType(_) | Event::GeneralRef(_) => {
+                return Err(Error::new("E_VTU", "unsupported XML construct"));
+            }
+        }
+    }
+    if !stack.is_empty() {
+        return Err(Error::new("E_VTU", "unclosed XML element"));
+    }
+    root.ok_or_else(|| Error::new("E_VTU", "missing VTKFile"))
 }
 /// Parse whitespace-separated ASCII array values as the required number type.
 /// Invalid tokens map to the stable VTU diagnostic code.
@@ -340,12 +412,18 @@ fn numbers<T: std::str::FromStr>(body: &str) -> Result<Vec<T>> {
 }
 /// Find one required named `DataArray` among a section's arrays.
 /// A missing array is an error because geometry cannot be reconstructed.
-fn array<'a>(body: &'a str, name: &str) -> Result<(&'a str, &'a str)> {
-    // Geometry arrays are identified by Name rather than by their file order.
-    arrays(body)?
+fn array<'a>(body: &'a XmlNode, name: &str) -> Result<&'a XmlNode> {
+    let mut matches = body
+        .children("DataArray")?
         .into_iter()
-        .find(|(tag, _)| attr(tag, "Name") == Some(name))
-        .ok_or_else(|| Error::new("E_VTU", format!("missing array {name}")))
+        .filter(|node| node.attr("Name") == Some(name));
+    let found = matches
+        .next()
+        .ok_or_else(|| Error::new("E_VTU", format!("missing array {name}")))?;
+    if matches.next().is_some() {
+        return Err(Error::new("E_VTU", format!("duplicate array {name}")));
+    }
+    Ok(found)
 }
 /// Map a VTK cell type number to a supported linear topology.
 /// Higher-order and unknown numbers fail instead of losing nodes.
@@ -368,70 +446,94 @@ fn cell_kind(code: u8) -> Result<CellKind> {
 /// Original IDs are taken from caexfer's ID arrays when present. Binary,
 /// compressed, appended, multi-piece, and unsupported cell layouts fail with
 /// [`Error`] rather than being silently omitted.
+///
+/// # Errors
+///
+/// Returns an error for unsupported VTU layouts, malformed numeric arrays,
+/// inconsistent counts, or invalid reconstructed mesh and fields.
 pub fn read(source: &str) -> Result<Dataset> {
-    // Reject sections that this ASCII, single-piece reader cannot interpret.
-    if source.contains("<AppendedData") || source.contains("<FieldData") {
-        return Err(Error::new(
-            "E_VTU",
-            "AppendedData and FieldData are outside this reader's scope",
-        ));
+    if !valid_xml_text(source) {
+        return Err(Error::new("E_VTU", "invalid XML character"));
     }
-
-    // The outer file tag establishes the grid kind and whether compression
-    // would require a different decoding path.
-    let (file_tag, file_body) = element(source, "VTKFile")?;
-    if attr(file_tag, "type") != Some("UnstructuredGrid") || file_tag.contains("compressor=") {
+    let file = xml_tree(source)?;
+    if file.name != "VTKFile"
+        || file.attr("type") != Some("UnstructuredGrid")
+        || file.attr("compressor").is_some()
+    {
         return Err(Error::new(
             "E_VTU",
             "unsupported VTKFile type or compression",
         ));
     }
-    let (_, grid) = element(file_body, "UnstructuredGrid")?;
+    let grid = file.one("UnstructuredGrid")?;
+    file.children("UnstructuredGrid")?;
 
     // Multiple pieces need a merge of point indices and field tuples.
-    if grid.matches("<Piece").count() != 1 {
+    if grid.children("Piece")?.len() != 1 {
         return Err(Error::new("E_VTU", "exactly one Piece is required"));
     }
-    let (piece_tag, piece) = element(grid, "Piece")?;
+    let piece = grid.one("Piece")?;
+    if piece.children.iter().any(|child| {
+        !matches!(
+            child.name.as_str(),
+            "Points" | "Cells" | "PointData" | "CellData"
+        )
+    }) {
+        return Err(Error::new("E_VTU", "unsupported Piece section"));
+    }
 
     // Declared counts are used to check every geometry and ID array below.
-    let point_count: usize = attr(piece_tag, "NumberOfPoints")
+    let point_count: usize = piece
+        .attr("NumberOfPoints")
         .ok_or_else(|| Error::new("E_VTU", "missing point count"))?
         .parse()
         .map_err(|_| Error::new("E_VTU", "invalid point count"))?;
-    let cell_count: usize = attr(piece_tag, "NumberOfCells")
+    let cell_count: usize = piece
+        .attr("NumberOfCells")
         .ok_or_else(|| Error::new("E_VTU", "missing cell count"))?
         .parse()
         .map_err(|_| Error::new("E_VTU", "invalid cell count"))?;
+    if point_count > source.len() / 3 || cell_count > source.len() / 3 {
+        return Err(Error::new("E_VTU", "declared count exceeds input size"));
+    }
 
     // Points must be one ASCII array with three coordinates per tuple.
-    let (_, point_body) = element(piece, "Points")?;
-    let coords = arrays(point_body)?;
+    let point_body = piece.one("Points")?;
+    let coords = point_body.children("DataArray")?;
     if coords.len() != 1
-        || attr(coords[0].0, "format") != Some("ascii")
-        || attr(coords[0].0, "NumberOfComponents") != Some("3")
+        || coords[0].attr("format") != Some("ascii")
+        || coords[0].attr("NumberOfComponents") != Some("3")
     {
         return Err(Error::new("E_VTU", "unsupported Points array"));
     }
-    let xyz: Vec<f64> = numbers(coords[0].1)?;
-    if xyz.len() != point_count * 3 {
+    let xyz: Vec<f64> = numbers(&coords[0].text)?;
+    if xyz.len()
+        != point_count
+            .checked_mul(3)
+            .ok_or_else(|| Error::new("E_VTU", "coordinate count overflows"))?
+    {
         return Err(Error::new("E_VTU", "coordinate count mismatch"));
     }
 
     // Original node IDs are optional for external VTU files. Without them,
     // assign stable one-based IDs while retaining VTK's zero-based positions.
-    let pd = optional_body(piece, "PointData")?;
-    let point_ids: Vec<u64> = match arrays(pd)?
+    let pd = piece.optional("PointData")?;
+    let point_ids: Vec<u64> = match pd
+        .map(|node| node.children("DataArray"))
+        .transpose()?
+        .unwrap_or_default()
         .into_iter()
-        .find(|(tag, _)| attr(tag, "Name") == Some("nastran_node_id"))
+        .find(|node| node.attr("Name") == Some("nastran_node_id"))
     {
-        Some((tag, data)) => {
-            if attr(tag, "type") != Some("UInt64") {
+        Some(node) => {
+            if node.attr("type") != Some("UInt64") {
                 return Err(Error::new("E_VTU", "node ID type must be UInt64"));
             }
-            numbers(data)?
+            numbers(&node.text)?
         }
-        None => (1..=point_count as u64).collect(),
+        None => (1..=u64::try_from(point_count)
+            .map_err(|_| Error::new("E_VTU", "point count exceeds UInt64"))?)
+            .collect(),
     };
     if point_ids.len() != point_count {
         return Err(Error::new("E_VTU", "node ID count mismatch"));
@@ -448,40 +550,48 @@ pub fn read(source: &str) -> Result<Dataset> {
         .collect();
 
     // Cells use flat connectivity plus cumulative offsets and one type per cell.
-    let (_, cell_body) = element(piece, "Cells")?;
-    let connectivity: Vec<usize> = numbers(array(cell_body, "connectivity")?.1)?;
-    let offsets: Vec<usize> = numbers(array(cell_body, "offsets")?.1)?;
-    let types: Vec<u8> = numbers(array(cell_body, "types")?.1)?;
+    let cell_body = piece.one("Cells")?;
+    let connectivity: Vec<usize> = numbers(&array(cell_body, "connectivity")?.text)?;
+    let offsets: Vec<usize> = numbers(&array(cell_body, "offsets")?.text)?;
+    let types: Vec<u8> = numbers(&array(cell_body, "types")?.text)?;
     if offsets.len() != cell_count || types.len() != cell_count {
         return Err(Error::new("E_VTU", "cell count mismatch"));
     }
 
     // As with nodes, fall back to one-based element IDs if the source lacks
     // caexfer's original-ID array.
-    let cd = optional_body(piece, "CellData")?;
-    let element_ids: Vec<u64> = match arrays(cd)?
+    let cd = piece.optional("CellData")?;
+    let element_ids: Vec<u64> = match cd
+        .map(|node| node.children("DataArray"))
+        .transpose()?
+        .unwrap_or_default()
         .into_iter()
-        .find(|(tag, _)| attr(tag, "Name") == Some("nastran_element_id"))
+        .find(|node| node.attr("Name") == Some("nastran_element_id"))
     {
-        Some((tag, data)) => {
-            if attr(tag, "type") != Some("UInt64") {
+        Some(node) => {
+            if node.attr("type") != Some("UInt64") {
                 return Err(Error::new("E_VTU", "element ID type must be UInt64"));
             }
-            numbers(data)?
+            numbers(&node.text)?
         }
-        None => (1..=cell_count as u64).collect(),
+        None => (1..=u64::try_from(cell_count)
+            .map_err(|_| Error::new("E_VTU", "cell count exceeds UInt64"))?)
+            .collect(),
     };
 
     // A zero property ID means no property; absent arrays use that sentinel.
-    let properties: Vec<u64> = match arrays(cd)?
+    let properties: Vec<u64> = match cd
+        .map(|node| node.children("DataArray"))
+        .transpose()?
+        .unwrap_or_default()
         .into_iter()
-        .find(|(tag, _)| attr(tag, "Name") == Some("nastran_property_id"))
+        .find(|node| node.attr("Name") == Some("nastran_property_id"))
     {
-        Some((tag, data)) => {
-            if attr(tag, "type") != Some("UInt64") {
+        Some(node) => {
+            if node.attr("type") != Some("UInt64") {
                 return Err(Error::new("E_VTU", "property ID type must be UInt64"));
             }
-            numbers(data)?
+            numbers(&node.text)?
         }
         None => vec![0; cell_count],
     };
@@ -521,10 +631,15 @@ pub fn read(source: &str) -> Result<Dataset> {
         (FieldLocation::Point, pd, point_count),
         (FieldLocation::Cell, cd, cell_count),
     ] {
-        for (tag, data) in arrays(body)? {
+        for node in body
+            .map(|section| section.children("DataArray"))
+            .transpose()?
+            .unwrap_or_default()
+        {
             // ID arrays have already supplied mesh identity; they are not fields.
-            let name =
-                attr(tag, "Name").ok_or_else(|| Error::new("E_VTU", "unnamed data array"))?;
+            let name = node
+                .attr("Name")
+                .ok_or_else(|| Error::new("E_VTU", "unnamed data array"))?;
             if [
                 "nastran_node_id",
                 "nastran_element_id",
@@ -537,12 +652,13 @@ pub fn read(source: &str) -> Result<Dataset> {
 
             // This reader accepts numeric ASCII fields only, regardless of
             // what other DataArray types a larger VTK implementation supports.
-            if attr(tag, "format") != Some("ascii")
-                || !matches!(attr(tag, "type"), Some("Float64" | "Float32"))
+            if node.attr("format") != Some("ascii")
+                || !matches!(node.attr("type"), Some("Float64" | "Float32"))
             {
                 return Err(Error::new("E_VTU", "only ASCII float fields are supported"));
             }
-            let count: usize = attr(tag, "NumberOfComponents")
+            let count: usize = node
+                .attr("NumberOfComponents")
                 .unwrap_or("1")
                 .parse()
                 .map_err(|_| Error::new("E_VTU", "invalid component count"))?;
@@ -551,30 +667,39 @@ pub fn read(source: &str) -> Result<Dataset> {
             }
 
             // Every point or cell contributes exactly one complete tuple.
-            let values: Vec<f64> = numbers(data)?;
-            if values.len() != count * expected {
+            let values: Vec<f64> = numbers(&node.text)?;
+            if values.len()
+                != count
+                    .checked_mul(expected)
+                    .ok_or_else(|| Error::new("E_VTU", "field count overflows"))?
+            {
                 return Err(Error::new("E_VTU", "field value count mismatch"));
+            }
+            if count > source.len() {
+                return Err(Error::new("E_VTU", "component count exceeds input size"));
             }
 
             // External files may omit component labels; synthesize C1, C2,
             // and so on without changing the numeric component order.
             let components = (0..count)
                 .map(|i| {
-                    attr(tag, &format!("ComponentName{i}"))
-                        .map(unescape)
+                    node.attr(&format!("ComponentName{i}"))
+                        .map(str::to_owned)
                         .unwrap_or_else(|| format!("C{}", i + 1))
                 })
                 .collect();
 
             // Preserve the writer's optional per-array step and time values.
-            let step = attr(tag, "caexfer_step")
+            let step = node
+                .attr("caexfer_step")
                 .map(|v| v.parse().map_err(|_| Error::new("E_VTU", "invalid step")))
                 .transpose()?;
-            let time = attr(tag, "caexfer_time")
+            let time = node
+                .attr("caexfer_time")
                 .map(|v| v.parse().map_err(|_| Error::new("E_VTU", "invalid time")))
                 .transpose()?;
             dataset.fields.push(Field {
-                name: unescape(name),
+                name: name.to_owned(),
                 location,
                 components,
                 values,
@@ -717,5 +842,74 @@ mod tests {
         write_data(&dataset, &mut bytes).unwrap();
         let parsed = read(std::str::from_utf8(&bytes).unwrap()).unwrap();
         assert_eq!(parsed, dataset);
+    }
+
+    #[test]
+    fn xml_comments_cannot_spoof_geometry() {
+        let mut bytes = Vec::new();
+        write(&triangle(), &mut bytes).unwrap();
+        let source = String::from_utf8(bytes).unwrap();
+        let spoof = "<!-- <Points><DataArray format=\"ascii\" NumberOfComponents=\"3\">100 0 0 200 0 0 300 0 0</DataArray></Points> -->\n";
+        let source = source.replace("<Points>", &format!("{spoof}<Points>"));
+        let dataset = read(&source).unwrap();
+        assert_eq!(dataset.mesh.points, triangle().points);
+    }
+
+    #[test]
+    fn xml_attribute_names_match_exactly() {
+        let mut bytes = Vec::new();
+        write(&triangle(), &mut bytes).unwrap();
+        let source = String::from_utf8(bytes)
+            .unwrap()
+            .replace("Name=\"connectivity\"", "XName=\"connectivity\"");
+        assert_eq!(read(&source).unwrap_err().code, "E_VTU");
+    }
+
+    #[test]
+    fn declared_counts_and_components_cannot_overflow() {
+        let mut bytes = Vec::new();
+        write(&triangle(), &mut bytes).unwrap();
+        let source = String::from_utf8(bytes).unwrap();
+        for malformed in [
+            source.replace(
+                "NumberOfPoints=\"3\"",
+                "NumberOfPoints=\"18446744073709551615\"",
+            ),
+            source.replace(
+                "NumberOfCells=\"1\"",
+                "NumberOfCells=\"18446744073709551615\"",
+            ),
+        ] {
+            assert_eq!(read(&malformed).unwrap_err().code, "E_VTU");
+        }
+        let source = source.replace(
+            "</PointData>",
+            "<DataArray type=\"Float64\" Name=\"x\" NumberOfComponents=\"18446744073709551615\" format=\"ascii\">1</DataArray></PointData>",
+        );
+        assert_eq!(read(&source).unwrap_err().code, "E_VTU");
+    }
+
+    #[test]
+    fn invalid_xml_names_fail_before_writing() {
+        for invalid_name in ["bad\0name", "bad\u{1}name"] {
+            let mut dataset = Dataset {
+                mesh: triangle(),
+                fields: vec![Field {
+                    name: invalid_name.into(),
+                    location: FieldLocation::Point,
+                    components: vec!["C1".into()],
+                    values: vec![1., 2., 3.],
+                    step: None,
+                    time: None,
+                }],
+            };
+            let mut output = Vec::new();
+            assert_eq!(write_data(&dataset, &mut output).unwrap_err().code, "E_VTU");
+            assert!(output.is_empty());
+            dataset.fields[0].name = "valid".into();
+            dataset.fields[0].components[0] = invalid_name.into();
+            assert_eq!(write_data(&dataset, &mut output).unwrap_err().code, "E_VTU");
+            assert!(output.is_empty());
+        }
     }
 }

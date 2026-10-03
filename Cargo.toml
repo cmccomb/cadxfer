@@ -11,5 +11,8 @@ readme = "README.md"
 keywords = ["engineering", "nastran", "file-formats", "mesh"]
 categories = ["science", "parser-implementations"]
 
+[dependencies]
+quick-xml = "=0.39.4"
+
 [lints.rust]
 unsafe_code = "forbid"
