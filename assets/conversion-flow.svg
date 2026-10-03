@@ -1,211 +1,401 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1240" height="820" viewBox="0 0 1240 820" role="img" aria-labelledby="title description">
-<title id="title">How caexfer changes a BDF mesh and its surrounding data</title>
-<desc id="description">A schematic BDF quad mesh branches into three outputs. The BDF copy has identical geometry and records. The edited BDF moves one mesh node but keeps other records. The VTU retains the original geometry and IDs while solver records are omitted and reported.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" width="1240" height="1037" viewBox="0 0 1240 1037" role="img" aria-labelledby="title description">
+<title id="title">Caexfer preserves native BDF bytes and projects six format subsets</title>
+<desc id="description">The top row compares a BDF source, exact copy, and one moved GRID node. The lower cards show BDF and INP geometry decks; VTU and MSH meshes with numeric fields; FRD mesh with nodal fields; and an OP2 displacement table without embedded geometry. The meshes share topology except for the deliberate native GRID edit.</desc>
 <defs><linearGradient id="background" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#122238"/><stop offset="1" stop-color="#0b1423"/></linearGradient></defs>
-<rect width="1240" height="820" rx="26" fill="url(#background)"/>
-<text x="50" y="58" fill="#f5f8ff" font-family="Arial, Helvetica, sans-serif" font-size="32" font-weight="700" letter-spacing="0">The mesh tells the story</text>
-<text x="51" y="87" fill="#b6c7d9" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="400" letter-spacing="0">One preserved BDF source. Three different output guarantees.</text>
-<rect x="365" y="122" width="510" height="242" rx="23" fill="#17283e" stroke="#f4ad5a" stroke-width="2"/>
-<rect x="365" y="122" width="510" height="7" rx="3.5" fill="#f4ad5a"/>
-<text x="391" y="159" fill="#f4ad5a" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="700" letter-spacing="1">SOURCE DOCUMENT</text>
-<text x="391" y="191" fill="#f5f8ff" font-family="Arial, Helvetica, sans-serif" font-size="25" font-weight="700" letter-spacing="0">model.bdf</text>
+<rect width="1240" height="1037" rx="24" fill="url(#background)"/>
+<text x="45" y="58" fill="#f5f8ff" font-family="Arial, Helvetica, sans-serif" font-size="32" font-weight="700" letter-spacing="0">One mesh, different promises</text>
+<text x="46" y="87" fill="#b6c7d9" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="400" letter-spacing="0">Native BDF operations preserve the document. Conversions project supported geometry and results.</text>
+<text x="46" y="120" fill="#f4bc72" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="700" letter-spacing="1">NATIVE BDF OPERATIONS</text>
+<rect x="45" y="137" width="365" height="222" rx="20" fill="#17283e" stroke="#3c5875" stroke-width="1.3"/>
+<rect x="45" y="137" width="365" height="6" rx="3" fill="#f4bc72"/>
+<text x="69" y="174" fill="#f4bc72" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="700" letter-spacing="1">SOURCE DOCUMENT</text>
+<text x="69" y="205" fill="#f5f8ff" font-family="Arial, Helvetica, sans-serif" font-size="23" font-weight="700" letter-spacing="0">model.bdf</text>
 <g aria-hidden="true">
-<polygon points="408,221 451,217 459,251 416,255" fill="#2f4b62" fill-opacity="0.35" stroke="#69dfc0" stroke-width="1.7" stroke-linejoin="round"/>
-<polygon points="451,217 494,213 502,247 459,251" fill="#2f4b62" fill-opacity="0.35" stroke="#69dfc0" stroke-width="1.7" stroke-linejoin="round"/>
-<polygon points="494,213 537,209 545,243 502,247" fill="#2f4b62" fill-opacity="0.35" stroke="#69dfc0" stroke-width="1.7" stroke-linejoin="round"/>
-<polygon points="537,209 580,205 588,239 545,243" fill="#2f4b62" fill-opacity="0.35" stroke="#69dfc0" stroke-width="1.7" stroke-linejoin="round"/>
-<polygon points="416,255 459,251 467,285 424,289" fill="#2f4b62" fill-opacity="0.35" stroke="#69dfc0" stroke-width="1.7" stroke-linejoin="round"/>
-<polygon points="459,251 502,247 510,281 467,285" fill="#2f4b62" fill-opacity="0.35" stroke="#69dfc0" stroke-width="1.7" stroke-linejoin="round"/>
-<polygon points="502,247 545,243 553,277 510,281" fill="#2f4b62" fill-opacity="0.35" stroke="#69dfc0" stroke-width="1.7" stroke-linejoin="round"/>
-<polygon points="545,243 588,239 596,273 553,277" fill="#2f4b62" fill-opacity="0.35" stroke="#69dfc0" stroke-width="1.7" stroke-linejoin="round"/>
-<polygon points="424,289 467,285 475,319 432,323" fill="#2f4b62" fill-opacity="0.35" stroke="#69dfc0" stroke-width="1.7" stroke-linejoin="round"/>
-<polygon points="467,285 510,281 518,315 475,319" fill="#2f4b62" fill-opacity="0.35" stroke="#69dfc0" stroke-width="1.7" stroke-linejoin="round"/>
-<polygon points="510,281 553,277 561,311 518,315" fill="#2f4b62" fill-opacity="0.35" stroke="#69dfc0" stroke-width="1.7" stroke-linejoin="round"/>
-<polygon points="553,277 596,273 604,307 561,311" fill="#2f4b62" fill-opacity="0.35" stroke="#69dfc0" stroke-width="1.7" stroke-linejoin="round"/>
-<circle cx="408" cy="221" r="2.8" fill="#69dfc0"/>
-<circle cx="451" cy="217" r="2.8" fill="#69dfc0"/>
-<circle cx="494" cy="213" r="2.8" fill="#69dfc0"/>
-<circle cx="537" cy="209" r="2.8" fill="#69dfc0"/>
-<circle cx="580" cy="205" r="2.8" fill="#69dfc0"/>
-<circle cx="416" cy="255" r="2.8" fill="#69dfc0"/>
-<circle cx="459" cy="251" r="2.8" fill="#69dfc0"/>
-<circle cx="502" cy="247" r="2.8" fill="#69dfc0"/>
-<circle cx="545" cy="243" r="2.8" fill="#69dfc0"/>
-<circle cx="588" cy="239" r="2.8" fill="#69dfc0"/>
-<circle cx="424" cy="289" r="2.8" fill="#69dfc0"/>
-<circle cx="467" cy="285" r="2.8" fill="#69dfc0"/>
-<circle cx="510" cy="281" r="2.8" fill="#69dfc0"/>
-<circle cx="553" cy="277" r="2.8" fill="#69dfc0"/>
-<circle cx="596" cy="273" r="2.8" fill="#69dfc0"/>
-<circle cx="432" cy="323" r="2.8" fill="#69dfc0"/>
-<circle cx="475" cy="319" r="2.8" fill="#69dfc0"/>
-<circle cx="518" cy="315" r="2.8" fill="#69dfc0"/>
-<circle cx="561" cy="311" r="2.8" fill="#69dfc0"/>
-<circle cx="604" cy="307" r="2.8" fill="#69dfc0"/>
+<polygon points="75,224 112,221 119,249 82,252" fill="#37546b" fill-opacity=".24" stroke="#f4bc72" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="112,221 149,218 156,246 119,249" fill="#37546b" fill-opacity=".24" stroke="#f4bc72" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="149,218 186,215 193,243 156,246" fill="#37546b" fill-opacity=".24" stroke="#f4bc72" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="186,215 223,212 230,240 193,243" fill="#37546b" fill-opacity=".24" stroke="#f4bc72" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="82,252 119,249 126,277 89,280" fill="#37546b" fill-opacity=".24" stroke="#f4bc72" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="119,249 156,246 163,274 126,277" fill="#37546b" fill-opacity=".24" stroke="#f4bc72" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="156,246 193,243 200,271 163,274" fill="#37546b" fill-opacity=".24" stroke="#f4bc72" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="193,243 230,240 237,268 200,271" fill="#37546b" fill-opacity=".24" stroke="#f4bc72" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="89,280 126,277 133,305 96,308" fill="#37546b" fill-opacity=".24" stroke="#f4bc72" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="126,277 163,274 170,302 133,305" fill="#37546b" fill-opacity=".24" stroke="#f4bc72" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="163,274 200,271 207,299 170,302" fill="#37546b" fill-opacity=".24" stroke="#f4bc72" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="200,271 237,268 244,296 207,299" fill="#37546b" fill-opacity=".24" stroke="#f4bc72" stroke-width="1.5" stroke-linejoin="round"/>
+<circle cx="75" cy="224" r="2.6" fill="#f4bc72"/>
+<circle cx="112" cy="221" r="2.6" fill="#f4bc72"/>
+<circle cx="149" cy="218" r="2.6" fill="#f4bc72"/>
+<circle cx="186" cy="215" r="2.6" fill="#f4bc72"/>
+<circle cx="223" cy="212" r="2.6" fill="#f4bc72"/>
+<circle cx="82" cy="252" r="2.6" fill="#f4bc72"/>
+<circle cx="119" cy="249" r="2.6" fill="#f4bc72"/>
+<circle cx="156" cy="246" r="2.6" fill="#f4bc72"/>
+<circle cx="193" cy="243" r="2.6" fill="#f4bc72"/>
+<circle cx="230" cy="240" r="2.6" fill="#f4bc72"/>
+<circle cx="89" cy="280" r="2.6" fill="#f4bc72"/>
+<circle cx="126" cy="277" r="2.6" fill="#f4bc72"/>
+<circle cx="163" cy="274" r="2.6" fill="#f4bc72"/>
+<circle cx="200" cy="271" r="2.6" fill="#f4bc72"/>
+<circle cx="237" cy="268" r="2.6" fill="#f4bc72"/>
+<circle cx="96" cy="308" r="2.6" fill="#f4bc72"/>
+<circle cx="133" cy="305" r="2.6" fill="#f4bc72"/>
+<circle cx="170" cy="302" r="2.6" fill="#f4bc72"/>
+<circle cx="207" cy="299" r="2.6" fill="#f4bc72"/>
+<circle cx="244" cy="296" r="2.6" fill="#f4bc72"/>
 </g>
-<text x="663" y="217" fill="#b6c7d9" font-family="Arial, Helvetica, sans-serif" font-size="12" font-weight="700" letter-spacing="1">SOURCE RECORDS</text>
-<rect x="661" y="234" width="188" height="91" rx="12" fill="#20354d"/>
-<text x="675" y="258" fill="#f6ca87" font-family="Menlo, Consolas, monospace" font-size="14" font-weight="700" letter-spacing="0">PSHELL    MAT1</text>
-<text x="675" y="284" fill="#f6ca87" font-family="Menlo, Consolas, monospace" font-size="14" font-weight="700" letter-spacing="0">FORCE     SPC1</text>
-<text x="675" y="309" fill="#b6c7d9" font-family="Arial, Helvetica, sans-serif" font-size="12" font-weight="400" letter-spacing="0">+ comments, source bytes</text>
-<path d="M620 364V403 M232 403H1006" fill="none" stroke="#6885a2" stroke-width="2.5" stroke-linecap="round"/>
-<path d="M232 403V429" stroke="#69dfc0" stroke-width="3"/>
-<path d="M225 429l7 12 7-12z" fill="#69dfc0"/>
-<rect x="50" y="445" width="365" height="331" rx="22" fill="#17283e" stroke="#385573" stroke-width="1.5"/>
-<rect x="50" y="445" width="365" height="7" rx="3.5" fill="#69dfc0"/>
-<text x="75" y="480" fill="#69dfc0" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="700" letter-spacing="1">01  EXACT COPY</text>
-<text x="75" y="513" fill="#f5f8ff" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="700" letter-spacing="0">copy.bdf</text>
+<path d="M276 219V318" stroke="#3c5875"/>
+<text x="289" y="243" fill="#758ba3" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="700" letter-spacing="1">TOPOLOGY</text>
+<text x="289" y="265" fill="#f5f8ff" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="400" letter-spacing="0">source cells</text>
+<text x="289" y="291" fill="#758ba3" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="700" letter-spacing="1">DATA</text>
+<text x="289" y="313" fill="#f4bc72" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="400" letter-spacing="0">native</text>
+<path d="M69 326H386" stroke="#38516b"/>
+<text x="69" y="347" fill="#b6c7d9" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="400" letter-spacing="0">PSHELL  MAT1  FORCE  SPC1</text>
+<rect x="435" y="137" width="365" height="222" rx="20" fill="#17283e" stroke="#3c5875" stroke-width="1.3"/>
+<rect x="435" y="137" width="365" height="6" rx="3" fill="#69dfc0"/>
+<text x="459" y="174" fill="#69dfc0" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="700" letter-spacing="1">BYTE-IDENTICAL COPY</text>
+<text x="459" y="205" fill="#f5f8ff" font-family="Arial, Helvetica, sans-serif" font-size="23" font-weight="700" letter-spacing="0">copy.bdf</text>
 <g aria-hidden="true">
-<polygon points="126,554 169,550 177,584 134,588" fill="#2f4b62" fill-opacity="0.35" stroke="#69dfc0" stroke-width="1.7" stroke-linejoin="round"/>
-<polygon points="169,550 212,546 220,580 177,584" fill="#2f4b62" fill-opacity="0.35" stroke="#69dfc0" stroke-width="1.7" stroke-linejoin="round"/>
-<polygon points="212,546 255,542 263,576 220,580" fill="#2f4b62" fill-opacity="0.35" stroke="#69dfc0" stroke-width="1.7" stroke-linejoin="round"/>
-<polygon points="255,542 298,538 306,572 263,576" fill="#2f4b62" fill-opacity="0.35" stroke="#69dfc0" stroke-width="1.7" stroke-linejoin="round"/>
-<polygon points="134,588 177,584 185,618 142,622" fill="#2f4b62" fill-opacity="0.35" stroke="#69dfc0" stroke-width="1.7" stroke-linejoin="round"/>
-<polygon points="177,584 220,580 228,614 185,618" fill="#2f4b62" fill-opacity="0.35" stroke="#69dfc0" stroke-width="1.7" stroke-linejoin="round"/>
-<polygon points="220,580 263,576 271,610 228,614" fill="#2f4b62" fill-opacity="0.35" stroke="#69dfc0" stroke-width="1.7" stroke-linejoin="round"/>
-<polygon points="263,576 306,572 314,606 271,610" fill="#2f4b62" fill-opacity="0.35" stroke="#69dfc0" stroke-width="1.7" stroke-linejoin="round"/>
-<polygon points="142,622 185,618 193,652 150,656" fill="#2f4b62" fill-opacity="0.35" stroke="#69dfc0" stroke-width="1.7" stroke-linejoin="round"/>
-<polygon points="185,618 228,614 236,648 193,652" fill="#2f4b62" fill-opacity="0.35" stroke="#69dfc0" stroke-width="1.7" stroke-linejoin="round"/>
-<polygon points="228,614 271,610 279,644 236,648" fill="#2f4b62" fill-opacity="0.35" stroke="#69dfc0" stroke-width="1.7" stroke-linejoin="round"/>
-<polygon points="271,610 314,606 322,640 279,644" fill="#2f4b62" fill-opacity="0.35" stroke="#69dfc0" stroke-width="1.7" stroke-linejoin="round"/>
-<circle cx="126" cy="554" r="2.8" fill="#69dfc0"/>
-<circle cx="169" cy="550" r="2.8" fill="#69dfc0"/>
-<circle cx="212" cy="546" r="2.8" fill="#69dfc0"/>
-<circle cx="255" cy="542" r="2.8" fill="#69dfc0"/>
-<circle cx="298" cy="538" r="2.8" fill="#69dfc0"/>
-<circle cx="134" cy="588" r="2.8" fill="#69dfc0"/>
-<circle cx="177" cy="584" r="2.8" fill="#69dfc0"/>
-<circle cx="220" cy="580" r="2.8" fill="#69dfc0"/>
-<circle cx="263" cy="576" r="2.8" fill="#69dfc0"/>
-<circle cx="306" cy="572" r="2.8" fill="#69dfc0"/>
-<circle cx="142" cy="622" r="2.8" fill="#69dfc0"/>
-<circle cx="185" cy="618" r="2.8" fill="#69dfc0"/>
-<circle cx="228" cy="614" r="2.8" fill="#69dfc0"/>
-<circle cx="271" cy="610" r="2.8" fill="#69dfc0"/>
-<circle cx="314" cy="606" r="2.8" fill="#69dfc0"/>
-<circle cx="150" cy="656" r="2.8" fill="#69dfc0"/>
-<circle cx="193" cy="652" r="2.8" fill="#69dfc0"/>
-<circle cx="236" cy="648" r="2.8" fill="#69dfc0"/>
-<circle cx="279" cy="644" r="2.8" fill="#69dfc0"/>
-<circle cx="322" cy="640" r="2.8" fill="#69dfc0"/>
+<polygon points="465,224 502,221 509,249 472,252" fill="#37546b" fill-opacity=".24" stroke="#69dfc0" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="502,221 539,218 546,246 509,249" fill="#37546b" fill-opacity=".24" stroke="#69dfc0" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="539,218 576,215 583,243 546,246" fill="#37546b" fill-opacity=".24" stroke="#69dfc0" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="576,215 613,212 620,240 583,243" fill="#37546b" fill-opacity=".24" stroke="#69dfc0" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="472,252 509,249 516,277 479,280" fill="#37546b" fill-opacity=".24" stroke="#69dfc0" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="509,249 546,246 553,274 516,277" fill="#37546b" fill-opacity=".24" stroke="#69dfc0" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="546,246 583,243 590,271 553,274" fill="#37546b" fill-opacity=".24" stroke="#69dfc0" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="583,243 620,240 627,268 590,271" fill="#37546b" fill-opacity=".24" stroke="#69dfc0" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="479,280 516,277 523,305 486,308" fill="#37546b" fill-opacity=".24" stroke="#69dfc0" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="516,277 553,274 560,302 523,305" fill="#37546b" fill-opacity=".24" stroke="#69dfc0" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="553,274 590,271 597,299 560,302" fill="#37546b" fill-opacity=".24" stroke="#69dfc0" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="590,271 627,268 634,296 597,299" fill="#37546b" fill-opacity=".24" stroke="#69dfc0" stroke-width="1.5" stroke-linejoin="round"/>
+<circle cx="465" cy="224" r="2.6" fill="#69dfc0"/>
+<circle cx="502" cy="221" r="2.6" fill="#69dfc0"/>
+<circle cx="539" cy="218" r="2.6" fill="#69dfc0"/>
+<circle cx="576" cy="215" r="2.6" fill="#69dfc0"/>
+<circle cx="613" cy="212" r="2.6" fill="#69dfc0"/>
+<circle cx="472" cy="252" r="2.6" fill="#69dfc0"/>
+<circle cx="509" cy="249" r="2.6" fill="#69dfc0"/>
+<circle cx="546" cy="246" r="2.6" fill="#69dfc0"/>
+<circle cx="583" cy="243" r="2.6" fill="#69dfc0"/>
+<circle cx="620" cy="240" r="2.6" fill="#69dfc0"/>
+<circle cx="479" cy="280" r="2.6" fill="#69dfc0"/>
+<circle cx="516" cy="277" r="2.6" fill="#69dfc0"/>
+<circle cx="553" cy="274" r="2.6" fill="#69dfc0"/>
+<circle cx="590" cy="271" r="2.6" fill="#69dfc0"/>
+<circle cx="627" cy="268" r="2.6" fill="#69dfc0"/>
+<circle cx="486" cy="308" r="2.6" fill="#69dfc0"/>
+<circle cx="523" cy="305" r="2.6" fill="#69dfc0"/>
+<circle cx="560" cy="302" r="2.6" fill="#69dfc0"/>
+<circle cx="597" cy="299" r="2.6" fill="#69dfc0"/>
+<circle cx="634" cy="296" r="2.6" fill="#69dfc0"/>
 </g>
-<text x="75" y="681" fill="#b6c7d9" font-family="Arial, Helvetica, sans-serif" font-size="12" font-weight="700" letter-spacing="1">OTHER BDF RECORDS</text>
-<rect x="75" y="691" width="70" height="25" rx="7" fill="#1c3048" stroke="#69dfc0" stroke-width="1"/>
-<text x="83" y="709" fill="#69dfc0" font-family="Menlo, Consolas, monospace" font-size="12" font-weight="700" letter-spacing="0">PSHELL</text>
-<rect x="153" y="691" width="70" height="25" rx="7" fill="#1c3048" stroke="#69dfc0" stroke-width="1"/>
-<text x="161" y="709" fill="#69dfc0" font-family="Menlo, Consolas, monospace" font-size="12" font-weight="700" letter-spacing="0">MAT1</text>
-<rect x="231" y="691" width="70" height="25" rx="7" fill="#1c3048" stroke="#69dfc0" stroke-width="1"/>
-<text x="239" y="709" fill="#69dfc0" font-family="Menlo, Consolas, monospace" font-size="12" font-weight="700" letter-spacing="0">FORCE</text>
-<rect x="309" y="691" width="70" height="25" rx="7" fill="#1c3048" stroke="#69dfc0" stroke-width="1"/>
-<text x="317" y="709" fill="#69dfc0" font-family="Menlo, Consolas, monospace" font-size="12" font-weight="700" letter-spacing="0">SPC1</text>
-<text x="75" y="750" fill="#b6c7d9" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="400" letter-spacing="0">Same mesh. Every source byte retained.</text>
-<path d="M619 403V429" stroke="#77baff" stroke-width="3"/>
-<path d="M612 429l7 12 7-12z" fill="#77baff"/>
-<rect x="437" y="445" width="365" height="331" rx="22" fill="#17283e" stroke="#385573" stroke-width="1.5"/>
-<rect x="437" y="445" width="365" height="7" rx="3.5" fill="#77baff"/>
-<text x="462" y="480" fill="#77baff" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="700" letter-spacing="1">02  GRID EDIT</text>
-<text x="462" y="513" fill="#f5f8ff" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="700" letter-spacing="0">edited.bdf</text>
+<path d="M666 219V318" stroke="#3c5875"/>
+<text x="679" y="243" fill="#758ba3" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="700" letter-spacing="1">TOPOLOGY</text>
+<text x="679" y="265" fill="#f5f8ff" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="400" letter-spacing="0">same cells</text>
+<text x="679" y="291" fill="#758ba3" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="700" letter-spacing="1">DATA</text>
+<text x="679" y="313" fill="#69dfc0" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="400" letter-spacing="0">native</text>
+<path d="M459 326H776" stroke="#38516b"/>
+<text x="459" y="347" fill="#b6c7d9" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="400" letter-spacing="0">Every source byte retained</text>
+<rect x="825" y="137" width="365" height="222" rx="20" fill="#17283e" stroke="#3c5875" stroke-width="1.3"/>
+<rect x="825" y="137" width="365" height="6" rx="3" fill="#77baff"/>
+<text x="849" y="174" fill="#77baff" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="700" letter-spacing="1">GRID COORDINATE EDIT</text>
+<text x="849" y="205" fill="#f5f8ff" font-family="Arial, Helvetica, sans-serif" font-size="23" font-weight="700" letter-spacing="0">edited.bdf</text>
 <g aria-hidden="true">
-<polygon points="513,554 556,550 564,584 521,588" fill="#2f4b62" fill-opacity="0.35" stroke="#77baff" stroke-width="1.7" stroke-linejoin="round"/>
-<polygon points="556,550 599,546 607,580 564,584" fill="#2f4b62" fill-opacity="0.35" stroke="#77baff" stroke-width="1.7" stroke-linejoin="round"/>
-<polygon points="599,546 642,542 650,576 607,580" fill="#2f4b62" fill-opacity="0.35" stroke="#77baff" stroke-width="1.7" stroke-linejoin="round"/>
-<polygon points="642,542 685,538 718,561 650,576" fill="#2f4b62" fill-opacity="0.35" stroke="#77baff" stroke-width="1.7" stroke-linejoin="round"/>
-<polygon points="521,588 564,584 572,618 529,622" fill="#2f4b62" fill-opacity="0.35" stroke="#77baff" stroke-width="1.7" stroke-linejoin="round"/>
-<polygon points="564,584 607,580 615,614 572,618" fill="#2f4b62" fill-opacity="0.35" stroke="#77baff" stroke-width="1.7" stroke-linejoin="round"/>
-<polygon points="607,580 650,576 658,610 615,614" fill="#2f4b62" fill-opacity="0.35" stroke="#77baff" stroke-width="1.7" stroke-linejoin="round"/>
-<polygon points="650,576 718,561 701,606 658,610" fill="#2f4b62" fill-opacity="0.35" stroke="#77baff" stroke-width="1.7" stroke-linejoin="round"/>
-<polygon points="529,622 572,618 580,652 537,656" fill="#2f4b62" fill-opacity="0.35" stroke="#77baff" stroke-width="1.7" stroke-linejoin="round"/>
-<polygon points="572,618 615,614 623,648 580,652" fill="#2f4b62" fill-opacity="0.35" stroke="#77baff" stroke-width="1.7" stroke-linejoin="round"/>
-<polygon points="615,614 658,610 666,644 623,648" fill="#2f4b62" fill-opacity="0.35" stroke="#77baff" stroke-width="1.7" stroke-linejoin="round"/>
-<polygon points="658,610 701,606 709,640 666,644" fill="#2f4b62" fill-opacity="0.35" stroke="#77baff" stroke-width="1.7" stroke-linejoin="round"/>
-<circle cx="513" cy="554" r="2.8" fill="#77baff"/>
-<circle cx="556" cy="550" r="2.8" fill="#77baff"/>
-<circle cx="599" cy="546" r="2.8" fill="#77baff"/>
-<circle cx="642" cy="542" r="2.8" fill="#77baff"/>
-<circle cx="685" cy="538" r="2.8" fill="#77baff"/>
-<circle cx="521" cy="588" r="2.8" fill="#77baff"/>
-<circle cx="564" cy="584" r="2.8" fill="#77baff"/>
-<circle cx="607" cy="580" r="2.8" fill="#77baff"/>
-<circle cx="650" cy="576" r="2.8" fill="#77baff"/>
-<circle cx="718" cy="561" r="6" fill="#ffa468"/>
-<circle cx="529" cy="622" r="2.8" fill="#77baff"/>
-<circle cx="572" cy="618" r="2.8" fill="#77baff"/>
-<circle cx="615" cy="614" r="2.8" fill="#77baff"/>
-<circle cx="658" cy="610" r="2.8" fill="#77baff"/>
-<circle cx="701" cy="606" r="2.8" fill="#77baff"/>
-<circle cx="537" cy="656" r="2.8" fill="#77baff"/>
-<circle cx="580" cy="652" r="2.8" fill="#77baff"/>
-<circle cx="623" cy="648" r="2.8" fill="#77baff"/>
-<circle cx="666" cy="644" r="2.8" fill="#77baff"/>
-<circle cx="709" cy="640" r="2.8" fill="#77baff"/>
-<circle cx="693" cy="572" r="7" fill="none" stroke="#a9bdd1" stroke-width="1.5" stroke-dasharray="3 3"/>
-<path d="M702 570L710 563" stroke="#ffa468" stroke-width="2.5" stroke-linecap="round"/>
-<circle cx="718" cy="561" r="9" fill="none" stroke="#ffa468" stroke-opacity="0.65" stroke-width="2"/>
+<polygon points="855,224 892,221 899,249 862,252" fill="#37546b" fill-opacity=".24" stroke="#77baff" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="892,221 929,218 936,246 899,249" fill="#37546b" fill-opacity=".24" stroke="#77baff" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="929,218 966,215 973,243 936,246" fill="#37546b" fill-opacity=".24" stroke="#77baff" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="966,215 1003,212 1030,229 973,243" fill="#37546b" fill-opacity=".24" stroke="#77baff" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="862,252 899,249 906,277 869,280" fill="#37546b" fill-opacity=".24" stroke="#77baff" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="899,249 936,246 943,274 906,277" fill="#37546b" fill-opacity=".24" stroke="#77baff" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="936,246 973,243 980,271 943,274" fill="#37546b" fill-opacity=".24" stroke="#77baff" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="973,243 1030,229 1017,268 980,271" fill="#37546b" fill-opacity=".24" stroke="#77baff" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="869,280 906,277 913,305 876,308" fill="#37546b" fill-opacity=".24" stroke="#77baff" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="906,277 943,274 950,302 913,305" fill="#37546b" fill-opacity=".24" stroke="#77baff" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="943,274 980,271 987,299 950,302" fill="#37546b" fill-opacity=".24" stroke="#77baff" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="980,271 1017,268 1024,296 987,299" fill="#37546b" fill-opacity=".24" stroke="#77baff" stroke-width="1.5" stroke-linejoin="round"/>
+<circle cx="855" cy="224" r="2.6" fill="#77baff"/>
+<circle cx="892" cy="221" r="2.6" fill="#77baff"/>
+<circle cx="929" cy="218" r="2.6" fill="#77baff"/>
+<circle cx="966" cy="215" r="2.6" fill="#77baff"/>
+<circle cx="1003" cy="212" r="2.6" fill="#77baff"/>
+<circle cx="862" cy="252" r="2.6" fill="#77baff"/>
+<circle cx="899" cy="249" r="2.6" fill="#77baff"/>
+<circle cx="936" cy="246" r="2.6" fill="#77baff"/>
+<circle cx="973" cy="243" r="2.6" fill="#77baff"/>
+<circle cx="1030" cy="229" r="5" fill="#77baff"/>
+<circle cx="869" cy="280" r="2.6" fill="#77baff"/>
+<circle cx="906" cy="277" r="2.6" fill="#77baff"/>
+<circle cx="943" cy="274" r="2.6" fill="#77baff"/>
+<circle cx="980" cy="271" r="2.6" fill="#77baff"/>
+<circle cx="1017" cy="268" r="2.6" fill="#77baff"/>
+<circle cx="876" cy="308" r="2.6" fill="#77baff"/>
+<circle cx="913" cy="305" r="2.6" fill="#77baff"/>
+<circle cx="950" cy="302" r="2.6" fill="#77baff"/>
+<circle cx="987" cy="299" r="2.6" fill="#77baff"/>
+<circle cx="1024" cy="296" r="2.6" fill="#77baff"/>
+<circle cx="1010" cy="240" r="7" fill="none" stroke="#a9bdd1" stroke-dasharray="3 3"/>
+<path d="M1018 238L1023 231" stroke="#ffae75" stroke-width="2.5"/>
 </g>
-<text x="462" y="681" fill="#b6c7d9" font-family="Arial, Helvetica, sans-serif" font-size="12" font-weight="700" letter-spacing="1">OTHER BDF RECORDS</text>
-<rect x="462" y="691" width="70" height="25" rx="7" fill="#1c3048" stroke="#77baff" stroke-width="1"/>
-<text x="470" y="709" fill="#77baff" font-family="Menlo, Consolas, monospace" font-size="12" font-weight="700" letter-spacing="0">PSHELL</text>
-<rect x="540" y="691" width="70" height="25" rx="7" fill="#1c3048" stroke="#77baff" stroke-width="1"/>
-<text x="548" y="709" fill="#77baff" font-family="Menlo, Consolas, monospace" font-size="12" font-weight="700" letter-spacing="0">MAT1</text>
-<rect x="618" y="691" width="70" height="25" rx="7" fill="#1c3048" stroke="#77baff" stroke-width="1"/>
-<text x="626" y="709" fill="#77baff" font-family="Menlo, Consolas, monospace" font-size="12" font-weight="700" letter-spacing="0">FORCE</text>
-<rect x="696" y="691" width="70" height="25" rx="7" fill="#1c3048" stroke="#77baff" stroke-width="1"/>
-<text x="704" y="709" fill="#77baff" font-family="Menlo, Consolas, monospace" font-size="12" font-weight="700" letter-spacing="0">SPC1</text>
-<text x="462" y="750" fill="#b6c7d9" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="400" letter-spacing="0">One node moved. Other fields retained.</text>
-<path d="M1006 403V429" stroke="#ffa468" stroke-width="3"/>
-<path d="M999 429l7 12 7-12z" fill="#ffa468"/>
-<rect x="824" y="445" width="365" height="331" rx="22" fill="#17283e" stroke="#385573" stroke-width="1.5"/>
-<rect x="824" y="445" width="365" height="7" rx="3.5" fill="#ffa468"/>
-<text x="849" y="480" fill="#ffa468" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="700" letter-spacing="1">03  VTU PROJECTION</text>
-<text x="849" y="513" fill="#f5f8ff" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="700" letter-spacing="0">mesh.vtu</text>
+<path d="M1056 219V318" stroke="#3c5875"/>
+<text x="1069" y="243" fill="#758ba3" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="700" letter-spacing="1">TOPOLOGY</text>
+<text x="1069" y="265" fill="#f5f8ff" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="400" letter-spacing="0">same cells</text>
+<text x="1069" y="291" fill="#758ba3" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="700" letter-spacing="1">DATA</text>
+<text x="1069" y="313" fill="#77baff" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="400" letter-spacing="0">native</text>
+<path d="M849 326H1166" stroke="#38516b"/>
+<text x="849" y="347" fill="#b6c7d9" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="400" letter-spacing="0">Other source bytes retained</text>
+<path d="M410 248H428 M800 248H818" stroke="#89a3ba" stroke-width="2.5"/>
+<path d="M427 243l7 5-7 5 M817 243l7 5-7 5" fill="none" stroke="#89a3ba" stroke-width="2"/>
+<path d="M45 400H1190" stroke="#304761"/>
+<text x="45" y="449" fill="#f5f8ff" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="700" letter-spacing="0">SIX FORMAT REPRESENTATIONS</text>
+<text x="46" y="476" fill="#b6c7d9" font-family="Arial, Helvetica, sans-serif" font-size="15" font-weight="400" letter-spacing="0">Mesh-bearing outputs retain cell topology; carried fields depend on the input.</text>
+<text x="46" y="497" fill="#758ba3" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="400" letter-spacing="0">Routes and conditions are specified in the matrix below.</text>
+<rect x="45" y="518" width="365" height="218" rx="20" fill="#17283e" stroke="#3c5875" stroke-width="1.3"/>
+<rect x="45" y="518" width="365" height="6" rx="3" fill="#69dfc0"/>
+<text x="69" y="555" fill="#69dfc0" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="700" letter-spacing="1">BDF</text>
+<text x="69" y="586" fill="#f5f8ff" font-family="Arial, Helvetica, sans-serif" font-size="23" font-weight="700" letter-spacing="0">mesh.bdf</text>
 <g aria-hidden="true">
-<polygon points="900,554 943,550 951,584 908,588" fill="#2f4b62" fill-opacity="0.45" stroke="#ffa468" stroke-width="1.7" stroke-linejoin="round"/>
-<polygon points="943,550 986,546 994,580 951,584" fill="#b65d35" fill-opacity="0.45" stroke="#ffa468" stroke-width="1.7" stroke-linejoin="round"/>
-<polygon points="986,546 1029,542 1037,576 994,580" fill="#2f4b62" fill-opacity="0.45" stroke="#ffa468" stroke-width="1.7" stroke-linejoin="round"/>
-<polygon points="1029,542 1072,538 1080,572 1037,576" fill="#b65d35" fill-opacity="0.45" stroke="#ffa468" stroke-width="1.7" stroke-linejoin="round"/>
-<polygon points="908,588 951,584 959,618 916,622" fill="#b65d35" fill-opacity="0.45" stroke="#ffa468" stroke-width="1.7" stroke-linejoin="round"/>
-<polygon points="951,584 994,580 1002,614 959,618" fill="#2f4b62" fill-opacity="0.45" stroke="#ffa468" stroke-width="1.7" stroke-linejoin="round"/>
-<polygon points="994,580 1037,576 1045,610 1002,614" fill="#b65d35" fill-opacity="0.45" stroke="#ffa468" stroke-width="1.7" stroke-linejoin="round"/>
-<polygon points="1037,576 1080,572 1088,606 1045,610" fill="#2f4b62" fill-opacity="0.45" stroke="#ffa468" stroke-width="1.7" stroke-linejoin="round"/>
-<polygon points="916,622 959,618 967,652 924,656" fill="#2f4b62" fill-opacity="0.45" stroke="#ffa468" stroke-width="1.7" stroke-linejoin="round"/>
-<polygon points="959,618 1002,614 1010,648 967,652" fill="#b65d35" fill-opacity="0.45" stroke="#ffa468" stroke-width="1.7" stroke-linejoin="round"/>
-<polygon points="1002,614 1045,610 1053,644 1010,648" fill="#2f4b62" fill-opacity="0.45" stroke="#ffa468" stroke-width="1.7" stroke-linejoin="round"/>
-<polygon points="1045,610 1088,606 1096,640 1053,644" fill="#b65d35" fill-opacity="0.45" stroke="#ffa468" stroke-width="1.7" stroke-linejoin="round"/>
-<circle cx="900" cy="554" r="2.8" fill="#ffa468"/>
-<circle cx="943" cy="550" r="2.8" fill="#ffa468"/>
-<circle cx="986" cy="546" r="2.8" fill="#ffa468"/>
-<circle cx="1029" cy="542" r="2.8" fill="#ffa468"/>
-<circle cx="1072" cy="538" r="2.8" fill="#ffa468"/>
-<circle cx="908" cy="588" r="2.8" fill="#ffa468"/>
-<circle cx="951" cy="584" r="2.8" fill="#ffa468"/>
-<circle cx="994" cy="580" r="2.8" fill="#ffa468"/>
-<circle cx="1037" cy="576" r="2.8" fill="#ffa468"/>
-<circle cx="1080" cy="572" r="2.8" fill="#ffa468"/>
-<circle cx="916" cy="622" r="2.8" fill="#ffa468"/>
-<circle cx="959" cy="618" r="2.8" fill="#ffa468"/>
-<circle cx="1002" cy="614" r="2.8" fill="#ffa468"/>
-<circle cx="1045" cy="610" r="2.8" fill="#ffa468"/>
-<circle cx="1088" cy="606" r="2.8" fill="#ffa468"/>
-<circle cx="924" cy="656" r="2.8" fill="#ffa468"/>
-<circle cx="967" cy="652" r="2.8" fill="#ffa468"/>
-<circle cx="1010" cy="648" r="2.8" fill="#ffa468"/>
-<circle cx="1053" cy="644" r="2.8" fill="#ffa468"/>
-<circle cx="1096" cy="640" r="2.8" fill="#ffa468"/>
+<polygon points="75,605 112,602 119,630 82,633" fill="#37546b" fill-opacity=".24" stroke="#69dfc0" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="112,602 149,599 156,627 119,630" fill="#37546b" fill-opacity=".24" stroke="#69dfc0" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="149,599 186,596 193,624 156,627" fill="#37546b" fill-opacity=".24" stroke="#69dfc0" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="186,596 223,593 230,621 193,624" fill="#37546b" fill-opacity=".24" stroke="#69dfc0" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="82,633 119,630 126,658 89,661" fill="#37546b" fill-opacity=".24" stroke="#69dfc0" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="119,630 156,627 163,655 126,658" fill="#37546b" fill-opacity=".24" stroke="#69dfc0" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="156,627 193,624 200,652 163,655" fill="#37546b" fill-opacity=".24" stroke="#69dfc0" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="193,624 230,621 237,649 200,652" fill="#37546b" fill-opacity=".24" stroke="#69dfc0" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="89,661 126,658 133,686 96,689" fill="#37546b" fill-opacity=".24" stroke="#69dfc0" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="126,658 163,655 170,683 133,686" fill="#37546b" fill-opacity=".24" stroke="#69dfc0" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="163,655 200,652 207,680 170,683" fill="#37546b" fill-opacity=".24" stroke="#69dfc0" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="200,652 237,649 244,677 207,680" fill="#37546b" fill-opacity=".24" stroke="#69dfc0" stroke-width="1.5" stroke-linejoin="round"/>
+<circle cx="75" cy="605" r="2.6" fill="#69dfc0"/>
+<circle cx="112" cy="602" r="2.6" fill="#69dfc0"/>
+<circle cx="149" cy="599" r="2.6" fill="#69dfc0"/>
+<circle cx="186" cy="596" r="2.6" fill="#69dfc0"/>
+<circle cx="223" cy="593" r="2.6" fill="#69dfc0"/>
+<circle cx="82" cy="633" r="2.6" fill="#69dfc0"/>
+<circle cx="119" cy="630" r="2.6" fill="#69dfc0"/>
+<circle cx="156" cy="627" r="2.6" fill="#69dfc0"/>
+<circle cx="193" cy="624" r="2.6" fill="#69dfc0"/>
+<circle cx="230" cy="621" r="2.6" fill="#69dfc0"/>
+<circle cx="89" cy="661" r="2.6" fill="#69dfc0"/>
+<circle cx="126" cy="658" r="2.6" fill="#69dfc0"/>
+<circle cx="163" cy="655" r="2.6" fill="#69dfc0"/>
+<circle cx="200" cy="652" r="2.6" fill="#69dfc0"/>
+<circle cx="237" cy="649" r="2.6" fill="#69dfc0"/>
+<circle cx="96" cy="689" r="2.6" fill="#69dfc0"/>
+<circle cx="133" cy="686" r="2.6" fill="#69dfc0"/>
+<circle cx="170" cy="683" r="2.6" fill="#69dfc0"/>
+<circle cx="207" cy="680" r="2.6" fill="#69dfc0"/>
+<circle cx="244" cy="677" r="2.6" fill="#69dfc0"/>
 </g>
-<text x="849" y="681" fill="#b6c7d9" font-family="Arial, Helvetica, sans-serif" font-size="12" font-weight="700" letter-spacing="1">OTHER BDF RECORDS</text>
-<rect x="849" y="691" width="70" height="25" rx="7" fill="#1c3048" stroke="#71839a" stroke-width="1"/>
-<text x="857" y="709" fill="#71839a" font-family="Menlo, Consolas, monospace" font-size="12" font-weight="700" letter-spacing="0">PSHELL</text>
-<path d="M856 712L912 695" stroke="#ec7f77" stroke-width="2"/>
-<rect x="927" y="691" width="70" height="25" rx="7" fill="#1c3048" stroke="#71839a" stroke-width="1"/>
-<text x="935" y="709" fill="#71839a" font-family="Menlo, Consolas, monospace" font-size="12" font-weight="700" letter-spacing="0">MAT1</text>
-<path d="M934 712L990 695" stroke="#ec7f77" stroke-width="2"/>
-<rect x="1005" y="691" width="70" height="25" rx="7" fill="#1c3048" stroke="#71839a" stroke-width="1"/>
-<text x="1013" y="709" fill="#71839a" font-family="Menlo, Consolas, monospace" font-size="12" font-weight="700" letter-spacing="0">FORCE</text>
-<path d="M1012 712L1068 695" stroke="#ec7f77" stroke-width="2"/>
-<rect x="1083" y="691" width="70" height="25" rx="7" fill="#1c3048" stroke="#71839a" stroke-width="1"/>
-<text x="1091" y="709" fill="#71839a" font-family="Menlo, Consolas, monospace" font-size="12" font-weight="700" letter-spacing="0">SPC1</text>
-<path d="M1090 712L1146 695" stroke="#ec7f77" stroke-width="2"/>
-<text x="849" y="750" fill="#b6c7d9" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="400" letter-spacing="0">Same geometry and IDs; omissions reported.</text>
-<path d="M50 792H1190" stroke="#304761" stroke-width="1"/>
-<text x="51" y="811" fill="#b6c7d9" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="400" letter-spacing="0">Schematic mesh: the copy and VTU keep source geometry; only the edited BDF moves a node.</text>
+<path d="M276 600V699" stroke="#3c5875"/>
+<text x="289" y="624" fill="#758ba3" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="700" letter-spacing="1">TOPOLOGY</text>
+<text x="289" y="646" fill="#f5f8ff" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="400" letter-spacing="0">same cells</text>
+<text x="289" y="672" fill="#758ba3" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="700" letter-spacing="1">DATA</text>
+<text x="289" y="694" fill="#69dfc0" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="400" letter-spacing="0">mesh only</text>
+<path d="M69 707H386" stroke="#38516b"/>
+<text x="69" y="728" fill="#b6c7d9" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="400" letter-spacing="0">Solver cards omitted</text>
+<rect x="435" y="518" width="365" height="218" rx="20" fill="#17283e" stroke="#3c5875" stroke-width="1.3"/>
+<rect x="435" y="518" width="365" height="6" rx="3" fill="#ffae75"/>
+<text x="459" y="555" fill="#ffae75" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="700" letter-spacing="1">VTU</text>
+<text x="459" y="586" fill="#f5f8ff" font-family="Arial, Helvetica, sans-serif" font-size="23" font-weight="700" letter-spacing="0">mesh.vtu</text>
+<g aria-hidden="true">
+<polygon points="465,605 502,602 509,630 472,633" fill="#37546b" fill-opacity=".45" stroke="#ffae75" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="502,602 539,599 546,627 509,630" fill="#b45e3d" fill-opacity=".45" stroke="#ffae75" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="539,599 576,596 583,624 546,627" fill="#37546b" fill-opacity=".45" stroke="#ffae75" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="576,596 613,593 620,621 583,624" fill="#b45e3d" fill-opacity=".45" stroke="#ffae75" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="472,633 509,630 516,658 479,661" fill="#b45e3d" fill-opacity=".45" stroke="#ffae75" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="509,630 546,627 553,655 516,658" fill="#37546b" fill-opacity=".45" stroke="#ffae75" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="546,627 583,624 590,652 553,655" fill="#b45e3d" fill-opacity=".45" stroke="#ffae75" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="583,624 620,621 627,649 590,652" fill="#37546b" fill-opacity=".45" stroke="#ffae75" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="479,661 516,658 523,686 486,689" fill="#37546b" fill-opacity=".45" stroke="#ffae75" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="516,658 553,655 560,683 523,686" fill="#b45e3d" fill-opacity=".45" stroke="#ffae75" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="553,655 590,652 597,680 560,683" fill="#37546b" fill-opacity=".45" stroke="#ffae75" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="590,652 627,649 634,677 597,680" fill="#b45e3d" fill-opacity=".45" stroke="#ffae75" stroke-width="1.5" stroke-linejoin="round"/>
+<circle cx="465" cy="605" r="2.6" fill="#ffae75"/>
+<circle cx="502" cy="602" r="2.6" fill="#ffae75"/>
+<circle cx="539" cy="599" r="2.6" fill="#ffae75"/>
+<circle cx="576" cy="596" r="2.6" fill="#ffae75"/>
+<circle cx="613" cy="593" r="2.6" fill="#ffae75"/>
+<circle cx="472" cy="633" r="2.6" fill="#ffae75"/>
+<circle cx="509" cy="630" r="2.6" fill="#ffae75"/>
+<circle cx="546" cy="627" r="2.6" fill="#ffae75"/>
+<circle cx="583" cy="624" r="2.6" fill="#ffae75"/>
+<circle cx="620" cy="621" r="2.6" fill="#ffae75"/>
+<circle cx="479" cy="661" r="2.6" fill="#ffae75"/>
+<circle cx="516" cy="658" r="2.6" fill="#ffae75"/>
+<circle cx="553" cy="655" r="2.6" fill="#ffae75"/>
+<circle cx="590" cy="652" r="2.6" fill="#ffae75"/>
+<circle cx="627" cy="649" r="2.6" fill="#ffae75"/>
+<circle cx="486" cy="689" r="2.6" fill="#ffae75"/>
+<circle cx="523" cy="686" r="2.6" fill="#ffae75"/>
+<circle cx="560" cy="683" r="2.6" fill="#ffae75"/>
+<circle cx="597" cy="680" r="2.6" fill="#ffae75"/>
+<circle cx="634" cy="677" r="2.6" fill="#ffae75"/>
+</g>
+<path d="M666 600V699" stroke="#3c5875"/>
+<text x="679" y="624" fill="#758ba3" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="700" letter-spacing="1">TOPOLOGY</text>
+<text x="679" y="646" fill="#f5f8ff" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="400" letter-spacing="0">same cells</text>
+<text x="679" y="672" fill="#758ba3" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="700" letter-spacing="1">DATA</text>
+<text x="679" y="694" fill="#ffae75" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="400" letter-spacing="0">numeric</text>
+<path d="M459 707H776" stroke="#38516b"/>
+<text x="459" y="728" fill="#b6c7d9" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="400" letter-spacing="0">Point and cell arrays</text>
+<rect x="825" y="518" width="365" height="218" rx="20" fill="#17283e" stroke="#3c5875" stroke-width="1.3"/>
+<rect x="825" y="518" width="365" height="6" rx="3" fill="#b9a0ff"/>
+<text x="849" y="555" fill="#b9a0ff" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="700" letter-spacing="1">MSH 4.1</text>
+<text x="849" y="586" fill="#f5f8ff" font-family="Arial, Helvetica, sans-serif" font-size="23" font-weight="700" letter-spacing="0">mesh.msh</text>
+<g aria-hidden="true">
+<polygon points="855,605 892,602 899,630 862,633" fill="#37546b" fill-opacity=".24" stroke="#b9a0ff" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="892,602 929,599 936,627 899,630" fill="#37546b" fill-opacity=".24" stroke="#b9a0ff" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="929,599 966,596 973,624 936,627" fill="#37546b" fill-opacity=".24" stroke="#b9a0ff" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="966,596 1003,593 1010,621 973,624" fill="#37546b" fill-opacity=".24" stroke="#b9a0ff" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="862,633 899,630 906,658 869,661" fill="#37546b" fill-opacity=".24" stroke="#b9a0ff" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="899,630 936,627 943,655 906,658" fill="#37546b" fill-opacity=".24" stroke="#b9a0ff" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="936,627 973,624 980,652 943,655" fill="#37546b" fill-opacity=".24" stroke="#b9a0ff" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="973,624 1010,621 1017,649 980,652" fill="#37546b" fill-opacity=".24" stroke="#b9a0ff" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="869,661 906,658 913,686 876,689" fill="#37546b" fill-opacity=".24" stroke="#b9a0ff" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="906,658 943,655 950,683 913,686" fill="#37546b" fill-opacity=".24" stroke="#b9a0ff" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="943,655 980,652 987,680 950,683" fill="#37546b" fill-opacity=".24" stroke="#b9a0ff" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="980,652 1017,649 1024,677 987,680" fill="#37546b" fill-opacity=".24" stroke="#b9a0ff" stroke-width="1.5" stroke-linejoin="round"/>
+<circle cx="855" cy="605" r="2.6" fill="#b9a0ff"/>
+<circle cx="892" cy="602" r="2.6" fill="#b9a0ff"/>
+<circle cx="929" cy="599" r="2.6" fill="#b9a0ff"/>
+<circle cx="966" cy="596" r="2.6" fill="#b9a0ff"/>
+<circle cx="1003" cy="593" r="2.6" fill="#b9a0ff"/>
+<circle cx="862" cy="633" r="2.6" fill="#b9a0ff"/>
+<circle cx="899" cy="630" r="2.6" fill="#b9a0ff"/>
+<circle cx="936" cy="627" r="2.6" fill="#b9a0ff"/>
+<circle cx="973" cy="624" r="2.6" fill="#b9a0ff"/>
+<circle cx="1010" cy="621" r="2.6" fill="#b9a0ff"/>
+<circle cx="869" cy="661" r="2.6" fill="#b9a0ff"/>
+<circle cx="906" cy="658" r="2.6" fill="#b9a0ff"/>
+<circle cx="943" cy="655" r="2.6" fill="#b9a0ff"/>
+<circle cx="980" cy="652" r="2.6" fill="#b9a0ff"/>
+<circle cx="1017" cy="649" r="2.6" fill="#b9a0ff"/>
+<circle cx="876" cy="689" r="2.6" fill="#b9a0ff"/>
+<circle cx="913" cy="686" r="2.6" fill="#b9a0ff"/>
+<circle cx="950" cy="683" r="2.6" fill="#b9a0ff"/>
+<circle cx="987" cy="680" r="2.6" fill="#b9a0ff"/>
+<circle cx="1024" cy="677" r="2.6" fill="#b9a0ff"/>
+<text x="860" y="598" fill="#f5f8ff" font-family="Menlo, Consolas, monospace" font-size="10" font-weight="400" letter-spacing="0">10</text>
+<text x="934" y="592" fill="#f5f8ff" font-family="Menlo, Consolas, monospace" font-size="10" font-weight="400" letter-spacing="0">20</text>
+<text x="1029" y="670" fill="#f5f8ff" font-family="Menlo, Consolas, monospace" font-size="10" font-weight="400" letter-spacing="0">30</text>
+</g>
+<path d="M1056 600V699" stroke="#3c5875"/>
+<text x="1069" y="624" fill="#758ba3" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="700" letter-spacing="1">TOPOLOGY</text>
+<text x="1069" y="646" fill="#f5f8ff" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="400" letter-spacing="0">same cells</text>
+<text x="1069" y="672" fill="#758ba3" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="700" letter-spacing="1">DATA</text>
+<text x="1069" y="694" fill="#b9a0ff" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="400" letter-spacing="0">numeric</text>
+<path d="M849 707H1166" stroke="#38516b"/>
+<text x="849" y="728" fill="#b6c7d9" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="400" letter-spacing="0">Component labels can be lost</text>
+<rect x="45" y="773" width="365" height="218" rx="20" fill="#17283e" stroke="#3c5875" stroke-width="1.3"/>
+<rect x="45" y="773" width="365" height="6" rx="3" fill="#75d2d6"/>
+<text x="69" y="810" fill="#75d2d6" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="700" letter-spacing="1">INP</text>
+<text x="69" y="841" fill="#f5f8ff" font-family="Arial, Helvetica, sans-serif" font-size="23" font-weight="700" letter-spacing="0">mesh.inp</text>
+<g aria-hidden="true">
+<polygon points="75,860 112,857 119,885 82,888" fill="#37546b" fill-opacity=".24" stroke="#75d2d6" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="112,857 149,854 156,882 119,885" fill="#37546b" fill-opacity=".24" stroke="#75d2d6" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="149,854 186,851 193,879 156,882" fill="#37546b" fill-opacity=".24" stroke="#75d2d6" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="186,851 223,848 230,876 193,879" fill="#37546b" fill-opacity=".24" stroke="#75d2d6" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="82,888 119,885 126,913 89,916" fill="#37546b" fill-opacity=".24" stroke="#75d2d6" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="119,885 156,882 163,910 126,913" fill="#37546b" fill-opacity=".24" stroke="#75d2d6" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="156,882 193,879 200,907 163,910" fill="#37546b" fill-opacity=".24" stroke="#75d2d6" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="193,879 230,876 237,904 200,907" fill="#37546b" fill-opacity=".24" stroke="#75d2d6" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="89,916 126,913 133,941 96,944" fill="#37546b" fill-opacity=".24" stroke="#75d2d6" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="126,913 163,910 170,938 133,941" fill="#37546b" fill-opacity=".24" stroke="#75d2d6" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="163,910 200,907 207,935 170,938" fill="#37546b" fill-opacity=".24" stroke="#75d2d6" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="200,907 237,904 244,932 207,935" fill="#37546b" fill-opacity=".24" stroke="#75d2d6" stroke-width="1.5" stroke-linejoin="round"/>
+<circle cx="75" cy="860" r="2.6" fill="#75d2d6"/>
+<circle cx="112" cy="857" r="2.6" fill="#75d2d6"/>
+<circle cx="149" cy="854" r="2.6" fill="#75d2d6"/>
+<circle cx="186" cy="851" r="2.6" fill="#75d2d6"/>
+<circle cx="223" cy="848" r="2.6" fill="#75d2d6"/>
+<circle cx="82" cy="888" r="2.6" fill="#75d2d6"/>
+<circle cx="119" cy="885" r="2.6" fill="#75d2d6"/>
+<circle cx="156" cy="882" r="2.6" fill="#75d2d6"/>
+<circle cx="193" cy="879" r="2.6" fill="#75d2d6"/>
+<circle cx="230" cy="876" r="2.6" fill="#75d2d6"/>
+<circle cx="89" cy="916" r="2.6" fill="#75d2d6"/>
+<circle cx="126" cy="913" r="2.6" fill="#75d2d6"/>
+<circle cx="163" cy="910" r="2.6" fill="#75d2d6"/>
+<circle cx="200" cy="907" r="2.6" fill="#75d2d6"/>
+<circle cx="237" cy="904" r="2.6" fill="#75d2d6"/>
+<circle cx="96" cy="944" r="2.6" fill="#75d2d6"/>
+<circle cx="133" cy="941" r="2.6" fill="#75d2d6"/>
+<circle cx="170" cy="938" r="2.6" fill="#75d2d6"/>
+<circle cx="207" cy="935" r="2.6" fill="#75d2d6"/>
+<circle cx="244" cy="932" r="2.6" fill="#75d2d6"/>
+</g>
+<path d="M276 855V954" stroke="#3c5875"/>
+<text x="289" y="879" fill="#758ba3" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="700" letter-spacing="1">TOPOLOGY</text>
+<text x="289" y="901" fill="#f5f8ff" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="400" letter-spacing="0">same cells</text>
+<text x="289" y="927" fill="#758ba3" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="700" letter-spacing="1">DATA</text>
+<text x="289" y="949" fill="#75d2d6" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="400" letter-spacing="0">mesh only</text>
+<path d="M69 962H386" stroke="#38516b"/>
+<text x="69" y="983" fill="#b6c7d9" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="400" letter-spacing="0">Properties and results omitted</text>
+<rect x="435" y="773" width="365" height="218" rx="20" fill="#17283e" stroke="#3c5875" stroke-width="1.3"/>
+<rect x="435" y="773" width="365" height="6" rx="3" fill="#f28eaa"/>
+<text x="459" y="810" fill="#f28eaa" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="700" letter-spacing="1">FRD</text>
+<text x="459" y="841" fill="#f5f8ff" font-family="Arial, Helvetica, sans-serif" font-size="23" font-weight="700" letter-spacing="0">results.frd</text>
+<g aria-hidden="true">
+<polygon points="465,860 502,857 509,885 472,888" fill="#37546b" fill-opacity=".45" stroke="#f28eaa" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="502,857 539,854 546,882 509,885" fill="#37546b" fill-opacity=".45" stroke="#f28eaa" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="539,854 576,851 583,879 546,882" fill="#37546b" fill-opacity=".45" stroke="#f28eaa" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="576,851 613,848 620,876 583,879" fill="#37546b" fill-opacity=".45" stroke="#f28eaa" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="472,888 509,885 516,913 479,916" fill="#37546b" fill-opacity=".45" stroke="#f28eaa" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="509,885 546,882 553,910 516,913" fill="#37546b" fill-opacity=".45" stroke="#f28eaa" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="546,882 583,879 590,907 553,910" fill="#37546b" fill-opacity=".45" stroke="#f28eaa" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="583,879 620,876 627,904 590,907" fill="#37546b" fill-opacity=".45" stroke="#f28eaa" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="479,916 516,913 523,941 486,944" fill="#37546b" fill-opacity=".45" stroke="#f28eaa" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="516,913 553,910 560,938 523,941" fill="#37546b" fill-opacity=".45" stroke="#f28eaa" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="553,910 590,907 597,935 560,938" fill="#37546b" fill-opacity=".45" stroke="#f28eaa" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="590,907 627,904 634,932 597,935" fill="#37546b" fill-opacity=".45" stroke="#f28eaa" stroke-width="1.5" stroke-linejoin="round"/>
+<circle cx="465" cy="860" r="2.6" fill="#ffe2a5"/>
+<circle cx="502" cy="857" r="2.6" fill="#f28eaa"/>
+<circle cx="539" cy="854" r="2.6" fill="#f28eaa"/>
+<circle cx="576" cy="851" r="2.6" fill="#ffe2a5"/>
+<circle cx="613" cy="848" r="2.6" fill="#f28eaa"/>
+<circle cx="472" cy="888" r="2.6" fill="#f28eaa"/>
+<circle cx="509" cy="885" r="2.6" fill="#f28eaa"/>
+<circle cx="546" cy="882" r="2.6" fill="#ffe2a5"/>
+<circle cx="583" cy="879" r="2.6" fill="#f28eaa"/>
+<circle cx="620" cy="876" r="2.6" fill="#f28eaa"/>
+<circle cx="479" cy="916" r="2.6" fill="#f28eaa"/>
+<circle cx="516" cy="913" r="2.6" fill="#ffe2a5"/>
+<circle cx="553" cy="910" r="2.6" fill="#f28eaa"/>
+<circle cx="590" cy="907" r="2.6" fill="#f28eaa"/>
+<circle cx="627" cy="904" r="2.6" fill="#ffe2a5"/>
+<circle cx="486" cy="944" r="2.6" fill="#ffe2a5"/>
+<circle cx="523" cy="941" r="2.6" fill="#f28eaa"/>
+<circle cx="560" cy="938" r="2.6" fill="#f28eaa"/>
+<circle cx="597" cy="935" r="2.6" fill="#ffe2a5"/>
+<circle cx="634" cy="932" r="2.6" fill="#f28eaa"/>
+</g>
+<path d="M666 855V954" stroke="#3c5875"/>
+<text x="679" y="879" fill="#758ba3" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="700" letter-spacing="1">TOPOLOGY</text>
+<text x="679" y="901" fill="#f5f8ff" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="400" letter-spacing="0">same cells</text>
+<text x="679" y="927" fill="#758ba3" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="700" letter-spacing="1">DATA</text>
+<text x="679" y="949" fill="#f28eaa" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="400" letter-spacing="0">nodal</text>
+<path d="M459 962H776" stroke="#38516b"/>
+<text x="459" y="983" fill="#b6c7d9" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="400" letter-spacing="0">ASCII values rounded</text>
+<rect x="825" y="773" width="365" height="218" rx="20" fill="#17283e" stroke="#3c5875" stroke-width="1.3"/>
+<rect x="825" y="773" width="365" height="6" rx="3" fill="#f6c76d"/>
+<text x="849" y="810" fill="#f6c76d" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="700" letter-spacing="1">OP2</text>
+<text x="849" y="841" fill="#f5f8ff" font-family="Arial, Helvetica, sans-serif" font-size="23" font-weight="700" letter-spacing="0">results.op2</text>
+<rect x="850" y="856" width="195" height="104" rx="10" fill="#21344b" stroke="#49627b"/>
+<text x="862" y="878" fill="#b6c7d9" font-family="Menlo, Consolas, monospace" font-size="11" font-weight="400" letter-spacing="0">ID</text>
+<text x="896" y="878" fill="#f6c76d" font-family="Menlo, Consolas, monospace" font-size="11" font-weight="400" letter-spacing="0">T1 T2 T3 R1 R2 R3</text>
+<path d="M860 885H1035" stroke="#49627b"/>
+<text x="862" y="909" fill="#f5f8ff" font-family="Menlo, Consolas, monospace" font-size="11" font-weight="400" letter-spacing="0">10</text>
+<text x="896" y="909" fill="#f5f8ff" font-family="Menlo, Consolas, monospace" font-size="11" font-weight="400" letter-spacing="0">0  0  0  0  0  0</text>
+<text x="862" y="935" fill="#f5f8ff" font-family="Menlo, Consolas, monospace" font-size="11" font-weight="400" letter-spacing="0">20</text>
+<text x="896" y="935" fill="#f5f8ff" font-family="Menlo, Consolas, monospace" font-size="11" font-weight="400" letter-spacing="0">0  0  0  0  0  0</text>
+<path d="M1056 855V954" stroke="#3c5875"/>
+<text x="1069" y="879" fill="#758ba3" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="700" letter-spacing="1">TOPOLOGY</text>
+<text x="1069" y="901" fill="#f5f8ff" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="400" letter-spacing="0">not stored</text>
+<text x="1069" y="927" fill="#758ba3" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="700" letter-spacing="1">DATA</text>
+<text x="1069" y="949" fill="#f6c76d" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="400" letter-spacing="0">DISP only</text>
+<path d="M849 962H1166" stroke="#38516b"/>
+<text x="849" y="983" fill="#b6c7d9" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="400" letter-spacing="0">From BDF: explicit zero assumption</text>
+<path d="M45 1013H1190" stroke="#304761"/>
+<text x="46" y="1030" fill="#b6c7d9" font-family="Arial, Helvetica, sans-serif" font-size="12" font-weight="400" letter-spacing="0">Schematic only: field availability depends on the source; OP2 needs pyNastran and a matching BDF for reading.</text>
 </svg>

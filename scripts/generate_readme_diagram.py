@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate the README's mesh comparison SVG using only Python's stdlib."""
+"""Generate the README's format-comparison SVG using only Python's stdlib."""
 
 from __future__ import annotations
 
@@ -9,32 +9,44 @@ from html import escape
 from pathlib import Path
 from xml.etree import ElementTree
 
-
-OUTPUT = Path(__file__).resolve().parents[1] / "assets" / "conversion-flow.svg"
+OUTPUT = Path(__file__).resolve().parents[1] / "assets/conversion-flow.svg"
 BACKGROUND = "#0b1423"
 PANEL = "#17283e"
 WHITE = "#f5f8ff"
 MUTED = "#b6c7d9"
+DIM = "#758ba3"
+SOURCE = "#f4bc72"
 COPY = "#69dfc0"
 EDIT = "#77baff"
-VTU = "#ffa468"
-RECORDS = ("PSHELL", "MAT1", "FORCE", "SPC1")
 
 
 @dataclass(frozen=True)
-class Panel:
+class Card:
     x: int
-    step: str
+    y: int
+    label: str
     filename: str
-    color: str
-    variant: str
-    summary: str
+    accent: str
+    visual: str
+    note: str
 
 
-PANELS = (
-    Panel(50, "01  EXACT COPY", "copy.bdf", COPY, "copy", "Same mesh. Every source byte retained."),
-    Panel(437, "02  GRID EDIT", "edited.bdf", EDIT, "edited", "One node moved. Other fields retained."),
-    Panel(824, "03  VTU PROJECTION", "mesh.vtu", VTU, "vtu", "Same geometry and IDs; omissions reported."),
+NATIVE = (
+    Card(45, 137, "SOURCE DOCUMENT", "model.bdf", SOURCE, "source",
+         "PSHELL  MAT1  FORCE  SPC1"),
+    Card(435, 137, "BYTE-IDENTICAL COPY", "copy.bdf", COPY, "copy",
+         "Every source byte retained"),
+    Card(825, 137, "GRID COORDINATE EDIT", "edited.bdf", EDIT, "edited",
+         "Other source bytes retained"),
+)
+
+PROJECTED = (
+    Card(45, 518, "BDF", "mesh.bdf", "#69dfc0", "bdf", "Solver cards omitted"),
+    Card(435, 518, "VTU", "mesh.vtu", "#ffae75", "vtu", "Point and cell arrays"),
+    Card(825, 518, "MSH 4.1", "mesh.msh", "#b9a0ff", "msh", "Component labels can be lost"),
+    Card(45, 773, "INP", "mesh.inp", "#75d2d6", "inp", "Properties and results omitted"),
+    Card(435, 773, "FRD", "results.frd", "#f28eaa", "frd", "ASCII values rounded"),
+    Card(825, 773, "OP2", "results.op2", "#f6c76d", "op2", "From BDF: explicit zero assumption"),
 )
 
 
@@ -46,114 +58,129 @@ def text(x: int, y: int, value: str, *, size: int = 16, color: str = WHITE,
             f'{escape(value)}</text>')
 
 
-def mesh(x: int, y: int, variant: str) -> str:
-    """Draw one schematic quad mesh; the edited view displaces one GRID node."""
-    points: dict[tuple[int, int], tuple[int, int]] = {}
+def mesh(x: int, y: int, accent: str, variant: str) -> str:
+    """Keep topology fixed; only the native GRID edit changes coordinates."""
+    points = {}
     for row in range(4):
         for col in range(5):
-            px, py = x + col * 43 + row * 8, y + row * 34 - col * 4
+            px, py = x + col * 37 + row * 7, y + row * 28 - col * 3
             if variant == "edited" and (col, row) == (4, 1):
-                px += 25
+                px += 20
                 py -= 11
             points[col, row] = px, py
 
-    color = VTU if variant == "vtu" else (EDIT if variant == "edited" else COPY)
     parts = ['<g aria-hidden="true">']
     for row in range(3):
         for col in range(4):
             corners = (points[col, row], points[col + 1, row],
                        points[col + 1, row + 1], points[col, row + 1])
-            coordinates = " ".join(f"{px},{py}" for px, py in corners)
-            fill = "#b65d35" if variant == "vtu" and (row + col) % 2 else "#2f4b62"
-            opacity = "0.45" if variant == "vtu" else "0.35"
-            parts.append(f'<polygon points="{coordinates}" fill="{fill}" fill-opacity="{opacity}" '
-                         f'stroke="{color}" stroke-width="1.7" stroke-linejoin="round"/>')
+            coords = " ".join(f"{px},{py}" for px, py in corners)
+            fill = "#b45e3d" if variant == "vtu" and (col + row) % 2 else "#37546b"
+            opacity = ".45" if variant in {"vtu", "frd"} else ".24"
+            parts.append(f'<polygon points="{coords}" fill="{fill}" fill-opacity="{opacity}" '
+                         f'stroke="{accent}" stroke-width="1.5" stroke-linejoin="round"/>')
     for (col, row), (px, py) in points.items():
-        moved = variant == "edited" and (col, row) == (4, 1)
-        parts.append(f'<circle cx="{px}" cy="{py}" r="{6 if moved else 2.8}" '
-                     f'fill="{VTU if moved else color}"/>')
+        color = ("#ffe2a5" if (col + row) % 3 == 0 else accent) if variant == "frd" else accent
+        radius = 5 if variant == "edited" and (col, row) == (4, 1) else 2.6
+        parts.append(f'<circle cx="{px}" cy="{py}" r="{radius}" fill="{color}"/>')
     if variant == "edited":
-        old_x, old_y = x + 4 * 43 + 8, y + 34 - 4 * 4
+        old_x, old_y = x + 4 * 37 + 7, y + 28 - 4 * 3
         new_x, new_y = points[4, 1]
-        parts.append(f'<circle cx="{old_x}" cy="{old_y}" r="7" fill="none" '
-                     'stroke="#a9bdd1" stroke-width="1.5" stroke-dasharray="3 3"/>')
-        parts.append(f'<path d="M{old_x + 9} {old_y - 2}L{new_x - 8} {new_y + 2}" '
-                     f'stroke="{VTU}" stroke-width="2.5" stroke-linecap="round"/>')
-        parts.append(f'<circle cx="{new_x}" cy="{new_y}" r="9" fill="none" '
-                     f'stroke="{VTU}" stroke-opacity="0.65" stroke-width="2"/>')
+        parts.extend((
+            f'<circle cx="{old_x}" cy="{old_y}" r="7" fill="none" '
+            'stroke="#a9bdd1" stroke-dasharray="3 3"/>',
+            f'<path d="M{old_x + 8} {old_y - 2}L{new_x - 7} {new_y + 2}" '
+            'stroke="#ffae75" stroke-width="2.5"/>',
+        ))
+    if variant == "msh":
+        for col, row, label in ((0, 0, "10"), (2, 0, "20"), (4, 3, "30")):
+            px, py = points[col, row]
+            parts.append(text(px + 5, py - 7, label, size=10, color=WHITE, mono=True))
     parts.append("</g>")
     return "\n".join(parts)
 
 
-def record_pills(x: int, y: int, *, color: str, omitted: bool) -> str:
-    parts = []
-    for index, label in enumerate(RECORDS):
-        left = x + index * 78
-        stroke = "#71839a" if omitted else color
-        parts.append(f'<rect x="{left}" y="{y}" width="70" height="25" rx="7" '
-                     f'fill="#1c3048" stroke="{stroke}" stroke-width="1"/>')
-        parts.append(text(left + 8, y + 18, label, size=12, color=stroke, weight=700, mono=True))
-        if omitted:
-            parts.append(f'<path d="M{left + 7} {y + 21}L{left + 63} {y + 4}" '
-                         'stroke="#ec7f77" stroke-width="2"/>')
+def op2_table(x: int, y: int, accent: str) -> str:
+    """Result columns deliberately have no mesh silhouette."""
+    parts = [
+        f'<rect x="{x}" y="{y}" width="195" height="104" rx="10" '
+        'fill="#21344b" stroke="#49627b"/>',
+        text(x + 12, y + 22, "ID", size=11, color=MUTED, mono=True),
+        text(x + 46, y + 22, "T1 T2 T3 R1 R2 R3", size=11, color=accent, mono=True),
+        f'<path d="M{x + 10} {y + 29}H{x + 185}" stroke="#49627b"/>',
+        text(x + 12, y + 53, "10", size=11, color=WHITE, mono=True),
+        text(x + 46, y + 53, "0  0  0  0  0  0", size=11, color=WHITE, mono=True),
+        text(x + 12, y + 79, "20", size=11, color=WHITE, mono=True),
+        text(x + 46, y + 79, "0  0  0  0  0  0", size=11, color=WHITE, mono=True),
+    ]
     return "\n".join(parts)
 
 
-def output_panel(panel: Panel) -> str:
-    x, color = panel.x, panel.color
-    omitted = panel.variant == "vtu"
+def card(card: Card, *, native: bool) -> str:
+    x, y = card.x, card.y
+    height = 222 if native else 218
+    art = (op2_table(x + 25, y + 83, card.accent) if card.visual == "op2"
+           else mesh(x + 30, y + 87, card.accent, card.visual))
+    right = x + 244
     return "\n".join((
-        f'<rect x="{x}" y="445" width="365" height="331" rx="22" fill="{PANEL}" '
-        'stroke="#385573" stroke-width="1.5"/>',
-        f'<rect x="{x}" y="445" width="365" height="7" rx="3.5" fill="{color}"/>',
-        text(x + 25, 480, panel.step, size=13, color=color, weight=700, spacing=1),
-        text(x + 25, 513, panel.filename, size=24, weight=700),
-        mesh(x + 76, 554, panel.variant),
-        text(x + 25, 681, "OTHER BDF RECORDS", size=12, color=MUTED, weight=700, spacing=1),
-        record_pills(x + 25, 691, color=color, omitted=omitted),
-        text(x + 25, 750, panel.summary, size=14, color=MUTED),
+        f'<rect x="{x}" y="{y}" width="365" height="{height}" rx="20" '
+        f'fill="{PANEL}" stroke="#3c5875" stroke-width="1.3"/>',
+        f'<rect x="{x}" y="{y}" width="365" height="6" rx="3" fill="{card.accent}"/>',
+        text(x + 24, y + 37, card.label, size=13, color=card.accent, weight=700, spacing=1),
+        text(x + 24, y + 68, card.filename, size=23, weight=700),
+        art,
+        f'<path d="M{x + 231} {y + 82}V{y + 181}" stroke="#3c5875"/>',
+        text(right, y + 106, "TOPOLOGY", size=11, color=DIM, weight=700, spacing=1),
+        text(right, y + 128, "not stored" if card.visual == "op2" else
+             "source cells" if card.visual == "source" else "same cells",
+             size=13, color=WHITE),
+        text(right, y + 154, "DATA", size=11, color=DIM, weight=700, spacing=1),
+        text(right, y + 176, "native" if native else (
+            "DISP only" if card.visual == "op2" else
+            "nodal" if card.visual == "frd" else
+            "mesh only" if card.visual in {"bdf", "inp"} else "numeric"),
+             size=13, color=card.accent),
+        f'<path d="M{x + 24} {y + 189}H{x + 341}" stroke="#38516b"/>',
+        text(x + 24, y + 210, card.note, size=13, color=MUTED),
     ))
 
 
 def render() -> str:
     parts = [
-        '<svg xmlns="http://www.w3.org/2000/svg" width="1240" height="820" '
-        'viewBox="0 0 1240 820" role="img" aria-labelledby="title description">',
-        '<title id="title">How caexfer changes a BDF mesh and its surrounding data</title>',
-        '<desc id="description">A schematic BDF quad mesh branches into three outputs. The BDF copy has identical geometry and records. The edited BDF moves one mesh node but keeps other records. The VTU retains the original geometry and IDs while solver records are omitted and reported.</desc>',
+        '<svg xmlns="http://www.w3.org/2000/svg" width="1240" height="1037" '
+        'viewBox="0 0 1240 1037" role="img" aria-labelledby="title description">',
+        '<title id="title">Caexfer preserves native BDF bytes and projects six format subsets</title>',
+        '<desc id="description">The top row compares a BDF source, exact copy, and one moved GRID node. '
+        'The lower cards show BDF and INP geometry decks; VTU and MSH meshes with numeric fields; '
+        'FRD mesh with nodal fields; and an OP2 displacement table without embedded geometry. '
+        'The meshes share topology except for the deliberate native GRID edit.</desc>',
         '<defs><linearGradient id="background" x1="0" y1="0" x2="1" y2="1">'
         '<stop offset="0" stop-color="#122238"/>'
         f'<stop offset="1" stop-color="{BACKGROUND}"/>'
         '</linearGradient></defs>',
-        '<rect width="1240" height="820" rx="26" fill="url(#background)"/>',
-        text(50, 58, "The mesh tells the story", size=32, weight=700),
-        text(51, 87, "One preserved BDF source. Three different output guarantees.",
+        '<rect width="1240" height="1037" rx="24" fill="url(#background)"/>',
+        text(45, 58, "One mesh, different promises", size=32, weight=700),
+        text(46, 87, "Native BDF operations preserve the document. Conversions project supported geometry and results.",
              size=16, color=MUTED),
-        '<rect x="365" y="122" width="510" height="242" rx="23" '
-        f'fill="{PANEL}" stroke="#f4ad5a" stroke-width="2"/>',
-        '<rect x="365" y="122" width="510" height="7" rx="3.5" fill="#f4ad5a"/>',
-        text(391, 159, "SOURCE DOCUMENT", size=13, color="#f4ad5a", weight=700, spacing=1),
-        text(391, 191, "model.bdf", size=25, weight=700),
-        mesh(408, 221, "source"),
-        text(663, 217, "SOURCE RECORDS", size=12, color=MUTED, weight=700, spacing=1),
-        '<rect x="661" y="234" width="188" height="91" rx="12" fill="#20354d"/>',
-        text(675, 258, "PSHELL    MAT1", size=14, color="#f6ca87", weight=700, mono=True),
-        text(675, 284, "FORCE     SPC1", size=14, color="#f6ca87", weight=700, mono=True),
-        text(675, 309, "+ comments, source bytes", size=12, color=MUTED),
-        '<path d="M620 364V403 M232 403H1006" fill="none" stroke="#6885a2" '
-        'stroke-width="2.5" stroke-linecap="round"/>',
+        text(46, 120, "NATIVE BDF OPERATIONS", size=13, color=SOURCE, weight=700, spacing=1),
     ]
-    for panel in PANELS:
-        center = panel.x + 182
-        parts.extend((
-            f'<path d="M{center} 403V429" stroke="{panel.color}" stroke-width="3"/>',
-            f'<path d="M{center - 7} 429l7 12 7-12z" fill="{panel.color}"/>',
-            output_panel(panel),
-        ))
+    parts.extend(card(item, native=True) for item in NATIVE)
     parts.extend((
-        '<path d="M50 792H1190" stroke="#304761" stroke-width="1"/>',
-        text(51, 811, "Schematic mesh: the copy and VTU keep source geometry; only the edited BDF moves a node.",
-             size=13, color=MUTED),
+        '<path d="M410 248H428 M800 248H818" stroke="#89a3ba" stroke-width="2.5"/>',
+        '<path d="M427 243l7 5-7 5 M817 243l7 5-7 5" fill="none" '
+        'stroke="#89a3ba" stroke-width="2"/>',
+        '<path d="M45 400H1190" stroke="#304761"/>',
+        text(45, 449, "SIX FORMAT REPRESENTATIONS", size=22, weight=700),
+        text(46, 476, "Mesh-bearing outputs retain cell topology; carried fields depend on the input.",
+             size=15, color=MUTED),
+        text(46, 497, "Routes and conditions are specified in the matrix below.",
+             size=13, color=DIM),
+    ))
+    parts.extend(card(item, native=False) for item in PROJECTED)
+    parts.extend((
+        '<path d="M45 1013H1190" stroke="#304761"/>',
+        text(46, 1030, "Schematic only: field availability depends on the source; OP2 needs pyNastran and a matching BDF for reading.",
+             size=12, color=MUTED),
         '</svg>',
     ))
     return "\n".join(parts) + "\n"

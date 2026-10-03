@@ -10,11 +10,13 @@ caexfer separates the original engineering document from the information a
 particular downstream tool can represent. Read and preserve the document first;
 project it into geometry only when that loss of information is explicit.
 
-[![Schematic quad mesh showing a byte-identical BDF copy, a BDF with one moved node, and a VTU mesh that omits solver records](assets/conversion-flow.svg)](assets/conversion-flow.svg)
+[![Schematic of native BDF copy and GRID edit above BDF, VTU, MSH, INP, FRD, and OP2 projections](assets/conversion-flow.svg)](assets/conversion-flow.svg)
 
-The illustration shows the difference between preserving a BDF, editing one
-GRID node's coordinates, and projecting geometry into VTU. The VTU keeps
-original IDs but omits nongeometry records and reports those omissions.
+The illustration compares native BDF preservation and a one-node GRID edit with
+six projected output formats. Mesh-bearing outputs retain the supported cell
+topology but differ in which fields and solver records they carry. OP2 contains
+displacement results without a mesh; the matrix below gives the actual routes
+and conditions.
 
 ## From/to matrix
 
