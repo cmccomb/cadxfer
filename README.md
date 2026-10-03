@@ -27,23 +27,28 @@ original IDs but omits nongeometry records and reports those omissions.
 | **FRD** | M | F | F | M | C / F | D‡ |
 | **OP2 + BDF mesh** | M* | F* | F* | M* | F*† | C / D*‡ |
 
-**C** is `roundtrip`, a byte-identical source copy. BDF additionally supports
+- **C** is `roundtrip`, a byte-identical source copy. BDF additionally supports
 `set-grid`. **M** is a linear mesh projection with original node and element IDs.
-**F** carries the mesh plus supported numeric fields. **D** writes one real
-displacement OP2 table through pyNastran. A recognized three-component `DISP`
-field needs `--zero-missing-rotations` to set R1/R2/R3 to float `0.0` when those
+- **F** carries the mesh plus supported numeric fields.
+- **D** writes one real displacement OP2 table through pyNastran. A recognized
+three-component `DISP` field needs `--zero-missing-rotations` to set R1/R2/R3 to float `0.0` when those
 values are known; the default refuses unknown rotations. A six-component field
-carries its rotations. **Z** writes a **synthetic** static OP2 table with all six
+carries its rotations.
+- **Z** writes a **synthetic** static OP2 table with all six
 displacement components set to float `0.0` for every node. It requires
 `--assume-zero-displacement` and pyNastran; it does not claim a solver produced
-those values. OP2 stores no typed null for unknown displacements. `*` requires
+those values. OP2 stores no typed null for unknown displacements.
+- `*` requires
 `--mesh model.bdf` to read OP2; OP2
-output has no embedded mesh and needs a matching BDF for later use. `†` requires
+output has no embedded mesh and needs a matching BDF for later use.
+- `†` requires
 FRD-supported cells (no five-node pyramid); FRD keeps nodal fields, reports any
-omitted cell fields, and uses six-significant-digit ASCII values. `‡` requires
+omitted cell fields, and uses six-significant-digit ASCII values.
+- `‡` requires
 an installed pyNastran and one selected `DISP`/`DISPLACEMENT` field with three
 or six nodal components; a three-component field additionally needs the explicit
 zero-rotation option.
+
 Every `convert` route requires `--geometry-only` and reports omissions. This
 flag acknowledges projection into the supported mesh/field subset; it does not
 mean numeric fields are discarded on **F** routes.
