@@ -1,8 +1,7 @@
 # Handling untrusted files
 
 `caexfer` uses safe Rust and bounded input reads, but is not a sandbox or a
-strict total-memory budget. BDF INCLUDE records are preserved without opening
-their paths. OP2 operations explicitly run the selected Python interpreter and
+strict total-memory budget. OP2 operations explicitly run the selected Python interpreter and
 pyNastran, so use an interpreter and input files you trust.
 
 Report vulnerabilities privately through the repository's

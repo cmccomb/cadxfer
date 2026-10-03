@@ -57,26 +57,16 @@ The figure shows what each format can carry. Its BDF byte copy uses the library'
 | **FRD** | M | F | F | M | F† | D‡ |
 | **OP2 + matching mesh** | M* | F* | F* | M* | F*† | D*‡ |
 
-| Key | Result |
-| --- | --- |
-| **M** | Linear mesh projection with original node and element IDs. |
-| **F** | Mesh plus supported numeric fields. |
-| **D** | One real displacement table written to OP2 via pyNastran. |
-| **Z** | Synthetic OP2 with six float-zero displacement components per node; requires `--assume-zero-displacement`. |
+| Key | Result                                                                                                                                                                                                                                                                                                                                              |
+| --- |-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **M** | Linear mesh projection with original node and element IDs.                                                                                                                                                                                                                                                                                          |
+| **F** | Mesh plus supported numeric fields.                                                                                                                                                                                                                                                                                                                 |
+| **D** | One real displacement table written to OP2 via pyNastran.                                                                                                                                                                                                                                                                                           |
+| **Z** | Synthetic OP2 with six float-zero displacement components per node; requires `--assume-zero-displacement`. Requires pyNastran and labels its values as assumed, not solver results.                                                                                                                                                                 |
+|`*` | Reading OP2 requires `--mesh` with a matching BDF, VTU, MSH, INP, or FRD mesh. Node IDs must match; OP2 cannot verify companion coordinates or cells. BDF verifies `GRID CD=0`. Other formats cannot verify the OP2 displacement frame and require `--assume-basic-frame`.                                                                          |
+|`†` | FRD does not support five-node pyramids; its output can carry nodal fields and rounds ASCII values to six significant digits. `‡` OP2 writing requires pyNastran and one selected three- or six-component `DISP` field. If rotations are absent, `--zero-missing-rotations` explicitly asserts they are float zero; otherwise the conversion fails. |
 
-`*` Reading OP2 requires `--mesh` with a matching BDF, VTU, MSH, INP, or FRD
-mesh. Node IDs must match; OP2 cannot verify companion coordinates or cells.
-BDF verifies `GRID CD=0`. Other formats cannot verify the OP2 displacement
-frame and require `--assume-basic-frame`.
-`†` FRD does not support five-node pyramids; its output can carry nodal fields and
-rounds ASCII values to six significant digits. `‡` OP2 writing requires
-pyNastran and one selected three- or six-component `DISP` field. If rotations
-are absent, `--zero-missing-rotations` explicitly asserts they are float zero;
-otherwise the conversion fails. `--mesh-out FILE` optionally writes a separate,
-geometry-only companion mesh in any supported mesh-bearing output format. `Z`
-also requires pyNastran and labels its values as assumed, not solver results.
-OP2 has no typed null for unknown values. See [format limits](docs/SUPPORT.md)
-for other omissions and conditions.
+See [format limits](docs/SUPPORT.md) for other omissions and conditions.
 
 ## Scope
 
