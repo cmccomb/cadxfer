@@ -17,14 +17,14 @@ ROOT = Path(__file__).resolve().parents[1]
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--build", action="store_true", help="cargo build the CLI first")
-    parser.add_argument("--binary", type=Path, help="path to an existing caxifer binary")
+    parser.add_argument("--binary", type=Path, help="path to an existing cadxfer binary")
     parser.add_argument("--vtk", action="store_true", help="also require an independent Python VTK read")
     args = parser.parse_args()
     if args.build:
         if shutil.which("cargo") is None:
             raise SystemExit("Cargo is unavailable; no Rust execution or interoperability checks were run.")
-        subprocess.run(["cargo", "build", "-p", "caxifer", "--locked", "--offline"], cwd=ROOT, check=True)
-    binary = (args.binary or ROOT / "target/debug" / ("caxifer.exe" if sys.platform == "win32" else "caxifer")).resolve()
+        subprocess.run(["cargo", "build", "-p", "cadxfer", "--locked", "--offline"], cwd=ROOT, check=True)
+    binary = (args.binary or ROOT / "target/debug" / ("cadxfer.exe" if sys.platform == "win32" else "cadxfer")).resolve()
     if not binary.is_file():
         raise SystemExit(f"No executable at {binary}; run with --build or --binary. No checks were run.")
     checks: list[str] = []
@@ -33,7 +33,7 @@ def main() -> None:
         if result.returncode != expected_code:
             raise AssertionError((cmd, result.returncode, result.stdout.decode(errors="replace"), result.stderr.decode(errors="replace")))
         return result
-    with tempfile.TemporaryDirectory(prefix="caxifer-interop-") as temp:
+    with tempfile.TemporaryDirectory(prefix="cadxfer-interop-") as temp:
         temp = Path(temp)
         info = json.loads(run("info", "examples/plate.bdf", "--json").stdout)
         assert info["schema_version"] == 1 and info["card_counts"]["GRID"] == 4

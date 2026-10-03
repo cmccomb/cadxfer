@@ -56,7 +56,7 @@ def main() -> None:
     for package in lock["package"]:
         assert set(package.get("dependencies", [])) == set(graph[package["name"]])
     checks.append("lockfile matches workspace package versions and dependency graph")
-    facade = members["caxifer-formats"][1]
+    facade = members["cadxfer-formats"][1]
     assert facade["features"]["default"] == []
     assert set(facade["features"]) == {"default", "bdf", "vtu", "all-formats"}
     assert workspace["workspace"]["lints"]["rust"]["unsafe_code"] == "forbid"

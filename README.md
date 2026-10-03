@@ -1,12 +1,12 @@
-[![CI](https://github.com/cmccomb/caxifer/actions/workflows/ci.yml/badge.svg)](https://github.com/cmccomb/caxifer/actions/workflows/ci.yml)
+[![CI](https://github.com/cmccomb/cadxfer/actions/workflows/ci.yml/badge.svg)](https://github.com/cmccomb/cadxfer/actions/workflows/ci.yml)
 
-# caxifer
+# cadxfer
 
-<p align="center"><img src="assets/logo.png" alt="caxifer logo" width="320"></p>
+<p align="center"><img src="assets/logo.png" alt="cadxfer logo" width="320"></p>
 
 **Engineering files, without silent data loss.**
 
-caxifer separates the original engineering document from the information a
+cadxfer separates the original engineering document from the information a
 particular downstream tool can represent. Read and preserve the document first;
 project it into geometry only when that loss of information is explicit.
 
@@ -15,6 +15,20 @@ project it into geometry only when that loss of information is explicit.
 The illustration shows the difference between preserving a BDF, editing one
 GRID node's coordinates, and projecting geometry into VTU. The VTU keeps
 original IDs but omits nongeometry records and reports those omissions.
+
+## From/to matrix
+
+| From ↓ / To → | BDF | VTU | OP2 | FRD |
+| --- | --- | --- | --- | --- |
+| **BDF** | Exact source copy, or a GRID coordinate edit | Linear geometry and original IDs; omissions reported | — | — |
+| **VTU** | — | — | — | — |
+| **OP2** | — | — | — | — |
+| **FRD** | — | — | — | — |
+
+An em dash means **no supported route** in 0.1.0. BDF → BDF preserves the
+source document; it is not a general BDF generator. BDF → VTU requires
+`--geometry-only` because materials, loads, constraints, and other solver data
+are omitted. VTU, OP2, and FRD readers are not implemented.
 
 This is the **0.1.0 source repository**, not a crates.io publication. The Rust
 compiler was unavailable in the original authoring environment. See the
@@ -29,14 +43,14 @@ are required by this workspace. From this directory:
 
 ```sh
 cargo test --workspace --all-features --locked --offline
-cargo install --path crates/caxifer --locked --offline
+cargo install --path crates/cadxfer --locked --offline
 
-caxifer formats
-caxifer info examples/plate.bdf
-caxifer validate examples/plate.bdf
-caxifer roundtrip examples/plate.bdf plate-copy.bdf
-caxifer set-grid examples/plate.bdf edited.bdf --id 20 --xyz 1.2 0 0
-caxifer convert examples/plate.bdf plate.vtu --geometry-only
+cadxfer formats
+cadxfer info examples/plate.bdf
+cadxfer validate examples/plate.bdf
+cadxfer roundtrip examples/plate.bdf plate-copy.bdf
+cadxfer set-grid examples/plate.bdf edited.bdf --id 20 --xyz 1.2 0 0
+cadxfer convert examples/plate.bdf plate.vtu --geometry-only
 ```
 
 Output paths must be new. `plate-copy.bdf` preserves the original file bytes.
@@ -44,7 +58,7 @@ Output paths must be new. `plate-copy.bdf` preserves the original file bytes.
 `plate.vtu` contains geometry and original IDs, **not a runnable Nastran model**.
 The converter reports what it excludes. No command overwrites the source.
 
-`cargo install caxifer` is **not** the installation instruction for this repository:
+`cargo install cadxfer` is **not** the installation instruction for this repository:
 the package has not been published to a registry.
 
 ## What 0.1 does
@@ -80,10 +94,10 @@ The exact boundary is in [SUPPORT.md](docs/SUPPORT.md).
 ## Command-line use
 
 ```sh
-caxifer info examples/plate.bdf --json
-caxifer validate examples/plate.bdf --strict --json
-caxifer info known-bdf-without-extension --from bdf
-caxifer info larger.bdf --max-bytes 536870912
+cadxfer info examples/plate.bdf --json
+cadxfer validate examples/plate.bdf --strict --json
+cadxfer info known-bdf-without-extension --from bdf
+cadxfer info larger.bdf --max-bytes 536870912
 ```
 
 JSON output carries `schema_version: 1`. `validate` means **geometry-subset
@@ -98,11 +112,11 @@ For a local consuming project, use a path dependency to this repository:
 
 ```toml
 [dependencies]
-caxifer-formats = { path = "../caxifer/crates/caxifer-formats", features = ["bdf", "vtu"] }
+cadxfer-formats = { path = "../cadxfer/crates/cadxfer-formats", features = ["bdf", "vtu"] }
 ```
 
 ```rust
-use caxifer_formats::{bdf::Document, vtu};
+use cadxfer_formats::{bdf::Document, vtu};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let document = Document::open("model.bdf")?;
@@ -129,19 +143,24 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 A caller writing to its own stream owns output durability/error handling. The
 CLI additionally stages its file output before installing a new destination.
 
-For only BDF, depend directly on `crates/caxifer-bdf`. The umbrella crate defaults
+For only BDF, depend directly on `crates/cadxfer-bdf`. The umbrella crate defaults
 to **no format features**. It conditionally re-exports independent format crates;
 it does not contain a second implementation.
+
+The public BDF interface centers on `Document`, its card and GRID views,
+geometry projection, scoped diagnostics, and coordinate edits. Inspect a card's
+data through `Document::card_text`; source span indexing and physical field
+format classification are implementation details.
 
 ## Workspace
 
 | Package | Responsibility |
 | --- | --- |
-| `caxifer` | CLI, JSON reporting, staged no-clobber output |
-| `caxifer-bdf` | Native BDF document, field indexing, edits, geometry projection |
-| `caxifer-vtu` | ASCII VTU geometry writer |
-| `caxifer-formats` | Feature-selected facade (`bdf`, `vtu`, `all-formats`) |
-| `caxifer-core` | Diagnostics and the minimal geometry types shared by adapters |
+| `cadxfer` | CLI, JSON reporting, staged no-clobber output |
+| `cadxfer-bdf` | Native BDF document, field indexing, edits, geometry projection |
+| `cadxfer-vtu` | ASCII VTU geometry writer |
+| `cadxfer-formats` | Feature-selected facade (`bdf`, `vtu`, `all-formats`) |
+| `cadxfer-core` | Diagnostics and the minimal geometry types shared by adapters |
 
 No universal solver IR, runtime plugin registry, AI interface, or empty format
 crate is included. Those are not prerequisites for reading a file correctly.
@@ -150,9 +169,9 @@ crate is included. Those are not prerequisites for reading a file correctly.
 
 ```sh
 cargo test --workspace --all-features --locked --offline
-cargo check -p caxifer-formats --no-default-features --locked --offline
-cargo check -p caxifer-formats --no-default-features --features bdf --locked --offline
-cargo check -p caxifer-formats --no-default-features --features vtu --locked --offline
+cargo check -p cadxfer-formats --no-default-features --locked --offline
+cargo check -p cadxfer-formats --no-default-features --features bdf --locked --offline
+cargo check -p cadxfer-formats --no-default-features --features vtu --locked --offline
 cargo fmt --all -- --check
 cargo clippy --workspace --all-targets --all-features --locked --offline -- -D warnings
 RUSTDOCFLAGS='-D warnings' cargo doc --workspace --all-features --no-deps --locked --offline

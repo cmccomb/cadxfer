@@ -1,8 +1,8 @@
 # Implementation references
 
 These are specification and comparison references, not endorsement or evidence
-that caxifer passes a vendor qualification suite. No source code from these
-projects is vendored into caxifer.
+that cadxfer passes a vendor qualification suite. No source code from these
+projects is vendored into cadxfer.
 
 - Altair, Bulk Data Guidelines: physical field layouts, free/large formats,
   continuations, comments, and implicit real exponents.

@@ -27,6 +27,16 @@ Cargo 1.98.1 on macOS:
 - `python3 scripts/check_interop.py --build` passed its independent JSON,
   byte-preserving BDF, VTU XML, coordinate-edit, and no-overwrite checks.
 
+## cadxfer rename verification on macOS
+
+After renaming the workspace packages and narrowing the BDF public API,
+`cargo test --workspace --all-features --locked --offline` passed 92 Rust tests
+and one doctest. The three `cadxfer-formats` feature-isolation checks,
+`cargo fmt --all -- --check`, Clippy with warnings denied, rustdoc with warnings
+denied, the source-package check, the independent CLI interoperability check,
+and the generated-diagram check also passed. These are local results; CI for
+the renamed GitHub repository is reported separately once it runs.
+
 ## Cross-platform CI
 
 The [initial GitHub Actions run](https://github.com/cmccomb/caxifer/actions/runs/37034376490)

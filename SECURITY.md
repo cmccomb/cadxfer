@@ -10,6 +10,6 @@ unprivileged permissions. Use a trusted destination directory for output.
 A malformed file must produce an error, not a guessed engineering model.
 
 Report vulnerabilities privately through the repository's
-[Security Advisories](https://github.com/cmccomb/caxifer/security/advisories)
+[Security Advisories](https://github.com/cmccomb/cadxfer/security/advisories)
 page using **Report a vulnerability**. Please avoid opening a public issue
 before the maintainers have had a chance to review the report.

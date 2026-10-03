@@ -1,0 +1,24 @@
+[package]
+name = "cadxfer"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Inspect, check, edit, and export engineering files without silent data loss"
+readme = "README.md"
+keywords = ["engineering", "nastran", "file-formats", "mesh"]
+categories = ["science", "parser-implementations"]
+
+[lints]
+workspace = true
+
+[dependencies]
+cadxfer-core = { path = "../cadxfer-core", version = "0.1.0" }
+cadxfer-formats = { path = "../cadxfer-formats", version = "0.1.0", features = ["bdf", "vtu"] }
+
+[[bin]]
+name = "cadxfer"
+path = "src/main.rs"
