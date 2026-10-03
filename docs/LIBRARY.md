@@ -9,7 +9,7 @@ yet from crates.io:
 caexfer = { git = "https://github.com/cmccomb/caexfer.git" }
 ```
 
-Cargo.lock records the resolved Git revision. For a local checkout, use
+Your application's Cargo.lock records the resolved Git revision. For a local checkout, use
 `caexfer = { path = "../caexfer" }`. Run `cargo doc --no-deps --open` in the
 checkout to browse every public type and method.
 

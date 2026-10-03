@@ -1,7 +1,7 @@
 # CLI contract
 
-Install with `cargo install --git https://github.com/cmccomb/caexfer.git --locked`
-(Rust 1.85+). In a checkout, `cargo run --locked -- COMMAND ...` runs the same
+Install with `cargo install --git https://github.com/cmccomb/caexfer.git`
+(Rust 1.85+). In a checkout, `cargo run -- COMMAND ...` runs the same
 CLI without installation. Routes that do not read or write OP2 need no Python.
 
 ```sh

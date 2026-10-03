@@ -3,7 +3,7 @@
 <desc id="description">The top row shows BDF document byte preservation through the Rust library. The lower cards show BDF and INP geometry decks; VTU and MSH meshes with numeric fields; FRD mesh with nodal fields; and an OP2 displacement table with an optional separate mesh. Mesh-bearing representations share the same topology.</desc>
 <defs><linearGradient id="background" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#122238"/><stop offset="1" stop-color="#0b1423"/></linearGradient></defs>
 <rect width="1240" height="1037" rx="24" fill="url(#background)"/>
-<text x="45" y="58" fill="#f5f8ff" font-family="Arial, Helvetica, sans-serif" font-size="32" font-weight="700" letter-spacing="0">One mesh, different promises</text>
+<text x="45" y="58" fill="#f5f8ff" font-family="Arial, Helvetica, sans-serif" font-size="32" font-weight="700" letter-spacing="0">What each format carries</text>
 <text x="46" y="87" fill="#b6c7d9" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="400" letter-spacing="0">BDF Document preserves source bytes. Conversions project supported geometry and results.</text>
 <text x="46" y="120" fill="#f4bc72" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="700" letter-spacing="1">BDF LIBRARY DOCUMENT</text>
 <rect x="235" y="137" width="365" height="222" rx="20" fill="#17283e" stroke="#3c5875" stroke-width="1.3"/>
