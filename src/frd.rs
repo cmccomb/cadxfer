@@ -1,4 +1,4 @@
-//! ASCII CalculiX FRD geometry and supported nodal result records.
+//! ASCII `CalculiX` FRD geometry and supported nodal result records.
 use crate::core::{Cell, CellKind, Dataset, Error, Field, FieldLocation, Mesh, Point, Result};
 use std::collections::BTreeMap;
 use std::io::Write;
@@ -81,6 +81,11 @@ fn label(value: &str, limit: usize, what: &str) -> Result<()> {
 /// Five-node pyramids, cell fields, oversized IDs, and unsupported labels
 /// fail rather than being dropped.
 ///
+/// # Errors
+///
+/// Returns an error for unsupported or malformed data, or when the output
+/// stream rejects bytes.
+///
 /// # Examples
 ///
 /// ```
@@ -92,6 +97,7 @@ fn label(value: &str, limit: usize, what: &str) -> Result<()> {
 /// assert_eq!(decoded.mesh.cells[0].id, 10);
 /// # Ok::<(), caexfer::core::Error>(())
 /// ```
+#[allow(clippy::too_many_lines)] // Fixed-width records are emitted in format order.
 pub fn write(dataset: &Dataset, mut output: impl Write) -> Result<()> {
     // Check the entire dataset against FRD's fixed-width constraints before
     // writing any bytes to the caller's stream.
@@ -180,7 +186,7 @@ pub fn write(dataset: &Dataset, mut output: impl Write) -> Result<()> {
             ascii_number(field.time.unwrap_or(0.0))?,
             dataset.mesh.points.len(),
             "",
-            if field.time.is_some() { 1 } else { 0 },
+            i32::from(field.time.is_some()),
             field.step.unwrap_or(0),
             "",
             1
@@ -332,12 +338,12 @@ fn header_format(line: &str, column: usize) -> Result<bool> {
         return Ok(false);
     }
     match line.as_bytes().get(column - 1).copied().unwrap_or(b'0') {
-        b'0' => Ok(false),
         b'1' => Ok(true),
         b'2' | b'3' => Err(err("binary FRD block is unsupported")),
         _ => Ok(false),
     }
 }
+/// FRD block currently being decoded; bool records the long-format flag.
 #[derive(Clone, Copy)]
 enum Mode {
     None,
@@ -345,6 +351,7 @@ enum Mode {
     Elements(bool),
     Results(bool),
 }
+/// Partial nodal field assembled across FRD result and continuation records.
 #[derive(Default)]
 struct FieldBuilder {
     name: String,
@@ -362,6 +369,12 @@ struct FieldBuilder {
 /// Higher-order elements, binary blocks, and material-dependent nodal records
 /// fail explicitly. Use [`write()`] for an example roundtrip. The returned
 /// [`Dataset`] contains only the documented supported subset.
+///
+/// # Errors
+///
+/// Returns an error for malformed or unsupported FRD records, invalid numeric
+/// values, or incomplete mesh and field references.
+#[allow(clippy::too_many_lines)] // FRD record state is resolved in one ordered pass.
 pub fn read(source: &[u8]) -> Result<Dataset> {
     // Parse block records first, then resolve element and result node IDs
     // against the completed point list.
@@ -453,9 +466,9 @@ pub fn read(source: &[u8]) -> Result<Dataset> {
                     .ok_or_else(|| err("result header without block"))?;
                 f.name = t[1].to_string();
                 f.count = n(t[2], "component count")?;
-                f.material_dependent = match t[3] {
-                    "1" => false,
-                    "2" => true,
+                f.material_dependent = match t.get(3).copied() {
+                    Some("1") => false,
+                    Some("2") => true,
                     _ => return Err(err("unsupported result location/type").at(line_no + 1)),
                 };
             }
@@ -514,7 +527,10 @@ pub fn read(source: &[u8]) -> Result<Dataset> {
                     continuation_values(line, long, needed)
                 }
                 .map_err(|e| e.at(line_no + 1))?;
-                f.data.get_mut(&id).unwrap().extend(vals);
+                f.data
+                    .get_mut(&id)
+                    .ok_or_else(|| err("continuation references unknown node"))?
+                    .extend(vals);
             }
             Mode::None => {}
             _ => return Err(err("unexpected FRD record").at(line_no + 1)),
@@ -597,26 +613,35 @@ pub fn read(source: &[u8]) -> Result<Dataset> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fmt::Write as _;
 
     #[test]
     fn long_fixed_width_ids_do_not_merge_with_record_keys() {
         let nodes = [1_234_567_890, 1_234_567_891, 1_234_567_892];
         let mut source = format!(" 2C{:68}1\n", "");
         for (i, id) in nodes.iter().enumerate() {
-            source.push_str(&format!(
-                " -1{id:>10}{:>12.5E}{:>12.5E}{:>12.5E}\n",
-                i as f64, 0., 0.
-            ));
+            writeln!(
+                source,
+                " -1{id:>10}{:>12.5E}{:>12.5E}{:>12.5E}",
+                [0.0, 1.0, 2.0][i],
+                0.,
+                0.
+            )
+            .unwrap();
         }
-        source.push_str(&format!(" -3\n 3C{:68}1\n", ""));
-        source.push_str(&format!(
-            " -1{:>10}{:>5}{:>5}{:>5}\n",
+        write!(source, " -3\n 3C{:68}1\n", "").unwrap();
+        writeln!(
+            source,
+            " -1{:>10}{:>5}{:>5}{:>5}",
             1_234_567_899u64, 7, 0, 0
-        ));
-        source.push_str(&format!(
+        )
+        .unwrap();
+        write!(
+            source,
             " -2{:>10}{:>10}{:>10}\n -3\n 9999\n",
             nodes[0], nodes[1], nodes[2]
-        ));
+        )
+        .unwrap();
         let dataset = read(source.as_bytes()).unwrap();
         assert_eq!(
             dataset.mesh.points.iter().map(|p| p.id).collect::<Vec<_>>(),

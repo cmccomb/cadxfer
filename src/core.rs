@@ -41,6 +41,7 @@ impl Error {
     }
 
     /// Attach a one-based physical source line.
+    #[must_use]
     pub fn at(mut self, line: usize) -> Self {
         self.line = Some(line);
         self
@@ -131,6 +132,7 @@ pub struct ValidationReport {
 
 impl ValidationReport {
     /// True only for the explicitly documented geometry validation scope.
+    #[must_use]
     pub fn valid_in_scope(&self) -> bool {
         !self
             .diagnostics
@@ -139,6 +141,7 @@ impl ValidationReport {
     }
 
     /// Number of warning findings.
+    #[must_use]
     pub fn warning_count(&self) -> usize {
         self.diagnostics
             .iter()
@@ -147,6 +150,7 @@ impl ValidationReport {
     }
 
     /// Number of error findings.
+    #[must_use]
     pub fn error_count(&self) -> usize {
         self.diagnostics
             .iter()
@@ -191,6 +195,7 @@ impl CellKind {
     /// assert_eq!(CellKind::Triangle3.node_count(), 3);
     /// assert_eq!(CellKind::Hex8.node_count(), 8);
     /// ```
+    #[must_use]
     pub fn node_count(self) -> usize {
         match self {
             Self::Line2 => 2,
@@ -230,6 +235,11 @@ impl Mesh {
     /// Connectivity contains **indices into `points`**, never original point
     /// IDs. This does not check Jacobians, inverted cells, or physical adequacy.
     ///
+    /// # Errors
+    ///
+    /// Returns an error for nonpositive or duplicate IDs, nonfinite coordinates,
+    /// or connectivity with missing, repeated, or the wrong number of points.
+    ///
     /// # Examples
     ///
     /// ```
@@ -244,6 +254,7 @@ impl Mesh {
     ///         connectivity: vec![0, 1], property_id: None,
     ///     }],
     /// };
+    /// // Connectivity holds point positions, not the original IDs 10 and 20.
     /// mesh.validate()?;
     /// mesh.cells[0].connectivity = vec![10, 20];
     /// assert_eq!(mesh.validate().unwrap_err().code, "E_CONNECTIVITY");
@@ -343,6 +354,11 @@ impl Dataset {
     /// Values are grouped by entity, with components in the declared order.
     /// This does not validate solver physics or format-specific representability.
     ///
+    /// # Errors
+    ///
+    /// Returns a mesh validation error, or an error for incomplete, unnamed,
+    /// or nonfinite numeric fields.
+    ///
     /// # Examples
     ///
     /// ```
@@ -358,6 +374,7 @@ impl Dataset {
     ///         values: vec![0.1, 0.0, 0.0], step: None, time: None,
     ///     }],
     /// };
+    /// // One point with three components requires exactly three values.
     /// data.validate()?;
     /// data.fields[0].values.pop();
     /// assert_eq!(data.validate().unwrap_err().code, "E_FIELD");

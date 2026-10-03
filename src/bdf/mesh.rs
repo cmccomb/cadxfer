@@ -19,6 +19,11 @@ fn name(kind: CellKind) -> &'static str {
 /// present, otherwise a placeholder PID 1 is used; no property cards are made.
 /// The result is a mesh exchange deck, not a runnable solver model.
 ///
+/// # Errors
+///
+/// Returns an error for invalid mesh connectivity, unrepresentable fields, or
+/// a failure in the caller's output stream.
+///
 /// # Examples
 ///
 /// ```
@@ -26,6 +31,7 @@ fn name(kind: CellKind) -> &'static str {
 /// let source = Document::parse(
 ///     "GRID,10,,0,0,0\nGRID,20,,1,0,0\nCROD,30,7,10,20\n"
 /// )?;
+/// // Export a new geometry deck, then parse it independently.
 /// let mut bytes = Vec::new();
 /// write_geometry(&source.geometry()?.mesh, &mut bytes)?;
 /// let exported = Document::parse(&bytes)?;

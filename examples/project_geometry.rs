@@ -1,4 +1,4 @@
-//! Run: cargo run --example project_geometry
+//! Run: `cargo run --example project_geometry`
 use caexfer::{bdf::Document, core::Result, vtu};
 
 fn main() -> Result<()> {
@@ -10,6 +10,8 @@ fn main() -> Result<()> {
     for omission in &projection.omissions {
         eprintln!("{}: {}", omission.category, omission.detail);
     }
+
+    // Stream the projected geometry without changing the source document.
     vtu::write(&projection.mesh, std::io::stdout())?;
     Ok(())
 }

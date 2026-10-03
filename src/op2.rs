@@ -3,6 +3,7 @@
 //! displacements must be in the basic frame; no binary record guesswork.
 use crate::core::{Dataset, Error, Field, FieldLocation, Mesh, Result};
 use std::collections::BTreeMap;
+use std::fmt::Write as _;
 use std::io::Write;
 use std::path::Path;
 use std::process::{Command, Stdio};
@@ -17,6 +18,11 @@ use std::process::{Command, Stdio};
 /// Returns `E_OP2` when pyNastran cannot run, when the selected table is
 /// unsupported, or when its node IDs do not exactly match `mesh`. The returned
 /// [`Dataset`] uses the supplied mesh and the selected displacement values.
+///
+/// # Errors
+///
+/// Returns an error for invalid mesh data, an unavailable adapter, malformed
+/// adapter output, or a displacement table that does not match the mesh.
 pub fn read_displacements(
     path: &Path,
     mesh: &Mesh,
@@ -56,9 +62,9 @@ pub fn read_displacements(
     if parts.len() != 6 || parts[0] != "OK" {
         return Err(Error::new("E_OP2", "invalid extractor header"));
     }
-    let assumed_zero = match parts[5] {
-        "0" => false,
-        "1" => true,
+    let assumed_zero = match parts.get(5).copied() {
+        Some("0") => false,
+        Some("1") => true,
         _ => return Err(Error::new("E_OP2", "invalid assumed-zero provenance flag")),
     };
     let count: usize = parts[1]
@@ -150,6 +156,13 @@ pub fn read_displacements(
 /// ).unwrap_err();
 /// assert_eq!(error.code, "E_OP2"); // A complete mesh and values are required.
 /// ```
+///
+/// # Errors
+///
+/// Returns an error for invalid or unrepresentable displacement data, an
+/// unavailable adapter, or a failed OP2 write.
+#[allow(clippy::cast_possible_truncation)] // OP2 stores float32; range and underflow are checked.
+#[allow(clippy::too_many_lines)] // Adapter input is checked before subprocess output is accepted.
 pub fn write_displacements(
     dataset: &Dataset,
     field: &Field,
@@ -175,7 +188,7 @@ pub fn write_displacements(
             "OP2 output requires complete finite displacement values for every mesh node",
         ));
     }
-    if subcase <= 0 || subcase > i32::MAX as i64 {
+    if subcase <= 0 || subcase > i64::from(i32::MAX) {
         return Err(Error::new(
             "E_OP2",
             "subcase must be a positive 32-bit integer",
@@ -232,7 +245,7 @@ pub fn write_displacements(
             .time
             .map_or("-".to_string(), |value| value.to_string()),
         field.components.len(),
-        if assumed_zero { 1 } else { 0 }
+        i32::from(assumed_zero)
     );
     for (i, point) in dataset.mesh.points.iter().enumerate() {
         if point.id > i32::MAX as u64 {
@@ -257,7 +270,7 @@ pub fn write_displacements(
                 ));
             }
             source.push('\t');
-            source.push_str(&format!("{value:.17e}"));
+            write!(source, "{value:.17e}").expect("formatting into String cannot fail");
         }
         source.push('\n');
     }
@@ -272,7 +285,11 @@ pub fn write_displacements(
         .stderr(Stdio::piped())
         .spawn()
         .map_err(|e| Error::new("E_OP2", format!("cannot launch Python: {e}")))?;
-    child.stdin.take().unwrap().write_all(source.as_bytes())?;
+    child
+        .stdin
+        .take()
+        .ok_or_else(|| Error::new("E_OP2", "adapter stdin unavailable"))?
+        .write_all(source.as_bytes())?;
     let output = child.wait_with_output()?;
     if !output.status.success() {
         let detail = String::from_utf8_lossy(&output.stderr);

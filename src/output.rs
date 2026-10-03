@@ -9,6 +9,7 @@ use caexfer::core::{Error, Result};
 // Distinguish staged filenames created by this process, even within one clock tick.
 static COUNTER: AtomicU64 = AtomicU64::new(0);
 
+/// Staged pathname removed on drop after success or failure.
 struct Temporary(PathBuf);
 impl Drop for Temporary {
     /// Remove the staged file when it falls out of scope, including on error.
@@ -33,6 +34,7 @@ fn ensure_new(path: &Path) -> Result<()> {
     Ok(())
 }
 
+/// Complete synced output waiting for an exclusive destination install.
 struct Staged {
     path: PathBuf,
     temporary: Temporary,
@@ -73,7 +75,7 @@ impl Staged {
                     staged = Some((Temporary(temp), file));
                     break;
                 }
-                Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => continue,
+                Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {}
                 Err(error) => return Err(error.into()),
             }
         }
@@ -114,9 +116,13 @@ impl Staged {
     }
 }
 
-/// Stage, flush and sync output before installing a new name with hard_link.
+/// Stage, flush and sync output before installing a new name with `hard_link`.
 /// Never overwrite an existing file, even if another process creates it during
 /// the write. Requires hard-link support in the destination filesystem.
+///
+/// # Errors
+///
+/// Returns an error if staging, writing, syncing, or installing the new file fails.
 pub fn create_new(
     path: &Path,
     write: impl FnOnce(&mut BufWriter<File>) -> Result<()>,

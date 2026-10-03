@@ -66,8 +66,10 @@ pub struct Inspection {
 /// assert!(inspected.omitted_keywords.contains("MATERIAL"));
 /// # Ok::<(), caexfer::core::Error>(())
 /// ```
+#[allow(clippy::too_many_lines)] // Keyword modes and deferred node resolution share one pass.
 pub fn read(source: &str) -> Result<Inspection> {
     // Keyword lines switch how subsequent data lines are interpreted.
+    /// Active INP keyword block for interpreting subsequent data lines.
     enum Mode {
         None,
         Node,

@@ -34,11 +34,16 @@ pub use syntax::{Card, Document, ParseOptions};
 /// geometry and does not return the source document. Use [`Document::parse`]
 /// when comments, unknown cards, and exact source bytes must remain available.
 ///
+/// # Errors
+///
+/// Returns a BDF parse error or a blocking geometry projection diagnostic.
+///
 /// # Examples
 ///
 /// ```
 /// use caexfer::bdf;
 /// let source = b"$ original comment\nGRID,10,,0,0,0\nGRID,20,,1,0,0\nCROD,30,7,10,20\n";
+/// // The source document remains available even though this result is lossy.
 /// let projection = bdf::read_geometry(source)?;
 /// assert_eq!(projection.mesh.points.len(), 2);
 /// let mut output = Vec::new();

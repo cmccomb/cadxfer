@@ -21,13 +21,13 @@ use crate::{frd, inp, msh, op2, vtu};
 pub enum Format {
     /// Nastran Bulk Data deck.
     Bdf,
-    /// VTK XML UnstructuredGrid.
+    /// VTK XML `UnstructuredGrid`.
     Vtu,
     /// Gmsh MSH 4.1.
     Msh,
-    /// Abaqus or CalculiX input deck.
+    /// Abaqus or `CalculiX` input deck.
     Inp,
-    /// CalculiX result file.
+    /// `CalculiX` result file.
     Frd,
     /// Nastran displacement result file.
     Op2,
@@ -35,6 +35,7 @@ pub enum Format {
 
 impl Format {
     /// Canonical lowercase format name.
+    #[must_use]
     pub fn name(self) -> &'static str {
         match self {
             Self::Bdf => "bdf",
@@ -49,6 +50,10 @@ impl Format {
     /// Parse a canonical format name, as used by `--from`.
     /// Names are case-insensitive; filename aliases such as `.nas` belong to
     /// [`Self::from_input_path`] instead.
+    ///
+    /// # Errors
+    ///
+    /// Returns `E_FORMAT` for an unknown canonical name.
     ///
     /// ```
     /// use caexfer::conversion::Format;
@@ -74,6 +79,10 @@ impl Format {
     /// Infer a source format from its case-insensitive extension.
     /// `.nas`, `.dat`, and `.pch` are accepted BDF input aliases.
     ///
+    /// # Errors
+    ///
+    /// Returns `E_FORMAT` when the suffix has no supported reader.
+    ///
     /// ```
     /// use caexfer::conversion::Format;
     /// use std::path::Path;
@@ -95,6 +104,10 @@ impl Format {
 
     /// Infer a writable destination from its extension. Only `.bdf` and `.nas`
     /// are BDF output aliases; `.dat` and `.pch` are input-only.
+    ///
+    /// # Errors
+    ///
+    /// Returns `E_FORMAT` when the suffix has no supported writer.
     ///
     /// ```
     /// use caexfer::conversion::Format;
@@ -178,6 +191,7 @@ pub enum Stage {
 
 impl Stage {
     /// Stable lowercase name for machine-readable reports.
+    #[must_use]
     pub fn name(self) -> &'static str {
         match self {
             Self::Source => "source",
@@ -364,18 +378,25 @@ fn read_op2_mesh(path: &Path, options: &Options) -> Result<(Mesh, Vec<Omission>)
 /// OP2 input requires `options.mesh` and a pyNastran interpreter. A non-BDF
 /// companion additionally requires `options.assume_basic_frame`.
 ///
+/// # Errors
+///
+/// Returns an option or format error, an I/O or size-limit error, or a source
+/// reader error when the requested projection cannot be represented safely.
+///
 /// # Examples
 ///
 /// ```
 /// use caexfer::conversion::{read_path, Format, Options};
 /// use std::path::Path;
 /// let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("examples/plate.bdf");
+/// // The read result carries both the projected mesh and source omissions.
 /// let source = read_path(&path, &Options::default())?;
 /// assert_eq!(source.format, Format::Bdf);
 /// assert_eq!(source.dataset.mesh.points.len(), 4);
 /// assert!(!source.omissions.is_empty());
 /// # Ok::<(), caexfer::core::Error>(())
 /// ```
+#[allow(clippy::too_many_lines)] // Format-specific read branches share projection reporting.
 pub fn read_path(path: &Path, options: &Options) -> Result<ReadResult> {
     // An explicit source format overrides suffix-based selection.
     let format = options
@@ -486,9 +507,9 @@ pub fn read_path(path: &Path, options: &Options) -> Result<ReadResult> {
             let bytes = read_limited(path, options.max_bytes)?;
             let mut dataset = frd::read(&bytes)?;
             if let Some(step) = options.step {
-                dataset
-                    .fields
-                    .retain(|field| field.step == Some(step as i64));
+                let step = i64::try_from(step)
+                    .map_err(|_| Error::new("E_FRD", "selected step exceeds Int64"))?;
+                dataset.fields.retain(|field| field.step == Some(step));
                 if dataset.fields.is_empty() {
                     return Err(Error::new("E_FRD", "selected step has no fields"));
                 }
@@ -549,6 +570,11 @@ pub fn read_path(path: &Path, options: &Options) -> Result<ReadResult> {
 /// persist the stream. The report identifies information lost or assumed. A
 /// writer I/O error may leave partial bytes in the caller-owned stream.
 ///
+/// # Errors
+///
+/// Returns a source read or destination conversion error, including writer
+/// failures after partial bytes have reached the stream.
+///
 /// # Examples
 ///
 /// ```
@@ -556,6 +582,7 @@ pub fn read_path(path: &Path, options: &Options) -> Result<ReadResult> {
 /// use std::path::Path;
 /// let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("examples/plate.bdf");
 /// let mut vtu = Vec::new();
+/// // The report includes losses from both reading and writing.
 /// let report = convert_path(&path, Format::Vtu, &Options::default(), &mut vtu)?;
 /// assert_eq!(report.points, 4);
 /// assert!(std::str::from_utf8(&vtu).unwrap().contains("<VTKFile"));
@@ -578,6 +605,11 @@ pub fn convert_path(
 /// interpreter. A caller may supply a synthetic field, but must set
 /// `source.assumed_zero` to mark that provenance in the OP2 title.
 ///
+/// # Errors
+///
+/// Returns a validation, representability, adapter, or output-stream error
+/// for the selected destination format.
+///
 /// # Examples
 ///
 /// ```
@@ -593,12 +625,14 @@ pub fn convert_path(
 ///     omissions: vec![], assumed_zero: false,
 /// };
 /// let mut inp = Vec::new();
+/// // INP carries this geometry but not generic numeric result fields.
 /// let report = convert(source, Format::Inp, &Options::default(), &mut inp)?;
 /// assert_eq!(report.cells, 1);
 /// assert!(report.omissions.iter().any(|item| item.stage == Stage::Destination));
 /// assert!(std::str::from_utf8(&inp).unwrap().contains("*ELEMENT"));
 /// # Ok::<(), caexfer::core::Error>(())
 /// ```
+#[allow(clippy::too_many_lines)] // Destination branches share omission and assumption tracking.
 pub fn convert(
     mut source: ReadResult,
     target: Format,

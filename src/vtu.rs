@@ -1,4 +1,4 @@
-//! ASCII VTK XML UnstructuredGrid linear mesh and numeric-field I/O.
+//! ASCII VTK XML `UnstructuredGrid` linear mesh and numeric-field I/O.
 //!
 //! Binary, compressed, appended, parallel and multi-piece layouts are outside
 //! this bounded reader/writer.
@@ -72,6 +72,7 @@ pub fn write(mesh: &Mesh, writer: impl Write) -> Result<()> {
 ///
 /// Returns an error for invalid mesh or fields, reserved field names, oversized
 /// offsets, or an output-stream failure.
+#[allow(clippy::too_many_lines)] // One ordered XML piece is written after preflight validation.
 pub fn write_data(dataset: &Dataset, mut writer: impl Write) -> Result<()> {
     // Finish all checks that can fail independently of I/O before emitting XML.
     dataset.validate()?;
@@ -79,7 +80,11 @@ pub fn write_data(dataset: &Dataset, mut writer: impl Write) -> Result<()> {
 
     // These names carry original mesh IDs, so fields cannot replace them.
     for field in &dataset.fields {
-        if !valid_xml_text(&field.name) || field.components.iter().any(|name| !valid_xml_text(name))
+        if !valid_xml_attribute(&field.name)
+            || field
+                .components
+                .iter()
+                .any(|name| !valid_xml_attribute(name))
         {
             return Err(Error::new(
                 "E_VTU",
@@ -222,8 +227,12 @@ pub fn write_data(dataset: &Dataset, mut writer: impl Write) -> Result<()> {
 fn valid_xml_text(value: &str) -> bool {
     value.chars().all(|character| {
         matches!(character, '\t' | '\n' | '\r')
-            || matches!(character as u32, 0x20..=0xD7FF | 0xE000..=0xFFFD | 0x10000..=0x10FFFF)
+            || matches!(character as u32, 0x20..=0xD7FF | 0xE000..=0xFFFD | 0x0001_0000..=0x0010_FFFF)
     })
+}
+
+fn valid_xml_attribute(value: &str) -> bool {
+    valid_xml_text(value) && !value.contains(['\t', '\n', '\r'])
 }
 
 /// Escape the XML attribute characters emitted by this bounded ASCII writer.
@@ -273,8 +282,7 @@ fn write_field(field: &Field, writer: &mut impl Write) -> Result<()> {
     Ok(())
 }
 
-/// Decode the small entity subset accepted in names and component attributes.
-/// General XML entity processing is outside the supported VTU subset.
+/// Tokenized XML element with decoded attributes and direct text content.
 struct XmlNode {
     name: String,
     attributes: BTreeMap<String, String>,
@@ -354,9 +362,27 @@ fn xml_tree(source: &str) -> Result<XmlNode> {
                 if stack.len() >= 16 {
                     return Err(Error::new("E_VTU", "XML nesting limit exceeded"));
                 }
+                if stack
+                    .last()
+                    .is_some_and(|parent| parent.name == "DataArray")
+                {
+                    return Err(Error::new(
+                        "E_VTU",
+                        "nested DataArray content is unsupported",
+                    ));
+                }
                 stack.push(xml_start(&start, &reader)?);
             }
             Event::Empty(start) => {
+                if stack
+                    .last()
+                    .is_some_and(|parent| parent.name == "DataArray")
+                {
+                    return Err(Error::new(
+                        "E_VTU",
+                        "nested DataArray content is unsupported",
+                    ));
+                }
                 let node = xml_start(&start, &reader)?;
                 if let Some(parent) = stack.last_mut() {
                     parent.children.push(node);
@@ -382,6 +408,9 @@ fn xml_tree(source: &str) -> Result<XmlNode> {
                     .xml_content()
                     .map_err(|e| Error::new("E_VTU", e.to_string()))?;
                 if let Some(node) = stack.last_mut() {
+                    if node.name != "DataArray" && !text.trim().is_empty() {
+                        return Err(Error::new("E_VTU", "text outside DataArray"));
+                    }
                     node.text.push_str(&text);
                 } else if !text.trim().is_empty() {
                     return Err(Error::new("E_VTU", "text outside XML root"));
@@ -451,6 +480,7 @@ fn cell_kind(code: u8) -> Result<CellKind> {
 ///
 /// Returns an error for unsupported VTU layouts, malformed numeric arrays,
 /// inconsistent counts, or invalid reconstructed mesh and fields.
+#[allow(clippy::too_many_lines)] // Parsed XML sections are validated against one piece together.
 pub fn read(source: &str) -> Result<Dataset> {
     if !valid_xml_text(source) {
         return Err(Error::new("E_VTU", "invalid XML character"));
@@ -684,8 +714,7 @@ pub fn read(source: &str) -> Result<Dataset> {
             let components = (0..count)
                 .map(|i| {
                     node.attr(&format!("ComponentName{i}"))
-                        .map(str::to_owned)
-                        .unwrap_or_else(|| format!("C{}", i + 1))
+                        .map_or_else(|| format!("C{}", i + 1), str::to_owned)
                 })
                 .collect();
 
@@ -803,6 +832,7 @@ mod tests {
 
     #[test]
     fn propagates_writer_failure() {
+        /// Output stream that always fails for writer error propagation tests.
         struct Broken;
         impl Write for Broken {
             fn write(&mut self, _: &[u8]) -> std::io::Result<usize> {
@@ -891,7 +921,7 @@ mod tests {
 
     #[test]
     fn invalid_xml_names_fail_before_writing() {
-        for invalid_name in ["bad\0name", "bad\u{1}name"] {
+        for invalid_name in ["bad\0name", "bad\u{1}name", "bad\nname"] {
             let mut dataset = Dataset {
                 mesh: triangle(),
                 fields: vec![Field {

@@ -26,9 +26,11 @@ To run the included examples, clone the repository first:
 git clone https://github.com/cmccomb/caexfer.git
 cd caexfer
 
+# Inspect supported formats and the example deck before projecting it.
 caexfer formats
 caexfer info examples/plate.bdf
 caexfer convert examples/plate.bdf plate.vtu --accept-projection
+
 # With pyNastran and a source containing displacement results:
 caexfer convert tests/fixtures/linear-results.frd results.op2 --zero-missing-rotations \
   --mesh-out results-mesh.bdf --accept-projection
@@ -48,23 +50,23 @@ files must be new; the CLI never overwrites an existing path.
 
 The figure shows what each format can carry; the matrix lists `convert` routes:
 
-| From ↓ / To → | BDF | VTU | MSH 4.1 | INP | FRD | OP2 (+ optional mesh) |
-| --- | --- | --- | --- | --- | --- | --- |
-| **BDF** | M | M | M | M | M† | Z |
-| **VTU** | M | F | F | M | F† | D‡ |
-| **MSH 4.1** | M | F | F | M | F† | D‡ |
-| **INP** | M | M | M | M | M† | Z |
-| **FRD** | M | F | F | M | F† | D‡ |
-| **OP2 + matching mesh** | M* | F* | F* | M* | F*† | D*‡ |
+| From ↓ / To →           | BDF | VTU | MSH 4.1 | INP | FRD | OP2 (+ optional mesh) |
+|-------------------------|-----|-----|---------|-----|-----|-----------------------|
+| **BDF**                 | M   | M   | M       | M   | M†  | Z                     |
+| **VTU**                 | M   | F   | F       | M   | F†  | D‡                    |
+| **MSH 4.1**             | M   | F   | F       | M   | F†  | D‡                    |
+| **INP**                 | M   | M   | M       | M   | M†  | Z                     |
+| **FRD**                 | M   | F   | F       | M   | F†  | D‡                    |
+| **OP2 + matching mesh** | M*  | F*  | F*      | M*  | F*† | D*‡                   |
 
-| Key | Result                                                                                                                                                                                                                                                                                                                                              |
-| --- |-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Key   | Result                                                                                                                                                                                                                                                                                                                                              |
+|-------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | **M** | Linear mesh projection with original node and element IDs.                                                                                                                                                                                                                                                                                          |
 | **F** | Mesh plus supported numeric fields.                                                                                                                                                                                                                                                                                                                 |
 | **D** | One real displacement table written to OP2 via pyNastran.                                                                                                                                                                                                                                                                                           |
 | **Z** | Synthetic OP2 with six float-zero displacement components per node; requires `--assume-zero-displacement`. Requires pyNastran and labels its values as assumed, not solver results.                                                                                                                                                                 |
-|`*` | Reading OP2 requires `--mesh` with a matching BDF, VTU, MSH, INP, or FRD mesh. Node IDs must match; OP2 cannot verify companion coordinates or cells. BDF verifies `GRID CD=0`. Other formats cannot verify the OP2 displacement frame and require `--assume-basic-frame`.                                                                          |
-|`†` | FRD does not support five-node pyramids; its output can carry nodal fields and rounds ASCII values to six significant digits. `‡` OP2 writing requires pyNastran and one selected three- or six-component `DISP` field. If rotations are absent, `--zero-missing-rotations` explicitly asserts they are float zero; otherwise the conversion fails. |
+| `*`   | Reading OP2 requires `--mesh` with a matching BDF, VTU, MSH, INP, or FRD mesh. Node IDs must match; OP2 cannot verify companion coordinates or cells. BDF verifies `GRID CD=0`. Other formats cannot verify the OP2 displacement frame and require `--assume-basic-frame`.                                                                          |
+| `†`   | FRD does not support five-node pyramids; its output can carry nodal fields and rounds ASCII values to six significant digits. `‡` OP2 writing requires pyNastran and one selected three- or six-component `DISP` field. If rotations are absent, `--zero-missing-rotations` explicitly asserts they are float zero; otherwise the conversion fails. |
 
 See [format limits](docs/SUPPORT.md) for other omissions and conditions.
 
@@ -101,11 +103,16 @@ Preserve a BDF while explicitly exporting its supported geometry:
 use caexfer::{bdf::Document, core::Result, vtu};
 
 fn main() -> Result<()> {
+    // Keep the original BDF document available for byte-preserving inspection.
     let document = Document::open("model.bdf")?;
+
+    // Geometry is an explicit projection; inspect what it leaves behind.
     let projection = document.geometry()?;
     for omission in &projection.omissions {
         eprintln!("{}: {}", omission.category, omission.detail);
     }
+
+    // Create a new destination; library writers receive caller-owned streams.
     let output = std::fs::OpenOptions::new()
         .write(true).create_new(true).open("model.vtu")?;
     vtu::write(&projection.mesh, output)?;
@@ -129,7 +136,8 @@ use caller-owned streams; the CLI stages output files.
 - [Implementation references](docs/REFERENCES.md) and [contributing](CONTRIBUTING.md).
 
 Run `cargo test --offline` for Rust tests and `cargo doc --no-deps --open`
-for API documentation. CI also checks formatting,
+for API documentation. Run `cargo clippy --all-targets --offline -- -D warnings`
+to enforce the pedantic lint group enabled in `Cargo.toml`. CI also checks formatting,
 Clippy, rustdoc, the generated diagram, Cargo packaging, and independent
 conversion routes on Linux, macOS, Windows, and Rust 1.85. Regenerate the figure
 with `python3 scripts/generate_readme_diagram.py` after changing format support.

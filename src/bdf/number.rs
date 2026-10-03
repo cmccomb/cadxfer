@@ -3,6 +3,11 @@ use crate::core::{Error, Result};
 /// Parse a finite Nastran real, including `1.2-3`, `.7+2`, and `1D+3`.
 /// A blank is deliberately an error: defaults belong to the card schema.
 ///
+/// # Errors
+///
+/// Returns `E_REAL` for invalid syntax and `E_NONFINITE` for values outside
+/// the finite floating-point range.
+///
 /// # Examples
 ///
 /// ```
@@ -62,7 +67,7 @@ mod tests {
             ("-2.5-2", -0.025),
             ("+.1", 0.1),
             ("1", 1.0),
-            (" .1d-5 ", 0.000001),
+            (" .1d-5 ", 0.000_001),
         ] {
             assert!(
                 (parse_real(input).unwrap() - expected).abs() <= expected.abs() * 1e-14 + 1e-20,

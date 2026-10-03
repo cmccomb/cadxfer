@@ -78,6 +78,11 @@ fn data_sections<'a>(source: &'a str, name: &str) -> Result<Vec<&'a str>> {
 /// Node and element tags remain the original IDs; connectivity becomes indices
 /// into [`Mesh::points`].
 ///
+/// # Errors
+///
+/// Returns an error for malformed sections, declared counts exceeding input,
+/// unsupported element types, or incomplete numeric fields.
+///
 /// # Examples
 ///
 /// ```
@@ -90,6 +95,7 @@ fn data_sections<'a>(source: &'a str, name: &str) -> Result<Vec<&'a str>> {
 /// assert_eq!(decoded.mesh.cells[0].connectivity, vec![0, 1]);
 /// # Ok::<(), caexfer::core::Error>(())
 /// ```
+#[allow(clippy::too_many_lines)] // MSH section counts and records are validated in one pass.
 pub fn read(source: &str) -> Result<Dataset> {
     // Normalize line endings before looking for exact section delimiters.
     let normalized = source.replace("\r\n", "\n");
@@ -285,6 +291,11 @@ pub fn read(source: &str) -> Result<Dataset> {
 /// Property IDs cannot be represented by this writer and cause an error.
 /// Validate the returned bytes with [`read`] when interoperability matters;
 /// external Gmsh entity and physical-group semantics are outside this model.
+///
+/// # Errors
+///
+/// Returns an error for invalid or unrepresentable data, or when the output
+/// stream rejects bytes.
 pub fn write(dataset: &Dataset, mut writer: impl Write) -> Result<()> {
     // Finish validation and reject unrepresentable properties before writing.
     dataset.validate()?;

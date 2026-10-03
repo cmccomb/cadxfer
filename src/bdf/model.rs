@@ -156,6 +156,7 @@ fn element_kind(name: &str) -> Option<CellKind> {
     }
 }
 
+/// Supported element connectivity before GRID IDs are resolved to mesh indices.
 struct NativeElement {
     id: u64,
     property_id: Option<u64>,
@@ -302,6 +303,7 @@ impl Document {
     /// Project all supported GRID and element cards into a mesh and findings.
     /// Keeps collecting scoped diagnostics so callers can inspect multiple
     /// omissions or errors from one document in a single pass.
+    #[allow(clippy::too_many_lines)] // Geometry diagnostics share one pass over source cards.
     fn analyze_geometry(&self) -> (ValidationReport, Mesh) {
         // Collect source diagnostics and native IDs before forming indexed
         // connectivity; this lets one validation pass report multiple issues.
@@ -392,19 +394,18 @@ impl Document {
                     );
                     valid = false;
                 }
-                match node_indices.get(&id) {
-                    Some(&index) => connectivity.push(index),
-                    None => {
-                        report.diagnostics.push(
-                            Error::new(
-                                "E_MISSING_GRID",
-                                format!("element {} references missing GRID {id}", element.id),
-                            )
-                            .at(element.line)
-                            .into(),
-                        );
-                        valid = false;
-                    }
+                if let Some(&index) = node_indices.get(&id) {
+                    connectivity.push(index);
+                } else {
+                    report.diagnostics.push(
+                        Error::new(
+                            "E_MISSING_GRID",
+                            format!("element {} references missing GRID {id}", element.id),
+                        )
+                        .at(element.line)
+                        .into(),
+                    );
+                    valid = false;
                 }
             }
             if valid {
@@ -439,6 +440,7 @@ impl Document {
     /// assert!(report.warning_count() > 0); // MAT1 is outside the geometry view
     /// # Ok::<(), caexfer::core::Error>(())
     /// ```
+    #[must_use]
     pub fn validate_geometry(&self) -> ValidationReport {
         self.analyze_geometry().0
     }
@@ -449,6 +451,11 @@ impl Document {
     /// Geometry requiring unresolved coordinate frames or unknown elements
     /// returns an error instead of a partial mesh.
     ///
+    /// # Errors
+    ///
+    /// Returns the first blocking geometry diagnostic, or an error if the
+    /// projected mesh fails its structural checks.
+    ///
     /// # Examples
     ///
     /// ```
@@ -456,6 +463,7 @@ impl Document {
     /// let doc = Document::parse(
     ///     "GRID,10,,0,0,0\nGRID,20,,1,0,0\nCROD,30,7,10,20\n"
     /// )?;
+    /// // The projected indices refer to the sorted points, not GRID IDs.
     /// let projection = doc.geometry()?;
     /// assert_eq!(projection.mesh.points[0].id, 10);
     /// assert_eq!(projection.mesh.cells[0].id, 30);

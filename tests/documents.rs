@@ -10,10 +10,17 @@ fn fixed(head: &str, fields: &[&str], width: usize, tail: &str) -> String {
     let mut text = format!("{head:<8}");
     for i in 0..capacity {
         let field = fields.get(i).copied().unwrap_or("");
-        text.push_str(&format!("{field:>width$}"));
+        write!(text, "{field:>width$}").unwrap();
     }
-    text.push_str(&format!("{tail:<8}\n"));
+    writeln!(text, "{tail:<8}").unwrap();
     text
+}
+
+fn assert_coordinates(actual: [f64; 3], expected: [f64; 3]) {
+    assert!(actual
+        .iter()
+        .zip(expected)
+        .all(|(a, b)| (*a - b).abs() < 1e-12));
 }
 
 #[test]
@@ -33,7 +40,7 @@ fn fixed_small_grid() {
     let doc = Document::parse(&source).unwrap();
     let grid = doc.grids().next().unwrap().unwrap();
     assert_eq!(grid.id, 7);
-    assert_eq!(grid.coordinates, [0.0012, 2., 3.]);
+    assert_coordinates(grid.coordinates, [0.0012, 2., 3.]);
     assert_eq!(doc.to_bytes(), source.as_bytes());
 }
 
@@ -42,16 +49,16 @@ fn fixed_large_grid_continuation() {
     let source = fixed("GRID*", &["7", "", "1.234567890123", "2."], 16, "*A")
         + &fixed("*A", &["3.", "", "", ""], 16, "");
     let doc = Document::parse(&source).unwrap();
-    assert_eq!(
+    assert_coordinates(
         doc.grids().next().unwrap().unwrap().coordinates,
-        [1.234567890123, 2., 3.]
+        [1.234_567_890_123, 2., 3.],
     );
 }
 
 #[test]
 fn large_free_grid() {
     let source = "GRID*,7,,1.5,2.5\n*,3.5\n";
-    assert_eq!(
+    assert_coordinates(
         Document::parse(source)
             .unwrap()
             .grids()
@@ -59,14 +66,14 @@ fn large_free_grid() {
             .unwrap()
             .unwrap()
             .coordinates,
-        [1.5, 2.5, 3.5]
+        [1.5, 2.5, 3.5],
     );
 }
 
 #[test]
 fn blank_coordinate_defaults_are_explicit_semantics() {
     let doc = Document::parse("GRID,1\n").unwrap();
-    assert_eq!(doc.grids().next().unwrap().unwrap().coordinates, [0.; 3]);
+    assert_coordinates(doc.grids().next().unwrap().unwrap().coordinates, [0.; 3]);
 }
 
 #[test]
@@ -409,6 +416,7 @@ fn all_linear_cell_families() {
 
 #[test]
 fn write_propagates_failures() {
+    /// Output stream that rejects writes for document I/O tests.
     struct Broken;
     impl std::io::Write for Broken {
         fn write(&mut self, _: &[u8]) -> std::io::Result<usize> {
@@ -435,12 +443,14 @@ fn all_single_byte_inputs_do_not_panic_and_success_roundtrips() {
 #[test]
 fn deterministic_random_corpus_roundtrip_and_no_panic() {
     // Small deterministic property smoke test, not a substitute for fuzzing.
-    let mut state = 0x12345678u64;
+    let mut state = 0x1234_5678_u64;
     for len in 0..256 {
         let mut input = Vec::new();
         for _ in 0..len {
-            state = state.wrapping_mul(6364136223846793005).wrapping_add(1);
-            input.push((state >> 32) as u8);
+            state = state
+                .wrapping_mul(6_364_136_223_846_793_005)
+                .wrapping_add(1);
+            input.push(u8::try_from((state >> 32) & 0xff).unwrap());
         }
         if let Ok(doc) = Document::parse(&input) {
             assert_eq!(doc.to_bytes(), input);

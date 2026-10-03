@@ -45,7 +45,9 @@ EXAMPLES
   caexfer convert results.op2 results.vtu --mesh model.bdf --accept-projection
 ";
 
+/// Parsed CLI command, paths, and explicitly supplied option flags.
 #[derive(Debug, Default)]
+#[allow(clippy::struct_excessive_bools)] // CLI switches are independent user flags.
 struct Args {
     command: String,
     paths: Vec<PathBuf>,
@@ -123,7 +125,8 @@ fn python(args: &Args) -> PathBuf {
 
 /// Parse commands and options, then reject contradictory or irrelevant flags.
 /// Paths remain operating-system strings; only command/option tokens need UTF-8.
-fn parse_args(raw: Vec<OsString>) -> Result<Args> {
+#[allow(clippy::too_many_lines)] // Parsing and cross-option checks share one Args value.
+fn parse_args(raw: &[OsString]) -> Result<Args> {
     // Bare invocation and global help/version switches need no path parsing.
     if raw.is_empty() {
         return Ok(Args {
@@ -367,8 +370,7 @@ fn path_json(path: &Path) -> String {
 fn format_of(args: &Args) -> Result<Format> {
     args.from
         .as_deref()
-        .map(Format::parse)
-        .unwrap_or_else(|| Format::from_input_path(&args.paths[0]))
+        .map_or_else(|| Format::from_input_path(&args.paths[0]), Format::parse)
 }
 
 /// Translate validated CLI flags into the library's typed conversion options.
@@ -598,7 +600,7 @@ fn run_generic_info(args: &Args) -> Result<u8> {
                 omissions.len()
             ))?;
         }
-        return Ok(if passed { 0 } else { 1 });
+        return Ok(u8::from(!passed));
     } else if args.json {
         emit(&object([
             ("schema_version", "1".into()),
@@ -626,7 +628,8 @@ fn run_generic_info(args: &Args) -> Result<u8> {
 
 /// Dispatch the parsed CLI command and return its process exit status.
 /// BDF uses its richer document inspection path; other formats use datasets.
-fn run(args: Args) -> Result<u8> {
+#[allow(clippy::too_many_lines)] // Command branches keep exit codes and output together.
+fn run(args: &Args) -> Result<u8> {
     // Commands without input return before any format or file selection.
     match args.command.as_str() {
         "help" => {
@@ -696,11 +699,11 @@ fn run(args: Args) -> Result<u8> {
     // Conversion owns staged output; inspection dispatches BDF documents to
     // their richer source-preserving report path.
     if args.command == "convert" {
-        return run_convert(&args);
+        return run_convert(args);
     }
-    let format = format_of(&args)?;
+    let format = format_of(args)?;
     if format != Format::Bdf && matches!(args.command.as_str(), "info" | "validate") {
-        return run_generic_info(&args);
+        return run_generic_info(args);
     }
     if args.mesh.is_some()
         || args.assume_basic_frame
@@ -792,7 +795,7 @@ fn run(args: Args) -> Result<u8> {
                     ))?;
                 }
             }
-            return Ok(if passed { 0 } else { 1 });
+            return Ok(u8::from(!passed));
         }
         _ => return Err(usage("unknown command")),
     }
@@ -804,7 +807,7 @@ fn main() {
     // Retain JSON error formatting even when argument parsing itself fails.
     let raw: Vec<OsString> = std::env::args_os().skip(1).collect();
     let wants_json = raw.iter().any(|arg| arg == "--json");
-    let status = match parse_args(raw).and_then(run) {
+    let status = match parse_args(&raw).and_then(|args| run(&args)) {
         Ok(status) => status,
         Err(error) => {
             let message = if wants_json {
@@ -848,7 +851,8 @@ fn main() {
 mod tests {
     use super::*;
     fn args(values: &[&str]) -> Result<Args> {
-        parse_args(values.iter().map(OsString::from).collect())
+        let raw: Vec<OsString> = values.iter().map(OsString::from).collect();
+        parse_args(&raw)
     }
     #[test]
     fn conversion_requires_acknowledgement() {

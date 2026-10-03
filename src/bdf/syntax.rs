@@ -53,6 +53,7 @@ pub struct Card {
 
 impl Card {
     /// Uppercase card keyword, independent of its spelling in the source.
+    #[must_use]
     pub fn name(&self) -> &str {
         &self.name
     }
@@ -68,6 +69,7 @@ pub struct Document {
     pub(crate) include_lines: Vec<usize>,
 }
 
+/// Physical source line and its byte range in the preserved document.
 #[derive(Debug)]
 struct Line {
     start: usize,
@@ -160,6 +162,7 @@ fn quote_open(bytes: &[u8], mut quote: Option<u8>) -> Option<u8> {
     quote
 }
 
+/// Parsed fields and continuation labels from one BDF physical line.
 struct Physical {
     head: String,
     fields: Vec<Field>,
@@ -265,6 +268,10 @@ impl Document {
     /// Comments, unknown cards, and line endings remain in the document. An
     /// `INCLUDE` reference is indexed but its path is never opened.
     ///
+    /// # Errors
+    ///
+    /// Returns an error for malformed card syntax or exceeded parser limits.
+    ///
     /// # Examples
     ///
     /// ```
@@ -281,6 +288,11 @@ impl Document {
 
     /// Parse bytes under explicit resource limits.
     ///
+    /// # Errors
+    ///
+    /// Returns an error when input exceeds a limit or contains invalid BDF
+    /// syntax in the supported parser subset.
+    ///
     /// # Examples
     ///
     /// ```
@@ -289,6 +301,7 @@ impl Document {
     /// let error = Document::parse_with_options(b"GRID,1,,0,0,0\n", limits).unwrap_err();
     /// assert_eq!(error.code, "E_LIMIT");
     /// ```
+    #[allow(clippy::too_many_lines)] // Source offsets and continuation state stay in one pass.
     pub fn parse_with_options(input: impl AsRef<[u8]>, options: ParseOptions) -> Result<Self> {
         // Resource limits apply before any card semantics are interpreted.
         let input = input.as_ref();
@@ -505,11 +518,19 @@ impl Document {
     }
 
     /// Open and parse a BDF file using default resource limits.
+    ///
+    /// # Errors
+    ///
+    /// Returns an I/O or BDF parsing error.
     pub fn open(path: impl AsRef<Path>) -> Result<Self> {
         Self::read_with_options(File::open(path)?, ParseOptions::default())
     }
 
     /// Read a bounded byte stream, then parse it under the supplied limits.
+    ///
+    /// # Errors
+    ///
+    /// Returns an I/O, limit, or BDF parsing error.
     pub fn read_with_options(reader: impl Read, options: ParseOptions) -> Result<Self> {
         // Read one byte beyond the cap to detect oversize streams accurately.
         let limit = options
@@ -522,19 +543,26 @@ impl Document {
     }
 
     /// Indexed cards in source order. Use [`Self::card_text`] to inspect fields.
+    #[must_use]
     pub fn cards(&self) -> &[Card] {
         &self.cards
     }
     /// Original document bytes, unchanged by inspection or projection.
+    #[must_use]
     pub fn to_bytes(&self) -> &[u8] {
         &self.source
     }
     /// Whether the input contained a supported full-deck wrapper.
+    #[must_use]
     pub fn is_full_deck(&self) -> bool {
         self.full_deck
     }
     /// Write current bytes to a caller-owned stream.
     /// An I/O failure can leave a partial output; stage files if needed.
+    ///
+    /// # Errors
+    ///
+    /// Returns `E_IO` if the output stream rejects any source bytes.
     pub fn write_to(&self, mut writer: impl Write) -> Result<()> {
         writer.write_all(&self.source)?;
         Ok(())
@@ -569,14 +597,15 @@ impl Document {
     /// assert_eq!(doc.card_text(card, 2), "1.");
     /// # Ok::<(), caexfer::core::Error>(())
     /// ```
+    #[must_use]
     pub fn card_text(&self, card: &Card, data_index: usize) -> &str {
         card.fields
             .get(data_index)
-            .map(|field| self.field_text(field))
-            .unwrap_or("")
+            .map_or("", |field| self.field_text(field))
     }
 
     /// Count indexed cards by normalized keyword.
+    #[must_use]
     pub fn card_counts(&self) -> BTreeMap<String, usize> {
         let mut counts = BTreeMap::new();
         for card in &self.cards {
