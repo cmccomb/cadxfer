@@ -4,31 +4,22 @@
 pub(super) const OVERVIEW: &str = "caexfer: exchange finite-element meshes and results
 
 USAGE
+  caexfer --help
+  caexfer --version
+  caexfer --formats [--json]
   caexfer COMMAND [OPTIONS]
 
 COMMANDS
-  formats   List supported formats and read/write capabilities
   info      Show projected mesh and field counts
   validate  Check supported data and report omissions
   convert   Write a supported projection to a new file
 
 Run 'caexfer COMMAND --help' for options and examples.
-Run 'caexfer formats' for format details.
 
 GLOBAL OPTIONS
   -h, --help     Show this help
   -V, --version  Show the version
-";
-
-/// Explain the format inventory command.
-const FORMATS: &str = "caexfer formats: list actual read/write support
-
-USAGE
-  caexfer formats [--json]
-
-OPTIONS
-  --json      Write one JSON object (schema_version=1)
-  -h, --help  Show this command's help
+  -f, --formats  List supported formats and read/write capabilities; add --json for JSON
 ";
 
 /// Explain inspection and source selection without implying full solver validation.
@@ -38,7 +29,7 @@ USAGE
   caexfer info INPUT [OPTIONS]
 
 INPUT OPTIONS
-  --from FORMAT         Override the input extension; see 'caexfer formats'
+  --from FORMAT         Override the input extension; see 'caexfer --formats'
   --max-bytes N         Limit input size in bytes (default: 268435456 / 256 MiB)
   --mesh FILE           Companion mesh for OP2/PCH results
   --assume-basic-frame  Assert basic frame with a non-BDF companion mesh
@@ -47,7 +38,7 @@ INPUT OPTIONS
 
 GENERAL OPTIONS
   --json                Write one JSON object (schema_version=1)
-  --                   Treat following arguments as paths
+  --                    Treat following arguments as paths
   -h, --help            Show this command's help
 
 EXAMPLES
@@ -62,7 +53,7 @@ USAGE
   caexfer validate INPUT [OPTIONS]
 
 INPUT OPTIONS
-  --from FORMAT         Override the input extension; see 'caexfer formats'
+  --from FORMAT         Override the input extension; see 'caexfer --formats'
   --max-bytes N         Limit input size in bytes (default: 268435456 / 256 MiB)
   --mesh FILE           Companion mesh for OP2/PCH results
   --assume-basic-frame  Assert basic frame with a non-BDF companion mesh
@@ -74,7 +65,7 @@ VALIDATION OPTIONS
 
 GENERAL OPTIONS
   --json                Write one JSON object (schema_version=1)
-  --                   Treat following arguments as paths
+  --                    Treat following arguments as paths
   -h, --help            Show this command's help
 
 EXAMPLES
@@ -89,7 +80,7 @@ USAGE
   caexfer convert INPUT OUTPUT --accept-projection [OPTIONS]
 
 INPUT OPTIONS
-  --from FORMAT              Override the input extension; see 'caexfer formats'
+  --from FORMAT              Override the input extension; see 'caexfer --formats'
   --max-bytes N              Limit input size in bytes (default: 268435456 / 256 MiB)
   --mesh FILE                Companion mesh for OP2/PCH results
   --assume-basic-frame       Assert basic frame with a non-BDF companion mesh
@@ -98,14 +89,14 @@ INPUT OPTIONS
 
 DESTINATION OPTIONS
   --accept-projection        Required: acknowledge reported omissions and assumptions
-  --msh-version 2.2|4.1       MSH output dialect (default: 4.1)
+  --msh-version 2.2|4.1      MSH output dialect (default: 4.1)
   --mesh-out FILE            Write a companion mesh alongside OP2 output
   --zero-missing-rotations   Assert missing R1/R2/R3 are zero for OP2 output
   --assume-zero-displacement Create synthetic zero OP2 from BDF/INP; no solver runs
 
 GENERAL OPTIONS
   --json                     Write one JSON receipt (schema_version=1)
-  --                       Treat following arguments as paths
+  --                         Treat following arguments as paths
   -h, --help                 Show this command's help
 
 OUTPUT is selected by its extension. Existing files are never overwritten.
@@ -119,7 +110,6 @@ EXAMPLES
 /// Return the help for the selected command; parsing ensures it is recognized.
 pub(super) fn for_command(command: &str) -> &'static str {
     match command {
-        "formats" => FORMATS,
         "info" => INFO,
         "validate" => VALIDATE,
         "convert" => CONVERT,

@@ -6,7 +6,7 @@ Install with `cargo install --git https://github.com/cmccomb/caexfer.git`
 run without Python.
 
 ```sh
-caexfer formats
+caexfer --formats
 caexfer info model.bdf
 caexfer validate model.bdf --json
 caexfer convert model.bdf model.vtu --accept-projection
@@ -37,19 +37,21 @@ caexfer convert results.exo results.vtu --step 0 --accept-projection
 These commands use example input names. The [format limits](SUPPORT.md) describe
 which cells, sets, fields, and time data each route can retain.
 
-`caexfer --help` lists the commands. Use `caexfer convert --help` (or
-`caexfer help convert`) for that command's options and examples. The other
+`caexfer --help` lists the commands and global options. `caexfer -f` and
+`caexfer --formats` list format capabilities; add `--json` for a JSON object.
+Use `caexfer convert --help` (or `caexfer help convert`) for that command's
+options and examples. The other
 commands have their own help in the same form. Paths can occur before or after
 options; use `--` for paths beginning with a hyphen. Filenames use OS-native
 strings internally; JSON/human display of non-UTF-8 paths is lossy, not an exact
 path serialization.
 
-| Command | Result |
+| Command or option | Result |
 | --- | --- |
-| `formats` | Actual read/write capabilities, not a roadmap |
+| `-f`, `--formats` | Actual read/write capabilities, not a roadmap |
 | `info INPUT` | Projected point, cell, and field counts |
 | `validate INPUT` | Supported mesh and field subset checks, with source omissions |
-| `convert INPUT OUTPUT --accept-projection` | Explicit projection to any writable format listed by `caexfer formats`, subject to that format's supported geometry and fields |
+| `convert INPUT OUTPUT --accept-projection` | Explicit projection to any writable format listed by `caexfer --formats`, subject to that format's supported geometry and fields |
 
 Input extensions are `.bdf`, `.nas`, `.dat`, `.pch`, `.vtu`, `.vtk`, `.msh`, `.inp`,
 `.frd`, `.op2`, `.stl`, `.su2`, `.unv`, `.exo`, `.e`, and `.exodus`

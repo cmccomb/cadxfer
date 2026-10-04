@@ -49,13 +49,15 @@ fn help_and_version_work() {
     let overview = String::from_utf8(overview.stdout).unwrap();
     assert!(overview.contains("caexfer COMMAND [OPTIONS]"));
     assert!(overview.contains("caexfer COMMAND --help"));
+    assert!(overview.contains("-f, --formats"));
+    assert!(!overview.contains("  formats   "));
 
     let convert = s.run(&["convert", "--help"]);
     assert!(convert.status.success());
     let convert = String::from_utf8(convert.stdout).unwrap();
     assert!(convert.contains("convert INPUT OUTPUT --accept-projection"));
     assert!(convert.contains("--mesh-out FILE"));
-    assert!(!convert.contains("caexfer formats [--json]"));
+    assert!(convert.contains("caexfer --formats"));
     assert_eq!(
         convert,
         String::from_utf8(s.run(&["help", "convert"]).stdout).unwrap()
@@ -229,12 +231,12 @@ fn op2_requires_matching_mesh() {
 #[test]
 fn formats_advertises_read_only_pch_in_both_presentations() {
     let s = Scratch::new();
-    let machine = s.run(&["formats", "--json"]);
+    let machine = s.run(&["--formats", "--json"]);
     assert!(machine.status.success());
     let machine = String::from_utf8(machine.stdout).unwrap();
     assert!(machine.contains("\"format\":\"pch\""));
     assert!(machine.contains("\"writable\":false"));
-    let human = s.run(&["formats"]);
+    let human = s.run(&["-f"]);
     assert!(human.status.success());
     assert!(
         String::from_utf8(human.stdout)
@@ -373,7 +375,7 @@ fn malformed_cli_options_fail_without_writing() {
         vec!["info", "mesh.bdf", "--from"],
         vec!["info", "mesh.bdf", "--assume-basic-frame"],
         vec!["info", "mesh.bdf", "--mesh", "mesh.bdf"],
-        vec!["formats", "--mesh", "mesh.bdf"],
+        vec!["--formats", "--mesh", "mesh.bdf"],
         vec![
             "convert",
             "mesh.bdf",

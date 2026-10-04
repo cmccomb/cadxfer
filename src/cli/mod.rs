@@ -110,7 +110,7 @@ fn parse_args(raw: &[OsString]) -> Result<Args> {
             }),
             Some(topic) if raw.len() == 2 => {
                 let topic = text(topic)?;
-                if !matches!(topic, "formats" | "info" | "validate" | "convert") {
+                if !matches!(topic, "info" | "validate" | "convert") {
                     return Err(usage(format!("unknown help topic {topic:?}; use --help")));
                 }
                 Ok(Args {
@@ -128,10 +128,27 @@ fn parse_args(raw: &[OsString]) -> Result<Args> {
             ..Args::default()
         });
     }
-    if !matches!(
-        command.as_str(),
-        "formats" | "info" | "validate" | "convert"
-    ) {
+    let format_switch = |arg: &OsString| arg == "-f" || arg == "--formats";
+    if matches!(command.as_str(), "-f" | "--formats")
+        || (command == "--json" && raw.get(1).is_some_and(format_switch))
+    {
+        let mut args = Args {
+            command: "formats".into(),
+            ..Args::default()
+        };
+        let mut seen_formats = false;
+        for arg in raw {
+            if format_switch(arg) {
+                set_flag(&mut seen_formats, "--formats")?;
+            } else if arg == "--json" {
+                set_flag(&mut args.json, "--json")?;
+            } else {
+                return Err(usage("--formats accepts only --json"));
+            }
+        }
+        return Ok(args);
+    }
+    if !matches!(command.as_str(), "info" | "validate" | "convert") {
         return Err(usage(format!("unknown command {command:?}; use --help")));
     }
     let mut args = Args {
@@ -233,7 +250,6 @@ fn parse_args(raw: &[OsString]) -> Result<Args> {
     // Command arity and cross-option rules are checked after collection so
     // flags may appear before or after path arguments.
     let expected = match args.command.as_str() {
-        "formats" => 0,
         "info" | "validate" => 1,
         _ => 2,
     };
@@ -285,17 +301,6 @@ fn parse_args(raw: &[OsString]) -> Result<Args> {
         if !msh_target && !msh_companion {
             return Err(usage("--msh-version applies only to MSH output"));
         }
-    }
-    if args.command == "formats"
-        && (args.from.is_some()
-            || args.max_bytes.is_some()
-            || args.mesh.is_some()
-            || args.mesh_out.is_some()
-            || args.assume_basic_frame
-            || args.subcase.is_some()
-            || args.step.is_some())
-    {
-        return Err(usage("formats does not read an input"));
     }
     Ok(args)
 }
@@ -812,10 +817,15 @@ mod tests {
         assert!(args(&["convert", "only.bdf", "--accept-projection"]).is_err());
     }
 
-    /// Keep the formats command independent of input and output files.
+    /// Accept only JSON formatting after the global formats switch.
     #[test]
-    fn format_report_takes_no_paths() {
-        assert!(args(&["formats", "x.bdf"]).is_err());
+    fn format_report_is_a_global_switch() {
+        assert_eq!(args(&["-f"]).unwrap().command, "formats");
+        assert!(args(&["--formats", "--json"]).unwrap().json);
+        assert!(args(&["--json", "-f"]).unwrap().json);
+        assert!(args(&["-f", "--formats"]).is_err());
+        assert!(args(&["--formats", "x.bdf"]).is_err());
+        assert!(args(&["formats"]).is_err());
     }
 
     /// Constrain synthetic zero displacement to its explicit OP2 output path.
