@@ -506,6 +506,7 @@ pub fn read_projection(source: &str) -> Result<Projection> {
 ///
 /// Returns an error for unsupported layouts, malformed arrays, invalid counts,
 /// or invalid reconstructed data.
+#[cfg(test)]
 pub fn read(source: &str) -> Result<Dataset> {
     Ok(read_projection(source)?.dataset)
 }

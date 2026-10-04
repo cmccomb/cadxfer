@@ -13,5 +13,4 @@ the `caexfer` library and CLI have no Python runtime dependency.
 
 The check scripts create temporary files and remove them when they finish.
 `coverage.sh` keeps only its reports under `target/`. Cargo also directs raw
-profiles from instrumented local runs to the system temporary directory. The
-README flowchart is edited directly in `assets/conversion-flow.svg`.
+profiles from instrumented local runs to the system temporary directory.

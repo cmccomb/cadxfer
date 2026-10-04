@@ -8,5 +8,9 @@ mod interop_tests;
 #[cfg(test)]
 mod tests;
 
-pub use read::{Projection, read, read_projection};
-pub use write::{Version, write, write_22, write_version};
+#[cfg(test)]
+pub use read::read;
+pub use read::read_projection;
+pub use write::{Version, write_version};
+#[cfg(test)]
+pub use write::{write, write_22};

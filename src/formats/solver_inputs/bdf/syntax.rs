@@ -267,6 +267,7 @@ fn physical(source: &[u8], line: &Line, content_end: usize) -> Result<Physical> 
 
 impl ParsedBdf {
     /// Index bounded BDF source bytes for geometry projection.
+    #[cfg(test)]
     pub(crate) fn parse(input: impl AsRef<[u8]>) -> Result<Self> {
         Self::parse_with_options(input, ParseOptions::default())
     }

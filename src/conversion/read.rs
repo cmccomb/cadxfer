@@ -150,19 +150,6 @@ fn read_result_mesh(
 /// Returns an option or format error, an I/O or size-limit error, or a source
 /// reader error when the requested projection cannot be represented safely.
 ///
-/// # Examples
-///
-/// ```ignore
-/// use caexfer::conversion::{read_path, Format, Options};
-/// use std::path::Path;
-/// let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("examples/plate.bdf");
-/// // The read result carries both the projected mesh and source omissions.
-/// let source = read_path(&path, &Options::default())?;
-/// assert_eq!(source.format, Format::Bdf);
-/// assert_eq!(source.dataset.mesh.points.len(), 4);
-/// assert!(!source.omissions.is_empty());
-/// # Ok::<(), caexfer::core::Error>(())
-/// ```
 #[allow(clippy::too_many_lines)] // Format-specific read branches share projection reporting.
 pub fn read_path(path: &Path, options: &Options) -> Result<ReadResult> {
     // An explicit source format overrides suffix-based selection.

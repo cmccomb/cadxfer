@@ -9,5 +9,9 @@ mod write;
 #[cfg(test)]
 mod tests;
 
-pub use read::{Projection, read, read_projection};
-pub use write::{write, write_data};
+#[cfg(test)]
+pub use read::read;
+pub use read::read_projection;
+#[cfg(test)]
+pub use write::write;
+pub use write::write_data;

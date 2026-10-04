@@ -12,19 +12,7 @@ use std::io::{Read, Write};
 ///
 /// Returns a BDF parse error or a blocking geometry projection diagnostic.
 ///
-/// # Examples
-///
-/// ```ignore
-/// use caexfer::formats::bdf;
-/// let source = b"$ original comment\nGRID,10,,0,0,0\nGRID,20,,1,0,0\nCROD,30,7,10,20\n";
-/// // Geometry exchange does not reproduce the original source text.
-/// let projection = bdf::mesh::read(source)?;
-/// assert_eq!(projection.mesh.points.len(), 2);
-/// let mut output = Vec::new();
-/// bdf::mesh::write(&projection.mesh, &mut output)?;
-/// assert_ne!(output, source); // The exchange deck is a projection, not a byte copy.
-/// # Ok::<(), caexfer::core::Error>(())
-/// ```
+#[cfg(test)]
 pub fn read(input: impl AsRef<[u8]>) -> Result<GeometryProjection> {
     ParsedBdf::parse(input)?.geometry()
 }
@@ -72,18 +60,6 @@ fn name(kind: CellKind) -> &'static str {
 /// Returns an error for invalid mesh connectivity, unrepresentable fields, or
 /// a failure in the caller's output stream.
 ///
-/// # Examples
-///
-/// ```ignore
-/// use caexfer::formats::bdf::mesh;
-/// let source = mesh::read("GRID,10,,0,0,0\nGRID,20,,1,0,0\nCROD,30,7,10,20\n")?;
-/// // Export a new geometry deck, then parse it independently.
-/// let mut bytes = Vec::new();
-/// mesh::write(&source.mesh, &mut bytes)?;
-/// let exported = mesh::read(&bytes)?;
-/// assert_eq!(exported.mesh.cells[0].id, 30);
-/// # Ok::<(), caexfer::core::Error>(())
-/// ```
 pub fn write(mesh: &Mesh, mut writer: impl Write) -> Result<()> {
     // Verify indices before writing, since output resolves each to a GRID ID.
     mesh.validate()?;

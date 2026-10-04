@@ -1,7 +1,7 @@
 //! Write ASCII legacy VTK geometry and complete numeric fields.
 
 use super::read::err;
-use crate::core::{CellKind, Dataset, FieldLocation, Mesh, Result};
+use crate::core::{CellKind, Dataset, FieldLocation, Result};
 use std::collections::BTreeSet;
 use std::io::Write;
 
@@ -140,19 +140,4 @@ pub fn write_data(dataset: &Dataset, mut writer: impl Write) -> Result<()> {
         }
     }
     Ok(())
-}
-
-/// Write geometry and original IDs without numeric fields.
-///
-/// # Errors
-///
-/// Returns a dataset validation, representation, or output-stream error.
-pub fn write(mesh: &Mesh, writer: impl Write) -> Result<()> {
-    write_data(
-        &Dataset {
-            mesh: mesh.clone(),
-            fields: Vec::new(),
-        },
-        writer,
-    )
 }

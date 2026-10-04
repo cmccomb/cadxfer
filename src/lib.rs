@@ -17,11 +17,8 @@
 //! ```
 #![warn(missing_docs)]
 
-#[allow(dead_code, unused_imports)]
 mod conversion;
-#[allow(dead_code, unused_imports)]
 mod core;
-#[allow(dead_code, unused_imports)]
 mod formats;
 
 mod api;

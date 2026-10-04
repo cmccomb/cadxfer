@@ -68,18 +68,6 @@ fn label(value: &str, limit: usize, what: &str) -> Result<()> {
 /// Returns an error for unsupported or malformed data, or when the output
 /// stream rejects bytes.
 ///
-/// # Examples
-///
-/// ```ignore
-/// use caexfer::core::Dataset;
-/// use caexfer::formats::{frd, inp};
-/// let mesh = inp::read("*NODE\n1,0,0,0\n2,1,0,0\n*ELEMENT, TYPE=T3D2\n10,1,2\n")?.mesh;
-/// let mut bytes = Vec::new();
-/// frd::write(&Dataset { mesh, fields: vec![] }, &mut bytes)?;
-/// let decoded = frd::read(&bytes)?;
-/// assert_eq!(decoded.mesh.cells[0].id, 10);
-/// # Ok::<(), caexfer::core::Error>(())
-/// ```
 #[allow(clippy::too_many_lines)] // Fixed-width records are emitted in format order.
 pub fn write(dataset: &Dataset, mut output: impl Write) -> Result<()> {
     // Check the entire dataset against FRD's fixed-width constraints before

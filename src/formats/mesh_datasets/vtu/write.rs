@@ -1,6 +1,8 @@
 //! ASCII VTU writer with XML attribute validation.
 
-use crate::core::{CellKind, Dataset, Error, Field, FieldLocation, Mesh, Result};
+#[cfg(test)]
+use crate::core::Mesh;
+use crate::core::{CellKind, Dataset, Error, Field, FieldLocation, Result};
 use std::io::Write;
 
 /// Map a supported linear topology to VTK's unstructured-cell type number.
@@ -29,19 +31,7 @@ pub(super) fn vtk_type(kind: CellKind) -> u8 {
 /// Returns a mesh validation or VTU representation error, or an I/O error
 /// while writing to the caller's stream.
 ///
-/// # Examples
-///
-/// ```ignore
-/// use caexfer::formats::{bdf, vtu};
-/// let mesh = bdf::mesh::read("GRID,1,,0,0,0\nGRID,2,,1,0,0\nCROD,10,7,1,2\n")?.mesh;
-/// // Geometry-only output still retains the original node IDs.
-/// let mut bytes = Vec::new();
-/// vtu::write(&mesh, &mut bytes)?;
-/// let decoded = vtu::read(std::str::from_utf8(&bytes).unwrap())?;
-/// assert_eq!(decoded.mesh.points[0].id, 1);
-/// assert!(decoded.fields.is_empty());
-/// # Ok::<(), caexfer::core::Error>(())
-/// ```
+#[cfg(test)]
 pub fn write(mesh: &Mesh, writer: impl Write) -> Result<()> {
     // Reuse the dataset writer so geometry-only output follows the same
     // validation, ID preservation, and XML layout as output with fields.

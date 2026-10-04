@@ -11,5 +11,5 @@ mod write;
 #[cfg(test)]
 mod tests;
 
-pub use read::{Projection, read_projection};
+pub use read::read_projection;
 pub use write::write_data;

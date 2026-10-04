@@ -1,47 +1,16 @@
 # Test coverage assessment
 
-The coverage workflow measures Rust source lines executed by the unit and
-integration tests, independent CLI interoperability checks, and the full
-conversion matrix with pyNastran as an independent OP2 reader check. The README badge displays the measured Rust
-line percentage from the latest `main` run that produced a report. The workflow
-also enforces a **90% Rust line-coverage floor**. Each report, including one
-below that floor, updates the badge and is available as downloadable
-`coverage.json` and `coverage.lcov` artifacts. If a run fails before producing a
-report, the badge retains the last measurement; follow its link to inspect the
-workflow status.
+The coverage workflow measures Rust source lines executed by unit and
+integration tests, independent CLI checks, and the conversion matrix with
+pyNastran as an independent OP2 reader. It enforces a
+**90% line coverage floor**. The README badge shows the latest measured run on
+`main`. Each report is available as `coverage.json` and `coverage.lcov`
+workflow artifacts. If a run fails before producing a report, the badge
+retains the last measurement. Use its link to inspect workflow status.
 
-## Baseline
-
-Measured on 2026-10-04 with Rust 1.99.0, cargo-llvm-cov 0.8.7, and pyNastran
-1.4.1:
-
-| Measure | Covered / total | Coverage |
-| --- | ---: | ---: |
-| Rust source lines | 8,282 / 9,179 | 90.23% |
-| Rust source regions | 13,066 / 14,837 | 88.06% |
-| Rust functions | 649 / 889 | 73.00% |
-
-The run executed 150 Rust tests, the independent CLI interoperability checks,
-and 76 conversion routes across BDF, VTU, legacy VTK, MSH 4.1/2.2, INP, FRD,
-OP2, and PCH. Doctests run
-in the regular CI workflow but are not included in this coverage measurement.
-The Python check scripts and test-only pyNastran invocation are exercised but
-their Python lines are not counted. Branch coverage is not reported; the line
-percentage should not be interpreted as branch coverage or solver validation.
-
-## Largest gaps
-
-| Rust module | Line coverage | Next useful checks |
-| --- | ---: | --- |
-| `src/conversion/write.rs` | 65.9% | Failure paths for destination-specific projections and output streams. |
-| `src/core/field.rs` | 58.6% | Structural failures for numeric fields. |
-| `src/cli/output.rs` | 84.6% | Staged output failures and cleanup paths. |
-| `src/formats/solver_inputs/inp.rs` | 85.1% | More malformed section and generated mesh records. |
-| `src/formats/companion_results/op2/binary.rs` | 88.3% | More malformed or unsupported OP2 records. |
-
-These gaps are priorities for future tests; the current suite already exercises the
-advertised conversion routes through the CLI. Its fixtures are small, so they
-do not establish compatibility with every real solver file.
+Doctests run in regular CI but are outside this measurement. Python checks
+are exercised, but their lines are not counted. Line coverage does not
+establish branch coverage or solver validation.
 
 ## Reproduce
 
@@ -58,5 +27,5 @@ If Rust was installed through Homebrew rather than rustup, set `LLVM_COV` and
 running the script.
 
 The script writes `target/coverage.json` and `target/coverage.lcov` and fails
-when line coverage falls below 90%. The assessment above is a dated baseline;
-the latest workflow run contains the current measurement.
+when line coverage falls below 90%. The latest workflow run contains the
+current measurement.

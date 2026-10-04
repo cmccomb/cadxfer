@@ -328,12 +328,6 @@ mod tests {
         assert!(args(&["convert", "x.bdf", "x.vtu"]).is_ok());
     }
 
-    /// Keep unsupported GRID editing outside the public CLI command set.
-    #[test]
-    fn grid_edit_is_not_a_cli_command() {
-        assert!(args(&["set-grid", "x.bdf", "y.bdf"]).is_err());
-    }
-
     /// Reject repeated option flags so command intent is unambiguous.
     #[test]
     fn duplicate_option_rejected() {

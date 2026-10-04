@@ -1,13 +1,10 @@
 use std::collections::BTreeSet;
 use std::io::Write;
-use std::path::Path;
 
 use crate::core::{Error, FieldLocation, Mesh, Result};
 use crate::formats::{bdf, exodus, frd, inp, msh, op2, stl, su2, unv, vtk, vtu};
 
-use super::{
-    AssumptionKind, ConversionReport, Format, Omission, Options, ReadResult, Stage, read_path,
-};
+use super::{AssumptionKind, ConversionReport, Format, Omission, Options, ReadResult, Stage};
 
 /// Remove unmapped solver property IDs and return the number removed.
 fn omit_property_ids(mesh: &mut Mesh) -> usize {
@@ -15,41 +12,6 @@ fn omit_property_ids(mesh: &mut Mesh) -> usize {
         .iter_mut()
         .map(|cell| usize::from(cell.property_id.take().is_some()))
         .sum()
-}
-
-/// Read a file and write its supported projection to `writer`.
-///
-/// This does not create or replace a destination file. Callers decide how to
-/// persist the stream. The report identifies information lost or assumed. A
-/// writer I/O error may leave partial bytes in the caller-owned stream.
-///
-/// # Errors
-///
-/// Returns a source read or destination conversion error, including writer
-/// failures after partial bytes have reached the stream.
-///
-/// # Examples
-///
-/// ```ignore
-/// use caexfer::conversion::{convert_path, Format, Options};
-/// use std::path::Path;
-/// let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("examples/plate.bdf");
-/// let mut vtu = Vec::new();
-/// // The report includes losses from both reading and writing.
-/// let report = convert_path(&path, Format::Vtu, &Options::default(), &mut vtu)?;
-/// assert_eq!(report.points, 4);
-/// assert!(std::str::from_utf8(&vtu).unwrap().contains("<VTKFile"));
-/// # Ok::<(), caexfer::core::Error>(())
-/// ```
-pub fn convert_path(
-    path: &Path,
-    target: Format,
-    options: &Options,
-    writer: impl Write,
-) -> Result<ConversionReport> {
-    // Keep read-side omissions attached to the source through destination
-    // projection, so one report covers both stages.
-    convert(read_path(path, options)?, target, options, writer)
 }
 
 /// Write a previously read source in another supported format.
@@ -63,28 +25,6 @@ pub fn convert_path(
 /// Returns a validation, representability, adapter, or output-stream error
 /// for the selected destination format.
 ///
-/// # Examples
-///
-/// ```ignore
-/// use caexfer::formats::bdf;
-/// use caexfer::conversion::{convert, Format, Options, ReadResult, Stage};
-/// use caexfer::core::Dataset;
-/// let projection = bdf::mesh::read(
-///     "GRID,10,,0,0,0\nGRID,20,,1,0,0\nCROD,30,7,10,20\n"
-/// )?;
-/// let source = ReadResult {
-///     format: Format::Bdf,
-///     dataset: Dataset { mesh: projection.mesh, fields: vec![] },
-///     omissions: vec![], generated_point_ids: false, assumed_zero: false,
-/// };
-/// let mut inp = Vec::new();
-/// // INP carries this geometry but not generic numeric result fields.
-/// let report = convert(source, Format::Inp, &Options::default(), &mut inp)?;
-/// assert_eq!(report.cells, 1);
-/// assert!(report.omissions.iter().any(|item| item.stage == Stage::Destination));
-/// assert!(std::str::from_utf8(&inp).unwrap().contains("*ELEMENT"));
-/// # Ok::<(), caexfer::core::Error>(())
-/// ```
 #[allow(clippy::too_many_lines)] // Destination branches share omission and assumption tracking.
 pub fn convert(
     mut source: ReadResult,

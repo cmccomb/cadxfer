@@ -261,19 +261,6 @@ fn attach_node_sets(
 /// Returns an error for malformed sections, declared counts exceeding input,
 /// unsupported element types, or incomplete numeric fields.
 ///
-/// # Examples
-///
-/// ```ignore
-/// use caexfer::core::Dataset;
-/// use caexfer::formats::{inp, msh};
-/// let mesh = inp::read("*NODE\n1,0,0,0\n2,1,0,0\n*ELEMENT, TYPE=T3D2\n10,1,2\n")?.mesh;
-/// let mut bytes = Vec::new();
-/// msh::write(&Dataset { mesh, fields: vec![] }, &mut bytes)?;
-/// let decoded = msh::read(std::str::from_utf8(&bytes).unwrap())?;
-/// assert_eq!(decoded.mesh.cells[0].id, 10);
-/// assert_eq!(decoded.mesh.cells[0].connectivity, vec![0, 1]);
-/// # Ok::<(), caexfer::core::Error>(())
-/// ```
 #[allow(clippy::too_many_lines)] // MSH section counts and records are validated in one pass.
 fn read_41(source: &str) -> Result<(Dataset, usize)> {
     // Normalize line endings before looking for exact section delimiters.
@@ -687,6 +674,7 @@ pub fn read_projection(source: &str) -> Result<Projection> {
 /// # Errors
 ///
 /// Returns an error for malformed, binary, unsupported, or incomplete data.
+#[cfg(test)]
 pub fn read(source: &str) -> Result<Dataset> {
     Ok(read_projection(source)?.dataset)
 }

@@ -4,11 +4,6 @@
 //! solver data. [`mesh::write`] emits a geometry deck. Neither operation
 //! claims to read or write a complete Nastran model.
 //!
-//! ```ignore
-//! use caexfer::formats::bdf;
-//! let source = b"GRID,1,,0.,0.,0.\n";
-//! assert_eq!(bdf::mesh::read(source).unwrap().mesh.points.len(), 1);
-//! ```
 
 pub mod mesh;
 mod model;
@@ -18,7 +13,7 @@ mod syntax;
 #[cfg(test)]
 mod tests;
 
-pub use model::{GeometryProjection, Omission};
+pub use model::GeometryProjection;
 
 use number::parse_real;
 use syntax::{Card, ParseOptions, ParsedBdf};

@@ -317,57 +317,6 @@ pub fn write_data(dataset: &Dataset, mut writer: impl Write) -> Result<()> {
     Ok(())
 }
 
-/// Write conventional ASCII STL with full f64 coordinate precision.
-///
-/// # Errors
-///
-/// Returns `E_STL` for nontriangle or degenerate cells and `E_IO` on output
-/// failure. A writer error may leave partial bytes in the stream.
-pub fn write_ascii(dataset: &Dataset, mut writer: impl Write) -> Result<()> {
-    dataset.validate()?;
-    dataset.mesh.require_no_sets("E_STL")?;
-    if !dataset.fields.is_empty() {
-        return Err(err("STL cannot encode numeric fields"));
-    }
-    if dataset
-        .mesh
-        .cells
-        .iter()
-        .any(|cell| cell.property_id.is_some())
-    {
-        return Err(err("STL cannot encode property IDs"));
-    }
-    if dataset
-        .mesh
-        .cells
-        .iter()
-        .any(|cell| cell.kind != CellKind::Triangle3)
-    {
-        return Err(err("STL output requires triangle surface cells"));
-    }
-    writeln!(writer, "solid caexfer")?;
-    for cell in &dataset.mesh.cells {
-        let vertices = cell
-            .connectivity
-            .clone()
-            .try_into()
-            .map_err(|_| err("invalid triangle connectivity"))?;
-        let vertices: [usize; 3] = vertices;
-        let positions = vertices.map(|index| dataset.mesh.points[index].position);
-        let n = normal64(&positions)?;
-        writeln!(writer, "  facet normal {} {} {}", n[0], n[1], n[2])?;
-        writeln!(writer, "    outer loop")?;
-        for &index in &cell.connectivity {
-            let p = dataset.mesh.points[index].position;
-            writeln!(writer, "      vertex {} {} {}", p[0], p[1], p[2])?;
-        }
-        writeln!(writer, "    endloop")?;
-        writeln!(writer, "  endfacet")?;
-    }
-    writeln!(writer, "endsolid caexfer")?;
-    Ok(())
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -424,6 +373,5 @@ mod tests {
         dataset.mesh.cells[0].connectivity.pop();
         dataset.mesh.points[0].position[0] = f64::MAX;
         assert_eq!(write_data(&dataset, Vec::new()).unwrap_err().code, "E_STL");
-        assert!(write_ascii(&dataset, Vec::new()).is_ok());
     }
 }

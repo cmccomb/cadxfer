@@ -520,6 +520,7 @@ pub fn read_projection(source: &str) -> Result<Projection> {
 /// # Errors
 ///
 /// Returns an error for malformed or unsupported input.
+#[cfg(test)]
 pub fn read(source: &str) -> Result<Dataset> {
     Ok(read_projection(source)?.dataset)
 }

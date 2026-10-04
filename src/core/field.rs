@@ -52,28 +52,6 @@ impl Dataset {
     /// Returns a mesh validation error, or an error for incomplete, unnamed,
     /// or nonfinite numeric fields.
     ///
-    /// # Examples
-    ///
-    /// ```ignore
-    /// use caexfer::core::{Dataset, Field, FieldLocation, Mesh, Point};
-    /// let mut data = Dataset {
-    ///     mesh: Mesh {
-    ///         points: vec![Point { id: 7, position: [0.0; 3] }],
-    ///         cells: vec![],
-    ///         ..Mesh::default()
-    ///     },
-    ///     fields: vec![Field {
-    ///         name: "DISP".into(), location: FieldLocation::Point,
-    ///         components: vec!["T1".into(), "T2".into(), "T3".into()],
-    ///         values: vec![0.1, 0.0, 0.0], step: None, time: None,
-    ///     }],
-    /// };
-    /// // One point with three components requires exactly three values.
-    /// data.validate()?;
-    /// data.fields[0].values.pop();
-    /// assert_eq!(data.validate().unwrap_err().code, "E_FIELD");
-    /// # Ok::<(), caexfer::core::Error>(())
-    /// ```
     pub fn validate(&self) -> Result<()> {
         // A field is meaningful only against a structurally valid mesh.
         self.mesh.validate()?;

@@ -109,75 +109,15 @@ impl From<Error> for Diagnostic {
 /// Findings from validation of a documented subset, not solver correctness.
 /// Warnings leave a report valid *within its stated scope*; errors do not.
 /// The default report has no findings.
-///
-/// # Examples
-///
-/// ```ignore
-/// use caexfer::core::{Diagnostic, Severity, ValidationReport};
-/// let mut report = ValidationReport::default();
-/// report.diagnostics.push(Diagnostic {
-///     severity: Severity::Warning,
-///     code: "W_OPAQUE",
-///     message: "material card not interpreted".into(),
-///     line: Some(2),
-/// });
-/// assert!(report.valid_in_scope());
-/// assert_eq!(report.warning_count(), 1);
-/// report.diagnostics[0].severity = Severity::Error;
-/// assert!(!report.valid_in_scope());
-/// ```
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct ValidationReport {
     /// Findings in source order.
     pub diagnostics: Vec<Diagnostic>,
 }
 
-impl ValidationReport {
-    /// True only for the explicitly documented geometry validation scope.
-    #[must_use]
-    pub fn valid_in_scope(&self) -> bool {
-        !self
-            .diagnostics
-            .iter()
-            .any(|d| d.severity == Severity::Error)
-    }
-
-    /// Number of warning findings.
-    #[must_use]
-    pub fn warning_count(&self) -> usize {
-        self.diagnostics
-            .iter()
-            .filter(|d| d.severity == Severity::Warning)
-            .count()
-    }
-
-    /// Number of error findings.
-    #[must_use]
-    pub fn error_count(&self) -> usize {
-        self.diagnostics
-            .iter()
-            .filter(|d| d.severity == Severity::Error)
-            .count()
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    /// Keep warning-only reports distinct from complete solver validation.
-    #[test]
-    fn warnings_do_not_claim_full_validation() {
-        let mut report = ValidationReport::default();
-        report.diagnostics.push(Diagnostic {
-            severity: Severity::Warning,
-            code: "W_TEST",
-            message: "not checked".into(),
-            line: None,
-        });
-        assert!(report.valid_in_scope());
-        assert_eq!(report.warning_count(), 1);
-    }
 
     /// Include one-based source lines in formatted diagnostics.
     #[test]

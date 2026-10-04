@@ -40,11 +40,6 @@ pub enum CellKind {
 impl CellKind {
     /// Required number of point indices for this topology.
     ///
-    /// ```ignore
-    /// use caexfer::core::CellKind;
-    /// assert_eq!(CellKind::Triangle3.node_count(), 3);
-    /// assert_eq!(CellKind::Hex8.node_count(), 8);
-    /// ```
     #[must_use]
     pub fn node_count(self) -> usize {
         match self {
@@ -144,27 +139,6 @@ impl Mesh {
     /// Returns an error for nonpositive or duplicate IDs, nonfinite coordinates,
     /// or connectivity with missing, repeated, or the wrong number of points.
     ///
-    /// # Examples
-    ///
-    /// ```ignore
-    /// use caexfer::core::{Cell, CellKind, Mesh, Point};
-    /// let mut mesh = Mesh {
-    ///     points: vec![
-    ///         Point { id: 10, position: [0.0, 0.0, 0.0] },
-    ///         Point { id: 20, position: [1.0, 0.0, 0.0] },
-    ///     ],
-    ///     cells: vec![Cell {
-    ///         id: 100, kind: CellKind::Line2,
-    ///         connectivity: vec![0, 1], property_id: None,
-    ///     }],
-    ///     ..Mesh::default()
-    /// };
-    /// // Connectivity holds point positions, not the original IDs 10 and 20.
-    /// mesh.validate()?;
-    /// mesh.cells[0].connectivity = vec![10, 20];
-    /// assert_eq!(mesh.validate().unwrap_err().code, "E_CONNECTIVITY");
-    /// # Ok::<(), caexfer::core::Error>(())
-    /// ```
     pub fn validate(&self) -> Result<()> {
         // Original IDs identify entities independently of vector position.
         let mut points = BTreeSet::new();

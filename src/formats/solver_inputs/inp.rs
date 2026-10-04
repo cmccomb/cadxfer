@@ -59,17 +59,6 @@ pub struct Inspection {
 /// Returns an error for unsupported scoped geometry, malformed node or element
 /// rows, unresolved references, or invalid projected connectivity.
 ///
-/// # Examples
-///
-/// ```ignore
-/// use caexfer::formats::inp;
-/// let input = "*NODE\n1,0,0,0\n2,1,0,0\n*ELEMENT, TYPE=T3D2\n10,1,2\n*MATERIAL, NAME=STEEL\n";
-/// // Material data is reported as omitted rather than interpreted.
-/// let inspected = inp::read(input)?;
-/// assert_eq!(inspected.mesh.cells[0].id, 10);
-/// assert!(inspected.omitted_keywords.contains("MATERIAL"));
-/// # Ok::<(), caexfer::core::Error>(())
-/// ```
 #[allow(clippy::too_many_lines)] // Keyword modes and deferred node resolution share one pass.
 pub fn read(source: &str) -> Result<Inspection> {
     /// Active INP keyword block for interpreting subsequent data lines.

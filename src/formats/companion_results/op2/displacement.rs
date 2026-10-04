@@ -45,19 +45,6 @@ pub fn read_displacements(
 /// A malformed field or empty mesh is rejected before encoding. The caller
 /// must save both the OP2 and a matching mesh for later reading.
 ///
-/// # Examples
-///
-/// ```ignore
-/// use caexfer::core::{Dataset, Field, FieldLocation};
-/// use caexfer::formats::op2;
-/// let field = Field {
-///     name: "DISP".into(), location: FieldLocation::Point,
-///     components: vec!["T1".into(), "T2".into(), "T3".into()],
-///     values: vec![], step: None, time: None,
-/// };
-/// let error = op2::write_displacements(&Dataset::default(), &field, 1, false, false).unwrap_err();
-/// assert_eq!(error.code, "E_OP2"); // A complete mesh and values are required.
-/// ```
 ///
 /// # Errors
 ///

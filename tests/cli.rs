@@ -104,17 +104,6 @@ fn validation_json_has_version_and_counts() {
     assert!(out.contains("\"cells\":1"));
 }
 
-/// Reject the removed roundtrip command without creating a file.
-#[test]
-fn retired_roundtrip_command_is_rejected() {
-    let s = Scratch::new();
-    assert_eq!(
-        s.run(&["roundtrip", "mesh.bdf", "copy.bdf"]).status.code(),
-        Some(2)
-    );
-    assert!(!s.0.join("copy.bdf").exists());
-}
-
 /// Require projection acknowledgement before creating an output file.
 #[test]
 fn refused_conversion_does_not_create_output() {

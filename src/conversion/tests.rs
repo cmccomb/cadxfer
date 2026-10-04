@@ -68,10 +68,11 @@ fn msh_declared_counts_cannot_allocate_beyond_input() {
 
 /// Return source and destination omissions alongside converted geometry.
 #[test]
-fn public_conversion_reports_source_and_destination_losses() {
+fn conversion_reports_source_and_destination_losses() {
     let source = Path::new(env!("CARGO_MANIFEST_DIR")).join("examples/plate.bdf");
     let mut output = Vec::new();
-    let report = conversion::convert_path(&source, Format::Msh, &Options::default(), &mut output)
+    let read = conversion::read_path(&source, &Options::default()).unwrap();
+    let report = conversion::convert(read, Format::Msh, &Options::default(), &mut output)
         .expect("BDF mesh projects to MSH");
     assert_eq!((report.points, report.cells, report.fields), (4, 1, 0));
     assert!(
@@ -243,9 +244,14 @@ fn stl_route_reports_missing_identity_and_refuses_volume_export() {
 
     let volume = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/mixed-linear.bdf");
     assert_eq!(
-        conversion::convert_path(&volume, Format::Stl, &Options::default(), Vec::new())
-            .unwrap_err()
-            .code,
+        conversion::convert(
+            conversion::read_path(&volume, &Options::default()).unwrap(),
+            Format::Stl,
+            &Options::default(),
+            Vec::new(),
+        )
+        .unwrap_err()
+        .code,
         "E_STL"
     );
 }
@@ -255,8 +261,8 @@ fn stl_route_reports_missing_identity_and_refuses_volume_export() {
 fn named_msh_boundary_survives_su2_conversion() {
     let source = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/named-boundary.msh");
     let mut output = Vec::new();
-    let report =
-        conversion::convert_path(&source, Format::Su2, &Options::default(), &mut output).unwrap();
+    let read = conversion::read_path(&source, &Options::default()).unwrap();
+    let report = conversion::convert(read, Format::Su2, &Options::default(), &mut output).unwrap();
     assert_eq!((report.points, report.cells), (3, 2));
     let decoded =
         crate::formats::su2::read_projection(std::str::from_utf8(&output).unwrap()).unwrap();
@@ -304,9 +310,14 @@ fn unv_geometry_route_reports_native_omissions() {
 
     let pyramid = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/gmsh-2.2-mixed.msh");
     assert_eq!(
-        conversion::convert_path(&pyramid, Format::Unv, &Options::default(), Vec::new())
-            .unwrap_err()
-            .code,
+        conversion::convert(
+            conversion::read_path(&pyramid, &Options::default()).unwrap(),
+            Format::Unv,
+            &Options::default(),
+            Vec::new(),
+        )
+        .unwrap_err()
+        .code,
         "E_UNV"
     );
 }
@@ -583,14 +594,6 @@ fn geometry_only_writers_reject_fields_while_conversion_reports_them() {
                 _ => unreachable!(),
             }
         );
-        if format == Format::Stl {
-            assert_eq!(
-                crate::formats::stl::write_ascii(&dataset, Vec::new())
-                    .unwrap_err()
-                    .code,
-                "E_STL"
-            );
-        }
         let mut output = Vec::new();
         let report = conversion::convert(
             ReadResult {
