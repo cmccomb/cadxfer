@@ -23,8 +23,8 @@ The geometry projection is explicitly narrower. It returns geometry plus an
 omission report, refuses unknown geometry-affecting inputs, and never invents
 units or coordinate transformations. A BDF-to-VTU operation is not labeled
 lossless. Native byte preservation and semantic preservation are separate claims.
-`bdf::read_geometry` and `bdf::write_geometry` provide paired mesh-exchange
-entry points; `Document` remains the source-preserving entry point.
+`bdf::mesh::read` and `bdf::mesh::write` provide paired mesh-exchange entry
+points; `Document` remains the source-preserving entry point.
 
 ## Source documents and projected datasets
 

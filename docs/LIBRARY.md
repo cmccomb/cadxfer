@@ -31,7 +31,7 @@ same result type for both caexfer and filesystem operations.
 | Need | Start with | Outcome |
 | --- | --- | --- |
 | Inspect or copy a BDF without rewriting its source | `bdf::Document` | Original bytes, indexed cards, typed GRID access |
-| Extract supported BDF geometry | `bdf::read_geometry(bytes)` or `Document::geometry()` | `GeometryProjection { mesh, omissions }` |
+| Extract supported BDF geometry | `bdf::mesh::read(bytes)` or `Document::geometry()` | `GeometryProjection { mesh, omissions }` |
 | Read a mesh and numeric results | `vtu::read`, `msh::read`, or `frd::read` | `core::Dataset` |
 | Read a flat INP mesh | `inp::read` | `Inspection { mesh, omitted_keywords }` |
 | Read an STL triangle surface | `stl::read_projection` | Generated facet-local IDs and explicit source losses |
@@ -143,7 +143,7 @@ stages no-clobber output. If those attributes matter, check the
 | Output | Library call | Input |
 | --- | --- | --- |
 | Source-preserving BDF | `Document::write_to(writer)` | `&Document` |
-| Geometry-only BDF | `bdf::write_geometry(&mesh, writer)` | `&Mesh` |
+| Geometry-only BDF | `bdf::mesh::write(&mesh, writer)` | `&Mesh` |
 | VTU | `vtu::write(&mesh, writer)` or `vtu::write_data(&dataset, writer)` | `&Mesh` or `&Dataset` |
 | Legacy VTK | `vtk::write(&mesh, writer)` or `vtk::write_data(&dataset, writer)` | `&Mesh` or `&Dataset` |
 | MSH 4.1 / 2.2 | `msh::write(&dataset, writer)` or `msh::write_version(&dataset, version, writer)` | `&Dataset` |

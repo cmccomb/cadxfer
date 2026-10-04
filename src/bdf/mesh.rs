@@ -1,6 +1,35 @@
-//! Geometry-only BDF exporter. Output is a mesh exchange deck, not a solver-ready model.
+//! Geometry-only BDF exchange. Output is a mesh deck, not a solver-ready model.
+use super::{Document, GeometryProjection};
 use crate::core::{CellKind, Error, Mesh, Result};
 use std::io::Write;
+
+/// Parse BDF bytes and project supported linear geometry with an omission report.
+///
+/// This convenience entry point is for mesh exchange. It rejects unresolved
+/// geometry and does not return the source document. Use [`Document::parse`]
+/// when comments, unknown cards, and exact source bytes must remain available.
+///
+/// # Errors
+///
+/// Returns a BDF parse error or a blocking geometry projection diagnostic.
+///
+/// # Examples
+///
+/// ```
+/// use caexfer::bdf;
+/// let source = b"$ original comment\nGRID,10,,0,0,0\nGRID,20,,1,0,0\nCROD,30,7,10,20\n";
+/// // The input bytes stay unchanged while this result is a projection.
+/// let projection = bdf::mesh::read(source)?;
+/// assert_eq!(projection.mesh.points.len(), 2);
+/// let mut output = Vec::new();
+/// bdf::mesh::write(&projection.mesh, &mut output)?;
+/// assert_ne!(output, source); // The exchange deck is a projection, not a byte copy.
+/// # Ok::<(), caexfer::core::Error>(())
+/// ```
+pub fn read(input: impl AsRef<[u8]>) -> Result<GeometryProjection> {
+    // Keep document parsing and lossy geometry projection as explicit steps.
+    Document::parse(input)?.geometry()
+}
 
 /// Map a linear topology to the BDF geometry card emitted by this writer.
 fn name(kind: CellKind) -> &'static str {
@@ -27,13 +56,13 @@ fn name(kind: CellKind) -> &'static str {
 /// # Examples
 ///
 /// ```
-/// use caexfer::bdf::{write_geometry, Document};
+/// use caexfer::bdf::{mesh, Document};
 /// let source = Document::parse(
 ///     "GRID,10,,0,0,0\nGRID,20,,1,0,0\nCROD,30,7,10,20\n"
 /// )?;
 /// // Export a new geometry deck, then parse it independently.
 /// let mut bytes = Vec::new();
-/// write_geometry(&source.geometry()?.mesh, &mut bytes)?;
+/// mesh::write(&source.geometry()?.mesh, &mut bytes)?;
 /// let exported = Document::parse(&bytes)?;
 /// assert_eq!(exported.geometry()?.mesh.cells[0].id, 30);
 /// assert_ne!(exported.to_bytes(), source.to_bytes()); // projection is not a byte copy
