@@ -201,3 +201,6 @@ pub fn convert(
     }
     report.ok_or_else(|| Error::new("E_OUTPUT", "no conversion report"))
 }
+
+#[cfg(test)]
+mod tests;

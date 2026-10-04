@@ -38,14 +38,18 @@ fn free_and_fixed_geometry_keep_ids_and_coordinates() {
 
     let small = fixed("GRID", &["7", "", "1.2-3", "2.", "3."], 8, "");
     assert_eq!(
-        bdf::mesh::read(small).unwrap().mesh.points[0].position,
-        [0.0012, 2.0, 3.0]
+        bdf::mesh::read(small).unwrap().mesh.points[0]
+            .position
+            .map(f64::to_bits),
+        [0.0012_f64, 2.0, 3.0].map(f64::to_bits)
     );
     let large = fixed("GRID*", &["7", "", "1.234567890123", "2."], 16, "*A")
         + &fixed("*A", &["3.", "", "", ""], 16, "");
     assert_eq!(
-        bdf::mesh::read(large).unwrap().mesh.points[0].position,
-        [1.234_567_890_123, 2.0, 3.0]
+        bdf::mesh::read(large).unwrap().mesh.points[0]
+            .position
+            .map(f64::to_bits),
+        [1.234_567_890_123_f64, 2.0, 3.0].map(f64::to_bits)
     );
 }
 

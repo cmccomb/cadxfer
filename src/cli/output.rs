@@ -189,3 +189,6 @@ pub(super) fn install_pair(first: &PendingOutput, second: &PendingOutput) -> Res
         )
     })
 }
+
+#[cfg(test)]
+mod tests;

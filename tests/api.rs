@@ -125,6 +125,44 @@ fn op2_companion_is_staged_and_reported() {
 }
 
 #[test]
+fn companion_output_requires_op2_destination() {
+    let scratch = Scratch::new();
+    let output = scratch.path("result.vtu");
+    let companion = scratch.path("mesh.bdf");
+    let error = convert(
+        fixture("examples/plate.bdf"),
+        &output,
+        &Options {
+            mesh_output: Some(companion.clone()),
+            accept_all: true,
+            ..Options::default()
+        },
+    )
+    .unwrap_err();
+    assert_eq!(error.code, "E_USAGE");
+    assert!(!output.exists() && !companion.exists());
+}
+
+#[test]
+fn op2_companion_requires_a_mesh_bearing_format() {
+    let scratch = Scratch::new();
+    let output = scratch.path("results.op2");
+    let companion = scratch.path("companion.op2");
+    let error = convert(
+        fixture("examples/plate.bdf"),
+        &output,
+        &Options {
+            mesh_output: Some(companion.clone()),
+            accept_all: true,
+            ..Options::default()
+        },
+    )
+    .unwrap_err();
+    assert_eq!(error.code, "E_USAGE");
+    assert!(!output.exists() && !companion.exists());
+}
+
+#[test]
 fn documented_frd_msh_and_pch_routes_use_only_the_root_api() {
     let scratch = Scratch::new();
     let vtu = scratch.path("results.vtu");

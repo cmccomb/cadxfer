@@ -113,3 +113,72 @@ fn pair_stages_both_before_committing_either() {
     assert_eq!(fs::read_dir(&dir).unwrap().count(), 0);
     fs::remove_dir_all(dir).unwrap();
 }
+
+/// Reject a paired output that names the same destination twice.
+#[test]
+fn pair_requires_distinct_destinations() {
+    let dir = directory();
+    let dest = dir.join("same.bdf");
+    assert_eq!(
+        create_pair(&dest, |_| Ok(()), &dest, |_| Ok(()))
+            .unwrap_err()
+            .code,
+        "E_USAGE"
+    );
+    assert!(!dest.exists());
+    fs::remove_dir_all(dir).unwrap();
+}
+
+/// Report the installed first file if another writer claims the second name.
+#[test]
+fn pair_reports_a_second_destination_race() {
+    let dir = directory();
+    let first = dir.join("results.op2");
+    let second = dir.join("mesh.bdf");
+    let error = create_pair(
+        &first,
+        |writer| {
+            writer.write_all(b"results")?;
+            Ok(())
+        },
+        &second,
+        |writer| {
+            writer.write_all(b"staged mesh")?;
+            fs::write(&second, b"another writer")?;
+            Ok(())
+        },
+    )
+    .unwrap_err();
+    assert_eq!(error.code, "E_EXISTS");
+    assert!(error.message.contains(&first.display().to_string()));
+    assert_eq!(fs::read(&first).unwrap(), b"results");
+    assert_eq!(fs::read(&second).unwrap(), b"another writer");
+    assert_eq!(fs::read_dir(&dir).unwrap().count(), 2);
+    fs::remove_dir_all(dir).unwrap();
+}
+
+/// An absent destination parent fails before a partial file is created.
+#[test]
+fn missing_parent_reports_io() {
+    let dir = directory();
+    let dest = dir.join("missing").join("output");
+    assert_eq!(create_new(&dest, |_| Ok(())).unwrap_err().code, "E_IO");
+    assert!(!dest.exists());
+    fs::remove_dir_all(dir).unwrap();
+}
+
+/// A removed staging directory cannot produce a partial final output.
+#[cfg(unix)]
+#[test]
+fn removed_staging_directory_reports_install_failure() {
+    let dir = directory();
+    let dest = dir.join("output");
+    let error = create_new(&dest, |writer| {
+        writer.write_all(b"staged")?;
+        fs::remove_dir_all(&dir)?;
+        Ok(())
+    })
+    .unwrap_err();
+    assert_eq!(error.code, "E_OUTPUT");
+    assert!(!dest.exists());
+}
