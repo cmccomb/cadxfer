@@ -9,6 +9,7 @@ use std::io::Write;
 pub enum Version {
     /// Traditional flat node and element sections.
     V2_2,
+
     /// Entity-block node and element sections.
     V4_1,
 }
@@ -18,6 +19,7 @@ pub enum Version {
 pub struct Projection {
     /// Complete supported geometry and numeric fields.
     pub dataset: Dataset,
+
     /// Elements with nonzero physical/geometrical or other unmapped tags.
     pub tagged_elements: usize,
 }
@@ -26,8 +28,10 @@ pub struct Projection {
 struct Element22 {
     /// Original element tag.
     id: u64,
+
     /// Supported linear Gmsh type code.
     code: u32,
+
     /// Original node tags in Gmsh ordering.
     nodes: Vec<u64>,
 }
@@ -36,6 +40,7 @@ struct Element22 {
 fn err(message: impl Into<String>) -> Error {
     Error::new("E_MSH", message)
 }
+
 /// Parse a required token, preserving its field name in the diagnostic.
 fn number<T: std::str::FromStr>(value: Option<&str>, what: &str) -> Result<T> {
     value
@@ -43,6 +48,7 @@ fn number<T: std::str::FromStr>(value: Option<&str>, what: &str) -> Result<T> {
         .parse()
         .map_err(|_| err(format!("invalid {what}")))
 }
+
 /// Decode a Gmsh linear element code; reject unsupported element orders.
 fn kind(code: u32) -> Result<CellKind> {
     match code {
@@ -56,6 +62,7 @@ fn kind(code: u32) -> Result<CellKind> {
         _ => Err(err(format!("unsupported element type {code}"))),
     }
 }
+
 /// Return the Gmsh element code and topological dimension for a cell.
 fn code(kind: CellKind) -> (u32, u32) {
     match kind {
@@ -68,6 +75,7 @@ fn code(kind: CellKind) -> (u32, u32) {
         CellKind::Pyramid5 => (7, 3),
     }
 }
+
 /// Borrow the first named section body, checking that its end marker exists.
 fn section<'a>(source: &'a str, name: &str) -> Result<Option<&'a str>> {
     // A missing section is optional to callers; a present truncated one is not.
@@ -83,6 +91,7 @@ fn section<'a>(source: &'a str, name: &str) -> Result<Option<&'a str>> {
         + body_start;
     Ok(Some(&source[body_start..stop]))
 }
+
 /// Borrow all repeated field sections in source order, rejecting truncation.
 fn data_sections<'a>(source: &'a str, name: &str) -> Result<Vec<&'a str>> {
     // NodeData and ElementData may occur once per field and step.

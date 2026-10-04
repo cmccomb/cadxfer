@@ -24,8 +24,10 @@ use std::fmt;
 pub struct Error {
     /// Stable diagnostic identifier; callers should branch on this, not `message`.
     pub code: &'static str,
+
     /// Human-readable explanation; wording may change between releases.
     pub message: String,
+
     /// One-based physical source line, when available.
     pub line: Option<usize>,
 }
@@ -76,6 +78,7 @@ pub type Result<T> = std::result::Result<T, Error>;
 pub enum Severity {
     /// Information was omitted or could not be validated in this scope.
     Warning,
+
     /// The requested scoped operation cannot proceed.
     Error,
 }
@@ -85,10 +88,13 @@ pub enum Severity {
 pub struct Diagnostic {
     /// Whether the finding blocks the scoped operation.
     pub severity: Severity,
+
     /// Stable diagnostic identifier.
     pub code: &'static str,
+
     /// Human-readable explanation.
     pub message: String,
+
     /// One-based physical source line, when available.
     pub line: Option<usize>,
 }
@@ -164,6 +170,7 @@ impl ValidationReport {
 pub struct Point {
     /// Original node ID; never an index into the points array.
     pub id: u64,
+
     /// Coordinates in the source mesh's represented frame. No inferred units.
     pub position: [f64; 3],
 }
@@ -173,16 +180,22 @@ pub struct Point {
 pub enum CellKind {
     /// Two-node line.
     Line2,
+
     /// Three-node triangle.
     Triangle3,
+
     /// Four-node quadrilateral.
     Quad4,
+
     /// Four-node tetrahedron.
     Tet4,
+
     /// Eight-node hexahedron.
     Hex8,
+
     /// Six-node wedge.
     Wedge6,
+
     /// Five-node pyramid.
     Pyramid5,
 }
@@ -213,10 +226,13 @@ impl CellKind {
 pub struct Cell {
     /// Original positive element ID.
     pub id: u64,
+
     /// Linear element topology.
     pub kind: CellKind,
+
     /// Zero-based indices into `Mesh::points`, not Nastran grid IDs.
     pub connectivity: Vec<usize>,
+
     /// Source property ID if present; no property definition is stored.
     pub property_id: Option<u64>,
 }
@@ -226,6 +242,7 @@ pub struct Cell {
 pub struct Mesh {
     /// Points indexed by each cell's `connectivity`.
     pub points: Vec<Point>,
+
     /// Linear cells in this mesh.
     pub cells: Vec<Cell>,
 }
@@ -319,6 +336,7 @@ impl Mesh {
 pub enum FieldLocation {
     /// One value tuple per mesh point.
     Point,
+
     /// One value tuple per mesh cell.
     Cell,
 }
@@ -328,14 +346,19 @@ pub enum FieldLocation {
 pub struct Field {
     /// Field name, such as `DISP`.
     pub name: String,
+
     /// Entity type to which values belong.
     pub location: FieldLocation,
+
     /// Ordered component names, such as `T1`, `T2`, `T3`.
     pub components: Vec<String>,
+
     /// Entity-major values: all components for entity 0, then entity 1, etc.
     pub values: Vec<f64>,
+
     /// Optional source step number; interpretation depends on the format.
     pub step: Option<i64>,
+
     /// Optional source time; units are not inferred.
     pub time: Option<f64>,
 }
@@ -345,6 +368,7 @@ pub struct Field {
 pub struct Dataset {
     /// Geometry and original node/element identifiers.
     pub mesh: Mesh,
+
     /// Complete numeric fields associated with points or cells.
     pub fields: Vec<Field>,
 }

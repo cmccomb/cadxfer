@@ -10,16 +10,22 @@ use crate::core::{
 pub struct Grid {
     /// Positive GRID identifier.
     pub id: u64,
+
     /// Coordinate frame identifier; zero means the basic frame.
     pub cp: u64,
+
     /// Native CP-frame coordinates; `geometry()` requires CP=0.
     pub coordinates: [f64; 3],
+
     /// Output coordinate frame identifier.
     pub cd: i64,
+
     /// Permanent single-point constraint digits, if any.
     pub ps: String,
+
     /// Superelement identifier.
     pub seid: u64,
+
     /// One-based physical line containing the GRID card.
     pub line: usize,
 }
@@ -29,8 +35,10 @@ pub struct Grid {
 pub struct Omission {
     /// Kind of omitted information.
     pub category: String,
+
     /// Number of affected source records.
     pub count: usize,
+
     /// Human-readable explanation.
     pub detail: String,
 }
@@ -40,6 +48,7 @@ pub struct Omission {
 pub struct GeometryProjection {
     /// Supported points and linear cells with their original IDs.
     pub mesh: Mesh,
+
     /// Information intentionally absent from this geometry-only projection.
     pub omissions: Vec<Omission>,
 }

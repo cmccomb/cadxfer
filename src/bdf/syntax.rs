@@ -13,12 +13,16 @@ use crate::core::{Error, Result};
 pub struct ParseOptions {
     /// Maximum input bytes (default: 256 MiB).
     pub max_bytes: usize,
+
     /// Maximum bytes in one physical line (default: 1 MiB).
     pub max_line_bytes: usize,
+
     /// Maximum physical lines (default: two million).
     pub max_lines: usize,
+
     /// Maximum parsed cards (default: two million).
     pub max_cards: usize,
+
     /// Maximum data fields in one card (default: 65,536).
     pub max_fields_per_card: usize,
 }
@@ -46,6 +50,7 @@ pub(crate) struct Field {
 #[derive(Debug, Clone)]
 pub struct Card {
     name: String,
+
     /// One-based physical line where the card begins.
     pub line: usize,
     pub(crate) fields: Vec<Field>,
@@ -547,16 +552,19 @@ impl Document {
     pub fn cards(&self) -> &[Card] {
         &self.cards
     }
+
     /// Original document bytes, unchanged by inspection or projection.
     #[must_use]
     pub fn to_bytes(&self) -> &[u8] {
         &self.source
     }
+
     /// Whether the input contained a supported full-deck wrapper.
     #[must_use]
     pub fn is_full_deck(&self) -> bool {
         self.full_deck
     }
+
     /// Write current bytes to a caller-owned stream.
     /// An I/O failure can leave a partial output; stage files if needed.
     ///

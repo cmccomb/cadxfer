@@ -2,10 +2,12 @@
 use crate::core::{Cell, CellKind, Dataset, Error, Field, FieldLocation, Mesh, Point, Result};
 use std::collections::BTreeMap;
 use std::io::Write;
+
 /// Construct an FRD-specific diagnostic for a rejected record or value.
 fn err(message: impl Into<String>) -> Error {
     Error::new("E_FRD", message)
 }
+
 /// Parse an ASCII number, accepting Fortran `D` exponents from solver output.
 fn n<T: std::str::FromStr>(text: &str, what: &str) -> Result<T> {
     text.trim()
@@ -13,6 +15,7 @@ fn n<T: std::str::FromStr>(text: &str, what: &str) -> Result<T> {
         .parse()
         .map_err(|_| err(format!("invalid {what}")))
 }
+
 /// Decode a supported FRD element type; higher-order types are rejected.
 fn kind(code: u32) -> Result<CellKind> {
     match code {
@@ -25,6 +28,7 @@ fn kind(code: u32) -> Result<CellKind> {
         _ => Err(err(format!("unsupported FRD element type {code}"))),
     }
 }
+
 /// Encode linear topology, including FRD's unsupported pyramid case.
 fn type_code(kind: CellKind) -> Result<u32> {
     match kind {
@@ -37,6 +41,7 @@ fn type_code(kind: CellKind) -> Result<u32> {
         CellKind::Pyramid5 => Err(err("FRD has no supported five-node pyramid type")),
     }
 }
+
 /// Format a finite value in the fixed E12.5 field used by long FRD records.
 /// Values outside the two-digit exponent range fail instead of overflowing.
 fn ascii_number(value: f64) -> Result<String> {
@@ -55,6 +60,7 @@ fn ascii_number(value: f64) -> Result<String> {
     }
     Ok(format!("{result:>12}"))
 }
+
 /// Ensure an ID fits the ten-column long-format FRD field.
 fn identifier(value: u64) -> Result<u64> {
     if value > 9_999_999_999 {
@@ -62,6 +68,7 @@ fn identifier(value: u64) -> Result<u64> {
     }
     Ok(value)
 }
+
 /// Check the printable no-space label bounds imposed by FRD headers.
 fn label(value: &str, limit: usize, what: &str) -> Result<()> {
     if value.is_empty()
@@ -237,6 +244,7 @@ pub fn write(dataset: &Dataset, mut output: impl Write) -> Result<()> {
     writeln!(output, " 9999")?;
     Ok(())
 }
+
 /// Decode one result row's entity ID and expected numeric components.
 /// Accepts whitespace records and fixed-width short or long records.
 fn values(line: &str, long: bool, expected: usize) -> Result<(u64, Vec<f64>)> {
@@ -268,6 +276,7 @@ fn values(line: &str, long: bool, expected: usize) -> Result<(u64, Vec<f64>)> {
     }
     Ok((id, vals))
 }
+
 /// Decode the numeric payload of an FRD `-2` result continuation.
 /// The caller chooses the remaining component count for this entity.
 fn continuation_values(line: &str, long: bool, expected: usize) -> Result<Vec<f64>> {
@@ -292,6 +301,7 @@ fn continuation_values(line: &str, long: bool, expected: usize) -> Result<Vec<f6
         .map(|token| n(token, "continuation value"))
         .collect()
 }
+
 /// Decode element node IDs from a whitespace or fixed-width connectivity row.
 /// Blank fixed-width slots are skipped; malformed IDs fail.
 fn integers(line: &str, long: bool) -> Result<Vec<u64>> {
@@ -309,6 +319,7 @@ fn integers(line: &str, long: bool) -> Result<Vec<u64>> {
         .map(|c| n(std::str::from_utf8(c).unwrap_or(""), "node ID"))
         .collect()
 }
+
 /// Decode an element record's ID and its type/count field.
 /// The named second value is included in parse diagnostics.
 fn header_pair(line: &str, long: bool, second: &str) -> Result<(u64, u64)> {
@@ -330,6 +341,7 @@ fn header_pair(line: &str, long: bool, second: &str) -> Result<(u64, u64)> {
     )?;
     Ok((id, value))
 }
+
 /// Inspect the FRD header's format column: false is short, true is long.
 /// Binary mode flags are rejected even when their record body is not read.
 fn header_format(line: &str, column: usize) -> Result<bool> {
@@ -343,14 +355,23 @@ fn header_format(line: &str, column: usize) -> Result<bool> {
         _ => Ok(false),
     }
 }
+
 /// FRD block currently being decoded; bool records the long-format flag.
 #[derive(Clone, Copy)]
 enum Mode {
+    /// No supported FRD block is active.
     None,
+
+    /// Node records; the flag selects long-format IDs.
     Nodes(bool),
+
+    /// Element records; the flag selects long-format IDs.
     Elements(bool),
+
+    /// Result records; the flag selects long-format IDs.
     Results(bool),
 }
+
 /// Partial nodal field assembled across FRD result and continuation records.
 #[derive(Default)]
 struct FieldBuilder {

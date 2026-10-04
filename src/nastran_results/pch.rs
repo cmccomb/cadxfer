@@ -12,6 +12,7 @@ use std::collections::BTreeMap;
 pub struct Projection {
     /// Companion mesh and one normalized displacement field.
     pub dataset: Dataset,
+
     /// Number of other result-block headers not projected.
     pub skipped_blocks: usize,
 }
@@ -20,8 +21,10 @@ pub struct Projection {
 struct Row {
     /// Original positive GRID identifier.
     id: u64,
+
     /// Three or six displacement values.
     values: [f64; 6],
+
     /// Number of known components.
     width: usize,
 }
@@ -30,14 +33,19 @@ struct Row {
 struct Block {
     /// Positive subcase from the block header.
     subcase: Option<i64>,
+
     /// Optional transient time from the block header.
     time: Option<f64>,
+
     /// Whether `$REAL OUTPUT` was seen.
     real_output: bool,
+
     /// Number of components, consistent across rows.
     width: Option<usize>,
+
     /// Values keyed by original GRID ID.
     rows: BTreeMap<u64, [f64; 6]>,
+
     /// Row waiting for its optional `-CONT-` rotations.
     pending: Option<Row>,
 }

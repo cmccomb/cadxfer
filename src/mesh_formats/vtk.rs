@@ -13,8 +13,10 @@ use std::str::SplitWhitespace;
 pub struct Projection {
     /// Mesh and complete numeric fields.
     pub dataset: Dataset,
+
     /// True when the file had no `nastran_node_id` array.
     pub generated_point_ids: bool,
+
     /// True when the file had no `nastran_element_id` array.
     pub generated_cell_ids: bool,
 }
@@ -23,6 +25,7 @@ pub struct Projection {
 struct Tokens<'a> {
     /// Whitespace-delimited source tokens.
     words: std::iter::Peekable<SplitWhitespace<'a>>,
+
     /// Upper bound for any declared item count.
     limit: usize,
 }

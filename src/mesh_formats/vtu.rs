@@ -248,6 +248,7 @@ fn escape(value: &str) -> String {
         .replace('<', "&lt;")
         .replace('>', "&gt;")
 }
+
 /// Emit one complete numeric `DataArray` with caexfer step/time metadata.
 /// The caller validates tuple lengths and finite values before writing begins.
 fn write_field(field: &Field, writer: &mut impl Write) -> Result<()> {
@@ -431,6 +432,7 @@ fn xml_tree(source: &str) -> Result<XmlNode> {
     }
     root.ok_or_else(|| Error::new("E_VTU", "missing VTKFile"))
 }
+
 /// Parse whitespace-separated ASCII array values as the required number type.
 /// Invalid tokens map to the stable VTU diagnostic code.
 fn numbers<T: std::str::FromStr>(body: &str) -> Result<Vec<T>> {
@@ -442,6 +444,7 @@ fn numbers<T: std::str::FromStr>(body: &str) -> Result<Vec<T>> {
         })
         .collect()
 }
+
 /// Find one required named `DataArray` among a section's arrays.
 /// A missing array is an error because geometry cannot be reconstructed.
 fn array<'a>(body: &'a XmlNode, name: &str) -> Result<&'a XmlNode> {
@@ -457,6 +460,7 @@ fn array<'a>(body: &'a XmlNode, name: &str) -> Result<&'a XmlNode> {
     }
     Ok(found)
 }
+
 /// Map a VTK cell type number to a supported linear topology.
 /// Higher-order and unknown numbers fail instead of losing nodes.
 fn cell_kind(code: u8) -> Result<CellKind> {

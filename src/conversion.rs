@@ -21,18 +21,25 @@ use crate::{frd, inp, msh, op2, pch, vtk, vtu};
 pub enum Format {
     /// Nastran Bulk Data deck.
     Bdf,
+
     /// VTK XML `UnstructuredGrid`.
     Vtu,
+
     /// ASCII legacy VTK unstructured grid.
     Vtk,
+
     /// Gmsh MSH 4.1.
     Msh,
+
     /// Abaqus or `CalculiX` input deck.
     Inp,
+
     /// `CalculiX` result file.
     Frd,
+
     /// Nastran displacement result file.
     Op2,
+
     /// Nastran text punch displacement results (read only).
     Pch,
 }
@@ -154,18 +161,25 @@ fn extension(path: &Path) -> String {
 pub struct Options {
     /// Override source extension detection.
     pub input_format: Option<Format>,
+
     /// Matching BDF, VTU, VTK, MSH, INP, or FRD mesh for OP2/PCH input.
     pub mesh: Option<PathBuf>,
+
     /// Assert basic-frame coordinates and displacements for a non-BDF result mesh.
     pub assume_basic_frame: bool,
+
     /// OP2/PCH displacement subcase, if more than one exists.
     pub subcase: Option<i64>,
+
     /// Zero-based OP2/PCH result step, or FRD step number.
     pub step: Option<usize>,
+
     /// Maximum source bytes; the same bound applies to a result companion mesh.
     pub max_bytes: usize,
+
     /// Requested MSH output dialect; `None` uses 4.1.
     pub msh_version: Option<msh::Version>,
+
     /// Assert that absent OP2 R1/R2/R3 components are known float zero.
     pub zero_missing_rotations: bool,
 }
@@ -191,8 +205,10 @@ impl Default for Options {
 pub enum Stage {
     /// Information not represented when reading the source.
     Source,
+
     /// Information not representable by the destination.
     Destination,
+
     /// A value supplied by an explicit caller assumption.
     Assumption,
 }
@@ -214,6 +230,7 @@ impl Stage {
 pub struct Omission {
     /// Origin of the omission or assumption.
     pub stage: Stage,
+
     /// Human-readable detail; wording is not a stable API.
     pub detail: String,
 }
@@ -235,10 +252,13 @@ impl Omission {
 pub struct ReadResult {
     /// Detected or explicitly selected source format.
     pub format: Format,
+
     /// Projected mesh and fields.
     pub dataset: Dataset,
+
     /// Source information absent from the projected dataset.
     pub omissions: Vec<Omission>,
+
     /// Whether an OP2 title marks its result as synthetic all-zero data.
     pub assumed_zero: bool,
 }
@@ -250,10 +270,13 @@ pub struct ReadResult {
 pub struct ConversionReport {
     /// Number of source mesh points.
     pub points: usize,
+
     /// Number of source mesh cells.
     pub cells: usize,
+
     /// Number of source numeric fields before destination filtering.
     pub fields: usize,
+
     /// Source and destination omissions, including explicit assumptions.
     pub omissions: Vec<Omission>,
 }

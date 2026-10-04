@@ -7,6 +7,7 @@ use std::io::Write;
 fn err(message: impl Into<String>) -> Error {
     Error::new("E_INP", message)
 }
+
 /// Resolve supported INP element names to a linear topology.
 fn kind(name: &str) -> Result<CellKind> {
     match name {
@@ -20,6 +21,7 @@ fn kind(name: &str) -> Result<CellKind> {
         _ => Err(err(format!("unsupported element type {name}"))),
     }
 }
+
 /// Choose the canonical INP element name for mesh-only output.
 fn name(kind: CellKind) -> &'static str {
     match kind {
@@ -32,6 +34,7 @@ fn name(kind: CellKind) -> &'static str {
         CellKind::Hex8 => "C3D8",
     }
 }
+
 /// Supported INP mesh and names of solver keywords omitted during inspection.
 ///
 /// Inspect [`Self::omitted_keywords`] before projecting the mesh to another
@@ -40,6 +43,7 @@ fn name(kind: CellKind) -> &'static str {
 pub struct Inspection {
     /// Global nodes and linear elements from supported blocks.
     pub mesh: Mesh,
+
     /// Other recognized keyword names whose contents were not interpreted.
     pub omitted_keywords: BTreeSet<String>,
 }
@@ -68,11 +72,15 @@ pub struct Inspection {
 /// ```
 #[allow(clippy::too_many_lines)] // Keyword modes and deferred node resolution share one pass.
 pub fn read(source: &str) -> Result<Inspection> {
-    // Keyword lines switch how subsequent data lines are interpreted.
     /// Active INP keyword block for interpreting subsequent data lines.
     enum Mode {
+        /// No supported geometry block is active.
         None,
+
+        /// Subsequent records define nodes.
         Node,
+
+        /// Subsequent records define elements of this topology.
         Element(CellKind),
     }
     let mut mode = Mode::None;

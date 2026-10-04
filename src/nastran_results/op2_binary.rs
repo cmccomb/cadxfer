@@ -7,12 +7,16 @@ use std::collections::BTreeMap;
 pub(crate) struct Decoded {
     /// Positive subcase identifier.
     pub subcase: i64,
+
     /// Zero-based step index within the subcase.
     pub step: usize,
+
     /// Static zero or transient time.
     pub time: f64,
+
     /// True only for a titled table whose six values are all zero.
     pub assumed_zero: bool,
+
     /// Six real values indexed by original GRID ID.
     pub rows: BTreeMap<u64, [f64; 6]>,
 }
@@ -21,10 +25,13 @@ pub(crate) struct Decoded {
 struct TableStep {
     /// Subcase identifier from table-3.
     subcase: i64,
+
     /// Static zero or transient time.
     time: f64,
+
     /// Title marker for an explicitly synthetic zero table.
     assumed_zero: bool,
+
     /// Six values per original GRID ID.
     rows: BTreeMap<u64, [f64; 6]>,
 }
@@ -34,6 +41,7 @@ struct TableStep {
 enum Endian {
     /// Least significant byte first.
     Little,
+
     /// Most significant byte first.
     Big,
 }
@@ -63,8 +71,10 @@ impl Endian {
 struct Cursor<'a> {
     /// Complete input, including record framing.
     bytes: &'a [u8],
+
     /// Current byte offset.
     offset: usize,
+
     /// Record byte order.
     endian: Endian,
 }
