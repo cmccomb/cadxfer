@@ -292,6 +292,12 @@ impl VoxelGrid {
             }
         }
         grid.validate()?;
+        if grid.occupied.iter().all(|&value| value == 0) {
+            return Err(Error::new(
+                "E_VOXEL",
+                "no voxel centers fall inside the surface; reduce --voxel-size",
+            ));
+        }
         Ok(grid)
     }
 }

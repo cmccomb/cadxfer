@@ -32,6 +32,17 @@ pub fn convert(
     options: &Options,
     mut writer: impl Write,
 ) -> Result<ConversionReport> {
+    if options.voxel_size.is_some()
+        && !(matches!(target, Format::Vti | Format::Vox)
+            && !matches!(source.format, Format::Vti | Format::Vox)
+            || source.format == Format::Stl
+                && !matches!(target, Format::Stl | Format::Vti | Format::Vox))
+    {
+        return Err(Error::new(
+            "E_USAGE",
+            "--voxel-size applies to mesh/STL to VTI/VOX or STL to a volume mesh",
+        ));
+    }
     if target == Format::Stl && source.voxel_grid.is_some() {
         source.dataset.mesh = source
             .voxel_grid
