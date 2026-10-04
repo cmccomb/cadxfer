@@ -1,5 +1,6 @@
 //! Private CLI modules for parsing, execution, output, and help.
 
+mod approval;
 mod args;
 mod common;
 mod convert;

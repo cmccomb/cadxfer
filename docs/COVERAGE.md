@@ -17,11 +17,11 @@ Measured on 2026-10-04 with Rust 1.99.0, cargo-llvm-cov 0.8.7, and pyNastran
 
 | Measure | Covered / total | Coverage |
 | --- | ---: | ---: |
-| Rust source lines | 8,123 / 9,003 | 90.23% |
-| Rust source regions | 12,825 / 14,567 | 88.04% |
-| Rust functions | 628 / 866 | 72.52% |
+| Rust source lines | 8,282 / 9,179 | 90.23% |
+| Rust source regions | 13,066 / 14,837 | 88.06% |
+| Rust functions | 649 / 889 | 73.00% |
 
-The run executed 142 Rust tests, the independent CLI interoperability checks,
+The run executed 150 Rust tests, the independent CLI interoperability checks,
 and 76 conversion routes across BDF, VTU, legacy VTK, MSH 4.1/2.2, INP, FRD,
 OP2, and PCH. Doctests run
 in the regular CI workflow but are not included in this coverage measurement.
@@ -36,7 +36,7 @@ percentage should not be interpreted as branch coverage or solver validation.
 | `src/conversion/write.rs` | 65.9% | Failure paths for destination-specific projections and output streams. |
 | `src/core/field.rs` | 58.6% | Structural failures for numeric fields. |
 | `src/cli/output.rs` | 84.6% | Staged output failures and cleanup paths. |
-| `src/formats/solver_inputs/inp.rs` | 85.0% | More malformed section and generated mesh records. |
+| `src/formats/solver_inputs/inp.rs` | 85.1% | More malformed section and generated mesh records. |
 | `src/formats/companion_results/op2/binary.rs` | 88.3% | More malformed or unsupported OP2 records. |
 
 These gaps are priorities for future tests; the current suite already exercises the

@@ -5,7 +5,9 @@ use std::path::Path;
 use crate::core::{Error, FieldLocation, Mesh, Result};
 use crate::formats::{bdf, exodus, frd, inp, msh, op2, stl, su2, unv, vtk, vtu};
 
-use super::{ConversionReport, Format, Omission, Options, ReadResult, Stage, read_path};
+use super::{
+    AssumptionKind, ConversionReport, Format, Omission, Options, ReadResult, Stage, read_path,
+};
 
 /// Remove unmapped solver property IDs and return the number removed.
 fn omit_property_ids(mesh: &mut Mesh) -> usize {
@@ -438,7 +440,7 @@ pub fn convert(
                 .and_then(|text| text.parse().ok())
                 .unwrap_or(1);
             if field.components.len() == 3 && options.zero_missing_rotations {
-                omissions.push(Omission::new(Stage::Assumption, "rotational displacement components R1/R2/R3 filled with typed float 0.0 by explicit request"));
+                omissions.push(Omission::assumed(AssumptionKind::ZeroRotations, "rotational displacement components R1/R2/R3 filled with typed float 0.0 by explicit request"));
             }
             if field.step.is_some_and(|step| step != 0) {
                 omissions.push(Omission::new(

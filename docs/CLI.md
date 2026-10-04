@@ -1,21 +1,21 @@
 # CLI contract
 
 Install with `cargo install --git https://github.com/cmccomb/caexfer.git`
-(Rust 2024 edition, toolchain 1.85+). In a checkout,
+(Rust 2024 edition, toolchain 1.86+). In a checkout,
 `cargo run -- COMMAND ...` runs the same CLI without installation. All routes
 run without Python.
 
 ```sh
 caexfer --formats
 caexfer validate model.bdf --json
-caexfer convert model.bdf model.vtu --accept-projection
-caexfer convert model.bdf model.msh --msh-version 2.2 --accept-projection
-caexfer convert results.op2 results.vtu --mesh model.bdf --accept-projection
-caexfer convert results.pch results.vtu --mesh model.bdf --subcase 1 --accept-projection
+caexfer convert model.bdf model.vtu
+caexfer convert model.bdf model.msh --msh-version 2.2
+caexfer convert results.op2 results.vtu --mesh model.bdf
+caexfer convert results.pch results.vtu --mesh model.bdf --subcase 1
 caexfer convert results.op2 results.vtu --mesh model.msh \
-  --assume-basic-frame --accept-projection
-caexfer convert results.frd results.op2 --zero-missing-rotations \
-  --mesh-out results-mesh.bdf --accept-projection
+  --accept-basic-frame
+caexfer convert results.frd results.op2 --accept-zero-rotations \
+  --mesh-out results-mesh.bdf
 ```
 
 Use a fresh output filename for each command.
@@ -27,10 +27,10 @@ Exodus II carries supported mesh blocks and complete scalar fields over time.
 For example:
 
 ```sh
-caexfer convert surface.stl surface.vtu --accept-projection
-caexfer convert named-boundaries.msh named-boundaries.su2 --accept-projection
-caexfer convert mesh.unv mesh.vtu --accept-projection
-caexfer convert results.exo results.vtu --step 0 --accept-projection
+caexfer convert surface.stl surface.vtu
+caexfer convert named-boundaries.msh named-boundaries.su2
+caexfer convert mesh.unv mesh.vtu
+caexfer convert results.exo results.vtu --step 0
 ```
 
 These commands use example input names. The [format limits](SUPPORT.md) describe
@@ -48,7 +48,7 @@ lossy, not an exact path serialization.
 | --- | --- |
 | `-f`, `--formats` | Actual read/write capabilities, not a roadmap |
 | `validate INPUT` | Supported subset checks, projected counts, and source omissions |
-| `convert INPUT OUTPUT --accept-projection` | Explicit projection to any writable format listed by `caexfer --formats`, subject to that format's supported geometry and fields |
+| `convert INPUT OUTPUT` | Project to a writable format; confirm each reported change before installation |
 
 Input extensions are `.bdf`, `.nas`, `.dat`, `.pch`, `.vtu`, `.vtk`, `.msh`, `.inp`,
 `.frd`, `.op2`, `.stl`, `.su2`, `.unv`, `.exo`, `.e`, and `.exodus`
@@ -62,8 +62,9 @@ companion written through `--mesh-out`.
 carry original node IDs that match the displacement table; generated one-based
 IDs are rejected. BDF input
 verifies `GRID CD=0`. The other formats do not carry that check, so
-`--assume-basic-frame` explicitly asserts that both mesh coordinates and result
-displacements use the basic frame. Any fields in the companion file are ignored.
+the CLI lists a basic-frame assumption. Confirm it interactively or pass
+`--accept-basic-frame` to assert that mesh coordinates and result displacements
+use the basic frame. Any fields in the companion file are ignored.
 OP2 output carries one displacement table and needs a separately retained
 matching mesh. `--mesh-out FILE` optionally writes a geometry-only companion
 in BDF, VTU, VTK, MSH, INP, or FRD format. `--subcase N` and
@@ -72,18 +73,26 @@ step number. These selection options also work with `validate`.
 For Exodus input, `--step N` selects a zero-based time step. Without it, the
 reader carries all complete scalar fields and times that the destination can
 represent.
-`--zero-missing-rotations` is an OP2-output-only assertion that absent
-R1/R2/R3 in a three-component displacement are known float zero. Without it,
-that conversion fails rather than filling unknown results.
-`--assume-zero-displacement` accepts BDF or INP input and creates a synthetic
-static OP2 displacement table with six float zeros per node. It requires
-no external adapter, labels the OP2 title as assumed data, and never runs a solver.
+When writing OP2 from three-component displacement, the CLI proposes zero for
+the absent R1/R2/R3 values. Confirm the proposal or pass
+`--accept-zero-rotations` only when they are known zero. When writing OP2 from
+a BDF or INP mesh without results, the CLI proposes a synthetic static table
+with six float zeros per node. Confirm it or pass `--accept-synthetic-zero`.
+The OP2 title labels the result as synthetic; no solver runs.
 For INP, retain the source mesh or use `--mesh-out` to export a companion.
+
+For each reported change, the prompt names its acceptance flag.
+`--accept-omissions` covers source and destination losses. Specific assumption
+flags cover the basic frame, zero rotations, and synthetic zero results.
+`--accept-all-approximations-and-infill` covers every listed change. If stdin
+is not a terminal, or `--json` is selected, an unaccepted change fails before
+output installation and reports the needed flags. A conversion with no reported
+changes proceeds without confirmation.
 
 For `validate` and `convert`, `--json` returns the report on stdout as JSON with
 schema_version=1. Human-readable conversion omission reports go to stderr;
 JSON conversion reports place them in an `omissions` array with each item's
-`stage` (`source`, `destination`, or `assumption`) and detail. A paired export
+`stage` (`source`, `destination`, or `assumption`), `acceptance_flag`, and detail. A paired export
 adds `mesh_output` with its path, format, and separate omissions. JSON error
 output also goes to stdout. Schema version 1 is intentionally small; consumers
 should tolerate new keys.
@@ -92,7 +101,7 @@ Exit 0 means the requested scoped operation succeeded. `validate` reports
 projected counts and omissions; without `--strict`, omissions do not fail it.
 Exit 1 means I/O, parsing, projection, or validation failed.
 `validate --strict` also exits 1 on a source omission. Exit 2 means invalid CLI usage,
-including conversion without `--accept-projection`. Use stable diagnostic
+including an unattended conversion that needs acceptance. Use stable diagnostic
 `code` values rather than parsing human descriptions. The version's code list
 can grow.
 

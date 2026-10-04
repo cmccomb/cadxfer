@@ -1,7 +1,7 @@
 # Rust library guide
 
 `caexfer` is one Rust package with a library and a CLI. It uses the Rust 2024
-edition, requires Rust 1.85 or newer, and uses `quick-xml` for VTU parsing and
+edition, requires Rust 1.86 or newer, and uses `quick-xml` for VTU parsing and
 pure Rust `netcdf3` for classic Exodus II. It
 is available as a versioned dependency after publication:
 
@@ -98,6 +98,11 @@ fn main() -> Result<()> {
     Ok(())
 }
 ```
+
+Each `Omission` has a `stage`. Its `assumption` identifies basic-frame,
+zero-rotation, or synthetic-zero values when `stage` is `Assumption`. Library
+callers decide which notices they can accept; CLI acceptance flags do not
+change the library's default `Options`.
 
 `Options` sets source format, result selection, and byte limits. For OP2 or PCH input,
 set `mesh` to a matching mesh file with original node IDs. A mesh whose node IDs

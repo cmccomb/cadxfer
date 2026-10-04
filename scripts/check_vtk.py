@@ -20,7 +20,7 @@ BINARY = ROOT / 'target/debug/caexfer'
 def convert(source: Path, target: Path) -> None:
     """Require a successful CLI conversion between two fixture paths."""
     result = subprocess.run([str(BINARY), 'convert', str(source), str(target),
-                             '--accept-projection'], capture_output=True, text=True)
+                             '--accept-all-approximations-and-infill'], capture_output=True, text=True)
     assert result.returncode == 0, (result.stdout, result.stderr)
 
 

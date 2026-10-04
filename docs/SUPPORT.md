@@ -5,7 +5,7 @@
 The BDF reader projects only the geometry subset below. Unknown geometry,
 unresolved frames/defaults/includes, and unsupported higher-order connectivity
 fail. It returns a mesh, an omission report, and a flag for nonbasic GRID output
-frames. The CLI additionally requires `--accept-projection` for conversion.
+frames. The CLI confirms reported changes before installing converted output.
 Blank GRID coordinate fields default to zero in the supported subset.
 
 ## BDF syntax
@@ -74,11 +74,12 @@ Any card outside the geometry subset and this allowlist blocks projection.
 
 ## Conversion formats
 
-All `convert` operations require `--accept-projection`, including routes that carry
-supported numeric fields. This acknowledges projection from a native source to
-our linear mesh and numeric-field subset. The CLI emits source and destination
-omissions. The BDF adapter projects supported geometry and reports omitted
-solver data.
+`convert` lists reported source and destination omissions and assumptions
+before installing output. A terminal user can confirm them. An unattended
+caller supplies the corresponding `--accept-...` flags or the catchall
+`--accept-all-approximations-and-infill`. A conversion with no reported changes
+needs no confirmation. The BDF adapter projects supported geometry and reports
+omitted solver data.
 
 ### VTU
 
@@ -240,16 +241,17 @@ IDs; generated one-based IDs cannot verify result identity. Result node IDs
 must match the companion mesh exactly;
 the OP2 result table cannot verify companion coordinates or connectivity.
 A BDF must project to a basic-frame mesh and all GRID CD values must be zero.
-The other formats do not encode GRID CD; they require `--assume-basic-frame`,
+The other formats do not encode GRID CD; they require a basic-frame assertion,
 which explicitly asserts that both coordinates and displacements are in the
 basic frame. Companion result fields are ignored. Complex results, other OP2
 tables, nonbasic result frames, multiple unselected subcases/steps, and
 embedded-geometry recovery are outside
 this read route. The OP2 writer accepts one named `DISP`/`DISPLACEMENT` nodal
 field with three or six real components. Three-component displacements have
-unknown rotations and fail by default. `--zero-missing-rotations` sets R1/R2/R3
-to typed float `0.0` only when the caller asserts they are known zero, and
-reports the fill. OP2 has six numeric slots, not a typed null marker. The writer
+unknown rotations. The CLI proposes filling R1/R2/R3 with typed float `0.0`,
+reports the fill, and requires confirmation or `--accept-zero-rotations`.
+The library writer still requires an explicit option. OP2 has six numeric slots,
+not a typed null marker. The writer
 emits a single static or one-time transient MSC-style real displacement table
 in Rust. CI independently rereads written files with pyNastran. Values use float32;
 nonzero values that would underflow to zero, overflowing values, and node IDs
@@ -261,9 +263,10 @@ either is installed, and existing output paths are never overwritten. Because
 two file installs cannot be atomic, a failed second install can leave the OP2
 file in place; the CLI error identifies it. Other fields and a nonzero source
 step number are omitted with reports. A mesh-only BDF/INP cannot generate an OP2
-result from analysis. With `--assume-zero-displacement`, a BDF or INP mesh can
-generate a **synthetic** static table with T1/T2/T3/R1/R2/R3 all set to float
-`0.0` at every node. The OP2 title says `CAEXFER ASSUMED ZERO DISPLACEMENT -
+result from analysis. When converting a BDF or INP mesh to OP2, the CLI proposes
+a **synthetic** static table with T1/T2/T3/R1/R2/R3 all set to float
+`0.0` at every node and requires confirmation or `--accept-synthetic-zero`.
+The OP2 title says `CAEXFER ASSUMED ZERO DISPLACEMENT -
 NOT SOLVER RESULTS`, and the CLI reports the same assumption. This does not
 infer a solution or verify consistency with loads, constraints, or prescribed
 motions in the input. INP users may retain the source mesh or export a companion.
@@ -280,7 +283,7 @@ with three translations and optional three rotations. It accepts one selected
 positive subcase and zero-based step; multiple unselected subcases or steps
 fail. `$TIME` supplies transient time metadata. A matching companion mesh is
 required and GRID IDs must match exactly. The same BDF `GRID CD=0` check and
-non-BDF `--assume-basic-frame` assertion as OP2 apply. Titles, subtitles,
+non-BDF basic-frame assertion as OP2 apply. Titles, subtitles,
 labels, and other result blocks are reported as omitted. Complex, modal,
 SORT2, superelement, unsupported row layouts, and malformed results fail.
 PCH does not embed mesh geometry and has no writer in this release. The

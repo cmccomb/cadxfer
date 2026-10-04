@@ -103,7 +103,7 @@ fn op2_non_bdf_companion_requires_explicit_frame_assertion() {
     let error = conversion::read_path(&root.join("tests/fixtures/solid_bending.op2"), &options)
         .unwrap_err();
     assert_eq!(error.code, "E_USAGE");
-    assert!(error.message.contains("--assume-basic-frame"));
+    assert!(error.message.contains("Options.assume_basic_frame"));
 }
 
 /// Require companion identity and result selection for PCH input.
@@ -169,7 +169,7 @@ fn pch_non_bdf_companion_requires_basic_frame_assertion() {
     };
     let error = conversion::read_path(&source, &options).unwrap_err();
     assert_eq!(error.code, "E_USAGE");
-    assert!(error.message.contains("--assume-basic-frame"));
+    assert!(error.message.contains("Options.assume_basic_frame"));
     options.assume_basic_frame = true;
     let read = conversion::read_path(&source, &options).unwrap();
     assert_eq!(read.dataset.fields.len(), 1);

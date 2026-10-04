@@ -5,7 +5,7 @@ use std::path::Path;
 use crate::core::{Dataset, Error, Mesh, Result};
 use crate::formats::{bdf, exodus, frd, inp, msh, op2, pch, stl, su2, unv, vtk, vtu};
 
-use super::{Format, Omission, Options, ReadResult, Stage};
+use super::{AssumptionKind, Format, Omission, Options, ReadResult, Stage};
 
 /// Bound non-BDF file reads with both a metadata check and an actual read cap.
 /// The second check handles files growing between the metadata and read calls.
@@ -90,7 +90,7 @@ fn read_result_mesh(
             if !options.assume_basic_frame {
                 return Err(Error::new(
                     "E_USAGE",
-                    "non-BDF result mesh lacks GRID CD; pass --assume-basic-frame to assert basic-frame coordinates and displacements",
+                    "non-BDF result mesh lacks GRID CD; set Options.assume_basic_frame only when coordinates and displacements use the basic frame",
                 ));
             }
 
@@ -132,8 +132,8 @@ fn read_result_mesh(
                     ),
                 ));
             }
-            omissions.push(Omission::new(
-                Stage::Assumption,
+            omissions.push(Omission::assumed(
+                AssumptionKind::BasicFrame,
                 format!("companion {} has no GRID CD; basic-frame coordinates and {} displacements asserted by caller", format.name(), result.name().to_ascii_uppercase()),
             ));
             Ok((read.dataset.mesh, omissions))
@@ -433,8 +433,8 @@ pub fn read_path(path: &Path, options: &Options) -> Result<ReadResult> {
             // Preserve both explicit synthetic provenance and the results
             // omitted by the selected displacement-table projection.
             if assumed_zero {
-                omissions.push(Omission::new(
-                    Stage::Assumption,
+                omissions.push(Omission::assumed(
+                    AssumptionKind::SyntheticZero,
                     "OP2 title marks this as a synthetic all-zero displacement table, not solver results",
                 ));
             }

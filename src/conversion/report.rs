@@ -27,11 +27,27 @@ impl Stage {
     }
 }
 
+/// A caller decision that supplies or accepts a value absent from the source.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AssumptionKind {
+    /// Treat a companion mesh and Nastran result as using the basic frame.
+    BasicFrame,
+
+    /// Fill absent rotational displacement components with numeric zero.
+    ZeroRotations,
+
+    /// Treat a synthetic all-zero displacement table as intended output.
+    SyntheticZero,
+}
+
 /// One piece of information omitted or explicitly assumed.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Omission {
     /// Origin of the omission or assumption.
     pub stage: Stage,
+
+    /// Specific caller assumption, when this notice supplies missing data.
+    pub assumption: Option<AssumptionKind>,
 
     /// Human-readable detail; wording is not a stable API.
     pub detail: String,
@@ -42,6 +58,16 @@ impl Omission {
     pub(super) fn new(stage: Stage, detail: impl Into<String>) -> Self {
         Self {
             stage,
+            assumption: None,
+            detail: detail.into(),
+        }
+    }
+
+    /// Record one specifically identified caller assumption.
+    pub fn assumed(kind: AssumptionKind, detail: impl Into<String>) -> Self {
+        Self {
+            stage: Stage::Assumption,
+            assumption: Some(kind),
             detail: detail.into(),
         }
     }

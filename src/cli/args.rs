@@ -16,13 +16,14 @@ pub(super) struct Args {
     pub(super) paths: Vec<PathBuf>,
     pub(super) json: bool,
     pub(super) strict: bool,
-    pub(super) accept_projection: bool,
-    pub(super) zero_missing_rotations: bool,
-    pub(super) assume_zero_displacement: bool,
+    pub(super) accept_omissions: bool,
+    pub(super) accept_basic_frame: bool,
+    pub(super) accept_zero_rotations: bool,
+    pub(super) accept_synthetic_zero: bool,
+    pub(super) accept_all_approximations_and_infill: bool,
     pub(super) from: Option<String>,
     pub(super) mesh: Option<PathBuf>,
     pub(super) mesh_out: Option<PathBuf>,
-    pub(super) assume_basic_frame: bool,
     pub(super) subcase: Option<i64>,
     pub(super) step: Option<usize>,
     pub(super) max_bytes: Option<usize>,
@@ -75,6 +76,19 @@ fn is_op2_output(args: &Args) -> bool {
             .and_then(|path| path.extension())
             .and_then(OsStr::to_str)
             .is_some_and(|extension| extension.eq_ignore_ascii_case("op2"))
+}
+
+/// Recognize OP2 input when accepting provenance on a synthetic reread.
+fn is_op2_input(args: &Args) -> bool {
+    args.command == "convert"
+        && args.from.as_deref().map_or_else(
+            || {
+                args.paths
+                    .first()
+                    .is_some_and(|path| Format::from_input_path(path).ok() == Some(Format::Op2))
+            },
+            |name| Format::parse(name).ok() == Some(Format::Op2),
+        )
 }
 
 /// Parse commands and options, then reject contradictory or irrelevant flags.
@@ -172,17 +186,19 @@ pub(super) fn parse_args(raw: &[OsString]) -> Result<Args> {
             set_flag(&mut args.json, "--json")?;
         } else if options && arg == "--strict" {
             set_flag(&mut args.strict, "--strict")?;
-        } else if options && arg == "--accept-projection" {
-            set_flag(&mut args.accept_projection, "--accept-projection")?;
-        } else if options && arg == "--zero-missing-rotations" {
-            set_flag(&mut args.zero_missing_rotations, "--zero-missing-rotations")?;
-        } else if options && arg == "--assume-zero-displacement" {
+        } else if options && arg == "--accept-omissions" {
+            set_flag(&mut args.accept_omissions, "--accept-omissions")?;
+        } else if options && arg == "--accept-basic-frame" {
+            set_flag(&mut args.accept_basic_frame, "--accept-basic-frame")?;
+        } else if options && arg == "--accept-zero-rotations" {
+            set_flag(&mut args.accept_zero_rotations, "--accept-zero-rotations")?;
+        } else if options && arg == "--accept-synthetic-zero" {
+            set_flag(&mut args.accept_synthetic_zero, "--accept-synthetic-zero")?;
+        } else if options && arg == "--accept-all-approximations-and-infill" {
             set_flag(
-                &mut args.assume_zero_displacement,
-                "--assume-zero-displacement",
+                &mut args.accept_all_approximations_and_infill,
+                "--accept-all-approximations-and-infill",
             )?;
-        } else if options && arg == "--assume-basic-frame" {
-            set_flag(&mut args.assume_basic_frame, "--assume-basic-frame")?;
         } else if options && arg == "--from" {
             set_option(&mut args.from, "--from", || Ok(value(1)?.to_string()))?;
             index += 1;
@@ -249,34 +265,34 @@ pub(super) fn parse_args(raw: &[OsString]) -> Result<Args> {
     if args.strict && args.command != "validate" {
         return Err(usage("--strict is only for validate"));
     }
-    if args.accept_projection && args.command != "convert" {
-        return Err(usage("--accept-projection is only for convert"));
+    if (args.accept_omissions
+        || args.accept_zero_rotations
+        || args.accept_synthetic_zero
+        || args.accept_all_approximations_and_infill)
+        && args.command != "convert"
+    {
+        return Err(usage("conversion acceptance flags are only for convert"));
     }
     let op2_output = is_op2_output(&args);
     if args.mesh_out.is_some() && !op2_output {
         return Err(usage("--mesh-out applies only to OP2 output"));
     }
-    if args.assume_basic_frame && args.mesh.is_none() {
+    if args.accept_basic_frame && args.mesh.is_none() {
         return Err(usage(
-            "--assume-basic-frame requires --mesh for OP2/PCH input",
+            "--accept-basic-frame requires --mesh for OP2/PCH input",
         ));
     }
-    if args.zero_missing_rotations && !op2_output {
-        return Err(usage("--zero-missing-rotations applies only to OP2 output"));
+    if args.accept_zero_rotations && !op2_output {
+        return Err(usage("--accept-zero-rotations applies only to OP2 output"));
     }
-    if args.assume_zero_displacement && !op2_output {
+    if args.accept_synthetic_zero && !op2_output && !is_op2_input(&args) {
         return Err(usage(
-            "--assume-zero-displacement applies only to OP2 output",
+            "--accept-synthetic-zero applies only to OP2 input or output",
         ));
     }
-    if args.assume_zero_displacement && args.zero_missing_rotations {
+    if args.accept_synthetic_zero && args.accept_zero_rotations {
         return Err(usage(
-            "--assume-zero-displacement already supplies all six components",
-        ));
-    }
-    if args.command == "convert" && !args.accept_projection {
-        return Err(usage(
-            "conversion projects the supported mesh/field subset; pass --accept-projection to acknowledge omitted information",
+            "synthetic zero already supplies all six displacement components",
         ));
     }
     if args.msh_version.is_some() {
@@ -302,10 +318,10 @@ mod tests {
         parse_args(&raw)
     }
 
-    /// Require an explicit projection acknowledgement before any conversion command runs.
+    /// Allow a conversion command without a preemptive acceptance flag.
     #[test]
-    fn conversion_requires_acknowledgement() {
-        assert!(args(&["convert", "x.bdf", "x.vtu"]).is_err());
+    fn conversion_can_request_confirmation_later() {
+        assert!(args(&["convert", "x.bdf", "x.vtu"]).is_ok());
     }
 
     /// Keep unsupported GRID editing outside the public CLI command set.
@@ -335,7 +351,7 @@ mod tests {
             "x.msh",
             "--msh-version",
             "2.2",
-            "--accept-projection",
+            "--accept-all-approximations-and-infill",
         ])
         .unwrap();
         assert_eq!(selected.msh_version, Some(msh::Version::V2_2));
@@ -346,7 +362,7 @@ mod tests {
                 "x.vtu",
                 "--msh-version",
                 "2.2",
-                "--accept-projection"
+                "--accept-all-approximations-and-infill"
             ])
             .is_err()
         );
@@ -357,7 +373,7 @@ mod tests {
                 "x.msh",
                 "--msh-version",
                 "9.9",
-                "--accept-projection"
+                "--accept-all-approximations-and-infill"
             ])
             .is_err()
         );
@@ -381,7 +397,14 @@ mod tests {
     /// Reject commands with missing or extra positional paths.
     #[test]
     fn bad_arity_rejected() {
-        assert!(args(&["convert", "only.bdf", "--accept-projection"]).is_err());
+        assert!(
+            args(&[
+                "convert",
+                "only.bdf",
+                "--accept-all-approximations-and-infill"
+            ])
+            .is_err()
+        );
     }
 
     /// The global formats switch takes no additional options or paths.
@@ -403,8 +426,8 @@ mod tests {
                 "convert",
                 "x.bdf",
                 "x.op2",
-                "--accept-projection",
-                "--assume-zero-displacement"
+                "--accept-all-approximations-and-infill",
+                "--accept-synthetic-zero"
             ])
             .is_ok()
         );
@@ -413,8 +436,8 @@ mod tests {
                 "convert",
                 "x.bdf",
                 "x.vtu",
-                "--accept-projection",
-                "--assume-zero-displacement"
+                "--accept-all-approximations-and-infill",
+                "--accept-synthetic-zero"
             ])
             .is_err()
         );
@@ -423,9 +446,9 @@ mod tests {
                 "convert",
                 "x.bdf",
                 "x.op2",
-                "--accept-projection",
-                "--assume-zero-displacement",
-                "--zero-missing-rotations"
+                "--accept-all-approximations-and-infill",
+                "--accept-synthetic-zero",
+                "--accept-zero-rotations"
             ])
             .is_err()
         );

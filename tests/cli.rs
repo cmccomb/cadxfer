@@ -57,7 +57,10 @@ fn help_and_version_work() {
     let convert = s.run(&["convert", "--help"]);
     assert!(convert.status.success());
     let convert = String::from_utf8(convert.stdout).unwrap();
-    assert!(convert.contains("convert INPUT OUTPUT --accept-projection"));
+    assert!(convert.contains("convert INPUT OUTPUT [OPTIONS]"));
+    assert!(convert.contains("--accept-omissions"));
+    assert!(convert.contains("--accept-all-approximations-and-infill"));
+    assert!(!convert.contains("Treat following arguments as paths"));
     assert!(convert.contains("--mesh-out FILE"));
     assert!(convert.contains("caexfer --formats"));
     assert_eq!(
@@ -130,7 +133,7 @@ fn geometry_conversion_creates_vtu_and_reports_losses() {
         "convert",
         "mesh.bdf",
         "mesh.vtu",
-        "--accept-projection",
+        "--accept-all-approximations-and-infill",
         "--json",
     ]);
     assert!(
@@ -156,9 +159,14 @@ fn source_file_is_never_overwritten() {
     let s = Scratch::new();
     let before = std::fs::read(s.0.join("mesh.bdf")).unwrap();
     assert!(
-        !s.run(&["convert", "mesh.bdf", "mesh.bdf", "--accept-projection"])
-            .status
-            .success()
+        !s.run(&[
+            "convert",
+            "mesh.bdf",
+            "mesh.bdf",
+            "--accept-all-approximations-and-infill"
+        ])
+        .status
+        .success()
     );
     assert_eq!(before, std::fs::read(s.0.join("mesh.bdf")).unwrap());
 }
@@ -172,7 +180,7 @@ fn companion_mesh_option_is_only_for_op2_and_needs_a_mesh_format() {
             "convert",
             "mesh.bdf",
             "mesh.vtu",
-            "--accept-projection",
+            "--accept-all-approximations-and-infill",
             "--mesh-out",
             "extra.bdf",
         ])
@@ -185,7 +193,7 @@ fn companion_mesh_option_is_only_for_op2_and_needs_a_mesh_format() {
             "convert",
             "mesh.bdf",
             "mesh.op2",
-            "--accept-projection",
+            "--accept-all-approximations-and-infill",
             "--mesh-out",
             "extra.op2",
         ])
@@ -228,7 +236,7 @@ fn op2_requires_matching_mesh() {
         "convert",
         "results.op2",
         "results.vtu",
-        "--accept-projection",
+        "--accept-all-approximations-and-infill",
         "--json",
     ]);
     assert_eq!(result.status.code(), Some(2));
@@ -294,7 +302,12 @@ fn human_validation_reports_counts_and_omissions() {
 fn human_conversion_reports_omissions_and_companion_install() {
     // Test ordinary single-file output before the paired OP2/mesh path.
     let s = Scratch::new();
-    let converted = s.run(&["convert", "mesh.bdf", "mesh.vtu", "--accept-projection"]);
+    let converted = s.run(&[
+        "convert",
+        "mesh.bdf",
+        "mesh.vtu",
+        "--accept-all-approximations-and-infill",
+    ]);
     assert!(converted.status.success());
     assert!(
         String::from_utf8(converted.stdout)
@@ -311,8 +324,8 @@ fn human_conversion_reports_omissions_and_companion_install() {
         "convert",
         "mesh.bdf",
         "zeros.op2",
-        "--accept-projection",
-        "--assume-zero-displacement",
+        "--accept-all-approximations-and-infill",
+        "--accept-synthetic-zero",
         "--mesh-out",
         "zeros.bdf",
     ]);
@@ -335,6 +348,185 @@ fn human_conversion_reports_omissions_and_companion_install() {
     );
 }
 
+/// An unattended conversion lists missing acceptance and installs no output.
+#[test]
+fn unattended_conversion_needs_only_its_reported_acceptance() {
+    let s = Scratch::new();
+    let waiting = s.run(&["convert", "mesh.bdf", "mesh.vtu"]);
+    assert_eq!(waiting.status.code(), Some(2));
+    let warning = String::from_utf8(waiting.stderr).unwrap();
+    assert!(warning.contains("1. "));
+    assert!(warning.contains("[--accept-omissions]"));
+    assert!(!s.0.join("mesh.vtu").exists());
+    assert_eq!(std::fs::read_dir(&s.0).unwrap().count(), 1);
+
+    let accepted = s.run(&["convert", "mesh.bdf", "mesh.vtu", "--accept-omissions"]);
+    assert!(accepted.status.success());
+    assert!(s.0.join("mesh.vtu").exists());
+}
+
+/// Synthetic results require their own consent after ordinary losses are accepted.
+#[test]
+fn synthetic_zero_needs_specific_acceptance_or_catchall() {
+    let s = Scratch::new();
+    let waiting = s.run(&[
+        "convert",
+        "mesh.bdf",
+        "zeros.op2",
+        "--accept-omissions",
+        "--json",
+    ]);
+    assert_eq!(waiting.status.code(), Some(2));
+    let message = String::from_utf8(waiting.stdout).unwrap();
+    assert!(message.contains("--accept-synthetic-zero"));
+    assert!(message.contains("SYNTHETIC ASSUMPTION"));
+    assert!(!s.0.join("zeros.op2").exists());
+
+    let accepted = s.run(&[
+        "convert",
+        "mesh.bdf",
+        "zeros.op2",
+        "--accept-omissions",
+        "--accept-synthetic-zero",
+        "--json",
+    ]);
+    assert!(
+        accepted.status.success(),
+        "{}",
+        String::from_utf8_lossy(&accepted.stdout)
+    );
+    assert!(
+        String::from_utf8(accepted.stdout)
+            .unwrap()
+            .contains("\"acceptance_flag\":\"--accept-synthetic-zero\"")
+    );
+    assert!(s.0.join("zeros.op2").exists());
+
+    let catchall = s.run(&[
+        "convert",
+        "mesh.bdf",
+        "more-zeros.op2",
+        "--accept-all-approximations-and-infill",
+    ]);
+    assert!(catchall.status.success());
+}
+
+/// A refused OP2 plus companion conversion installs neither staged output.
+#[test]
+fn paired_output_waits_for_acceptance_before_install() {
+    let s = Scratch::new();
+    let waiting = s.run(&[
+        "convert",
+        "mesh.bdf",
+        "zeros.op2",
+        "--mesh-out",
+        "zeros.msh",
+    ]);
+    assert_eq!(waiting.status.code(), Some(2));
+    let warning = String::from_utf8(waiting.stderr).unwrap();
+    assert!(warning.contains("--accept-synthetic-zero"));
+    assert!(warning.contains("--accept-omissions"));
+    assert!(!s.0.join("zeros.op2").exists());
+    assert!(!s.0.join("zeros.msh").exists());
+    assert_eq!(std::fs::read_dir(&s.0).unwrap().count(), 1);
+}
+
+/// Report zero rotation infill separately from omitted source fields.
+#[test]
+fn three_component_results_name_zero_rotation_flag() {
+    let s = Scratch::new();
+    std::fs::copy(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/linear-results.frd"),
+        s.0.join("results.frd"),
+    )
+    .unwrap();
+    let waiting = s.run(&[
+        "convert",
+        "results.frd",
+        "results.op2",
+        "--accept-omissions",
+    ]);
+    assert_eq!(waiting.status.code(), Some(2));
+    assert!(
+        String::from_utf8(waiting.stderr)
+            .unwrap()
+            .contains("[--accept-zero-rotations]")
+    );
+    assert!(!s.0.join("results.op2").exists());
+
+    let accepted = s.run(&[
+        "convert",
+        "results.frd",
+        "results.op2",
+        "--accept-omissions",
+        "--accept-zero-rotations",
+    ]);
+    assert!(
+        accepted.status.success(),
+        "{}",
+        String::from_utf8_lossy(&accepted.stderr)
+    );
+}
+
+/// A non-BDF companion requires its own basic-frame assertion.
+#[test]
+fn non_bdf_result_companion_names_frame_flag() {
+    let s = Scratch::new();
+    for args in [
+        vec![
+            "convert",
+            "mesh.bdf",
+            "zeros.op2",
+            "--accept-all-approximations-and-infill",
+        ],
+        vec![
+            "convert",
+            "mesh.bdf",
+            "mesh.vtu",
+            "--accept-all-approximations-and-infill",
+        ],
+    ] {
+        let result = s.run(&args);
+        assert!(
+            result.status.success(),
+            "{}",
+            String::from_utf8_lossy(&result.stderr)
+        );
+    }
+    let waiting = s.run(&[
+        "convert",
+        "zeros.op2",
+        "results.vtu",
+        "--mesh",
+        "mesh.vtu",
+        "--accept-omissions",
+        "--accept-synthetic-zero",
+    ]);
+    assert_eq!(waiting.status.code(), Some(2));
+    assert!(
+        String::from_utf8(waiting.stderr)
+            .unwrap()
+            .contains("[--accept-basic-frame]")
+    );
+    assert!(!s.0.join("results.vtu").exists());
+
+    let accepted = s.run(&[
+        "convert",
+        "zeros.op2",
+        "results.vtu",
+        "--mesh",
+        "mesh.vtu",
+        "--accept-omissions",
+        "--accept-synthetic-zero",
+        "--accept-basic-frame",
+    ]);
+    assert!(
+        accepted.status.success(),
+        "{}",
+        String::from_utf8_lossy(&accepted.stderr)
+    );
+}
+
 /// Reject over-limit input and wrong format options before output exists.
 #[test]
 fn bounded_and_explicit_format_input_fail_before_output_creation() {
@@ -345,7 +537,7 @@ fn bounded_and_explicit_format_input_fail_before_output_creation() {
         "small.vtu",
         "--max-bytes",
         "2",
-        "--accept-projection",
+        "--accept-all-approximations-and-infill",
         "--json",
     ]);
     assert_eq!(bounded.status.code(), Some(1));
@@ -356,7 +548,7 @@ fn bounded_and_explicit_format_input_fail_before_output_creation() {
         "wrong.vtu",
         "--from",
         "vtu",
-        "--accept-projection",
+        "--accept-all-approximations-and-infill",
         "--json",
     ]);
     assert_eq!(bad_source.status.code(), Some(1));
@@ -373,7 +565,7 @@ fn malformed_cli_options_fail_without_writing() {
         vec!["validate", "mesh.bdf", "--max-bytes", "bad"],
         vec!["validate", "mesh.bdf", "--unknown"],
         vec!["validate", "mesh.bdf", "--from"],
-        vec!["validate", "mesh.bdf", "--assume-basic-frame"],
+        vec!["validate", "mesh.bdf", "--accept-basic-frame"],
         vec!["validate", "mesh.bdf", "--mesh", "mesh.bdf"],
         vec!["--formats", "--mesh", "mesh.bdf"],
         vec!["--formats", "--json"],
@@ -381,15 +573,15 @@ fn malformed_cli_options_fail_without_writing() {
             "convert",
             "mesh.bdf",
             "bad.vtu",
-            "--accept-projection",
-            "--zero-missing-rotations",
+            "--accept-all-approximations-and-infill",
+            "--accept-zero-rotations",
         ],
         vec![
             "convert",
             "mesh.bdf",
             "bad.vtu",
-            "--accept-projection",
-            "--assume-zero-displacement",
+            "--accept-all-approximations-and-infill",
+            "--accept-synthetic-zero",
         ],
     ] {
         let result = s.run(&command);
@@ -418,25 +610,30 @@ fn synthetic_result_rejects_nonbasic_output_frames_and_mesh_sources() {
         "convert",
         "nonbasic.bdf",
         "bad.op2",
-        "--accept-projection",
-        "--assume-zero-displacement",
+        "--accept-all-approximations-and-infill",
+        "--accept-synthetic-zero",
         "--json",
     ]);
     assert_eq!(result.status.code(), Some(1));
     assert!(String::from_utf8(result.stdout).unwrap().contains("E_OP2"));
     assert!(!s.0.join("bad.op2").exists());
 
-    let converted = s.run(&["convert", "mesh.bdf", "mesh.vtu", "--accept-projection"]);
+    let converted = s.run(&[
+        "convert",
+        "mesh.bdf",
+        "mesh.vtu",
+        "--accept-all-approximations-and-infill",
+    ]);
     assert!(converted.status.success());
     let result = s.run(&[
         "convert",
         "mesh.vtu",
         "bad.op2",
-        "--accept-projection",
-        "--assume-zero-displacement",
+        "--accept-all-approximations-and-infill",
+        "--accept-synthetic-zero",
         "--json",
     ]);
-    assert_eq!(result.status.code(), Some(2));
+    assert_eq!(result.status.code(), Some(1));
     assert!(!s.0.join("bad.op2").exists());
 }
 
@@ -447,9 +644,13 @@ fn entry_help_and_bdf_diagnostics_are_visible_to_human_users() {
     assert!(s.run(&[]).status.success());
     assert!(s.run(&["validate", "mesh.bdf", "--help"]).status.success());
     assert_eq!(
-        s.run(&["validate", "mesh.bdf", "--accept-projection"])
-            .status
-            .code(),
+        s.run(&[
+            "validate",
+            "mesh.bdf",
+            "--accept-all-approximations-and-infill"
+        ])
+        .status
+        .code(),
         Some(2)
     );
     std::fs::write(s.0.join("invalid.bdf"), "GRID,1,42,0,0,0\n").unwrap();
@@ -470,8 +671,8 @@ fn synthetic_op2_can_stage_an_explicit_msh22_companion() {
         "convert",
         "mesh.bdf",
         "zeros.op2",
-        "--accept-projection",
-        "--assume-zero-displacement",
+        "--accept-all-approximations-and-infill",
+        "--accept-synthetic-zero",
         "--mesh-out",
         "companion.msh",
         "--msh-version",

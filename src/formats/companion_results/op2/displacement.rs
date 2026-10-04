@@ -114,7 +114,7 @@ pub fn write_displacements(
     if field.components.len() == 3 && !zero_missing_rotations {
         return Err(Error::new(
             "E_OP2",
-            "three-component displacement has unknown rotations; pass --zero-missing-rotations only if R1/R2/R3 are known to be zero",
+            "three-component displacement has unknown rotations; set zero_missing_rotations only if R1/R2/R3 are known to be zero",
         ));
     }
 

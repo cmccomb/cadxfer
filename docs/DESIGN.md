@@ -28,7 +28,8 @@ deck. It does not copy or validate a complete solver model.
 Readers project into a linear `Mesh` plus located numeric `Field`s. This is
 not a universal solver schema: loads, constraints, units and constitutive laws
 are never inferred from a mesh. Every CLI conversion needs an explicit
-`--accept-projection` acknowledgement and reports source/destination omissions.
+confirmation for reported changes, or explicit acceptance flags in unattended
+use. Conversion reports source/destination omissions and assumptions.
 
 FRD and OP2 have different boundaries. The FRD adapter reads and writes a
 documented ASCII subset directly. OP2 reads and writes a bounded 32-bit real
@@ -39,16 +40,17 @@ supplies GRID CD, so the reader can reject nonbasic displacement frames.
 Other supported mesh formats require an explicit basic-frame assertion because
 they do not encode CD. Writing OP2 emits no geometry; the CLI can optionally
 write a separate companion mesh. A recognized three-component displacement has
-unknown rotations and fails by default; an explicit assertion can set them to
-float zero, and the fill is reported. Format modules are part of one Rust
+unknown rotations. The library writer requires an explicit assertion to set
+them to float zero. The CLI proposes that fill and asks for confirmation.
+Format modules are part of one Rust
 package; the CLI has no Python runtime dependency. PCH projects a bounded
 real SORT1 ASCII displacement block through the same normalized nodal field
 path as OP2. Its read route uses the same companion mesh and frame checks;
 PCH writing is not yet supported.
 
 A result-free BDF or INP can deliberately produce a synthetic all-zero OP2
-through `--assume-zero-displacement`. This is an explicit hypothetical field,
-not a computed result. The OP2 title records that provenance and the reader
+through confirmation or `--accept-synthetic-zero`. This is a hypothetical
+field, not a computed result. The OP2 title records that provenance and the reader
 reports it. OP2 has no typed null slot for unknown displacement values.
 
 ## Precision and identity

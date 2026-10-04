@@ -35,11 +35,11 @@ pub(super) fn conversion_options(args: &Args) -> Result<Options> {
     Ok(Options {
         input_format: Some(format),
         mesh: args.mesh.clone(),
-        assume_basic_frame: args.assume_basic_frame,
+        assume_basic_frame: args.accept_basic_frame,
         subcase: args.subcase,
         step: args.step,
         max_bytes: args.max_bytes.unwrap_or(Options::default().max_bytes),
         msh_version: args.msh_version,
-        zero_missing_rotations: args.zero_missing_rotations,
+        zero_missing_rotations: args.accept_zero_rotations,
     })
 }

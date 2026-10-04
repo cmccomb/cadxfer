@@ -13,5 +13,5 @@ mod write;
 
 pub use format::{Format, Options};
 pub use read::read_path;
-pub use report::{ConversionReport, Omission, ReadResult, Stage};
+pub use report::{AssumptionKind, ConversionReport, Omission, ReadResult, Stage};
 pub use write::{convert, convert_path};
