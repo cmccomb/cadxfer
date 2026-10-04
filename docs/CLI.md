@@ -80,7 +80,7 @@ static OP2 displacement table with six float zeros per node. It requires
 no external adapter, labels the OP2 title as assumed data, and never runs a solver.
 For INP, retain the source mesh or use `--mesh-out` to export a companion.
 
-For `validate` and `convert`, `--json` produces one JSON object on stdout with
+For `validate` and `convert`, `--json` returns the report on stdout as JSON with
 schema_version=1. Human-readable conversion omission reports go to stderr;
 JSON conversion reports place them in an `omissions` array with each item's
 `stage` (`source`, `destination`, or `assumption`) and detail. A paired export

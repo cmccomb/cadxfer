@@ -39,7 +39,7 @@ VALIDATION OPTIONS
   --strict              Fail when the source has reported omissions
 
 GENERAL OPTIONS
-  --json                Write one JSON object (schema_version=1)
+  --json                Return the report as JSON (schema_version=1)
   --                    Treat following arguments as paths
   -h, --help            Show this command's help
 
@@ -71,7 +71,7 @@ DESTINATION OPTIONS
   --assume-zero-displacement Create synthetic zero OP2 from BDF/INP; no solver runs
 
 GENERAL OPTIONS
-  --json                     Write one JSON receipt (schema_version=1)
+  --json                     Return the report as JSON (schema_version=1)
   --                         Treat following arguments as paths
   -h, --help                 Show this command's help
 
