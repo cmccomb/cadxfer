@@ -574,7 +574,7 @@ fn geometry_only_writers_reject_fields_while_conversion_reports_them() {
         assert!(report.omissions.iter().any(|item| {
             item.stage == Stage::Destination && item.detail.contains("numeric field")
         }));
-        assert!(!output.is_empty());
+        assert_ne!(output.len(), 0);
     }
 }
 
@@ -615,7 +615,7 @@ fn writers_reject_unmapped_properties_while_conversion_reports_them() {
         assert!(report.omissions.iter().any(|item| {
             item.stage == Stage::Destination && item.detail.contains("property IDs")
         }));
-        assert!(!output.is_empty());
+        assert_ne!(output.len(), 0);
     }
 }
 

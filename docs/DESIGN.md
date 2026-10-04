@@ -3,7 +3,8 @@
 ## Source layout
 
 `src/core/` defines mesh, fields, validation, and errors. `src/conversion/`
-owns format dispatch and projection reports. `src/bdf/` holds the native BDF
+separates format/options, receipt types, source reading, and destination
+writing. `src/bdf/` holds the native BDF
 document, parser, and geometry projection. `src/mesh_formats/` groups adapters
 that carry mesh geometry.
 `src/nastran_results/` groups OP2 and PCH with their shared displacement
