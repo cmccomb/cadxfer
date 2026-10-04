@@ -12,6 +12,7 @@ pub(crate) fn displacement_dataset(
     time: Option<f64>,
     code: &'static str,
 ) -> Result<Dataset> {
+    // Check the companion mesh and result dimensions before allocating values.
     mesh.validate()?;
     if !matches!(width, 3 | 6) || rows.len() != mesh.points.len() {
         return Err(Error::new(
@@ -19,19 +20,23 @@ pub(crate) fn displacement_dataset(
             "displacement nodes do not match mesh nodes",
         ));
     }
+    // Bound the flattened field size even if the point count is extreme.
     let capacity = mesh
         .points
         .len()
         .checked_mul(width)
         .ok_or_else(|| Error::new(code, "displacement value count overflows"))?;
     let mut values = Vec::with_capacity(capacity);
+    // Use mesh order for field values; match rows by original GRID ID.
     for point in &mesh.points {
         let row = rows
             .get(&point.id)
             .ok_or_else(|| Error::new(code, format!("no displacement for GRID {}", point.id)))?;
         values.extend_from_slice(&row[..width]);
     }
+    // Store the selected result step in the field's signed metadata type.
     let step = i64::try_from(step).map_err(|_| Error::new(code, "result step exceeds Int64"))?;
+    // Omit rotation labels when the decoder supplied translations only.
     let components = ["T1", "T2", "T3", "R1", "R2", "R3"]
         .into_iter()
         .take(width)
@@ -48,6 +53,7 @@ pub(crate) fn displacement_dataset(
             time,
         }],
     };
+    // Check that the field layout still matches the companion mesh.
     dataset.validate()?;
     Ok(dataset)
 }
