@@ -63,7 +63,7 @@ jobs:
         run: cargo test --test gmsh_interop --offline
       - name: Execute independent CLI interoperability checks
         run: python scripts/check_interop.py
-      - name: Check supported conversion matrix
+      - name: Check core conversion matrix
         run: python scripts/check_matrix.py
       - name: Install VTK for independent legacy-format checks
         if: matrix.os == 'ubuntu-latest' && matrix.rust == 'stable'

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Execute every advertised conversion route; optionally include real OP2 decoding."""
+"""Exercise the core mesh/result route matrix; optionally check OP2 decoding."""
 from __future__ import annotations
 import argparse
 import contextlib
