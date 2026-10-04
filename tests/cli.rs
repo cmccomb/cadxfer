@@ -92,7 +92,7 @@ fn help_and_version_work() {
         String::from_utf8(s.run(&["--version"]).stdout)
             .unwrap()
             .trim(),
-        "caexfer 0.1.0"
+        concat!("caexfer ", env!("CARGO_PKG_VERSION"))
     );
 }
 

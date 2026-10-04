@@ -106,7 +106,7 @@ pub fn write_data(dataset: &Dataset, mut writer: impl Write) -> Result<()> {
 
     writeln!(
         writer,
-        "<!-- caexfer 0.1.0: geometry only; units unspecified -->"
+        "<!-- caexfer: geometry and numeric fields; units unspecified -->"
     )?;
     writeln!(
         writer,

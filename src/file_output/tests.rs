@@ -129,7 +129,7 @@ fn pair_requires_distinct_destinations() {
     fs::remove_dir_all(dir).unwrap();
 }
 
-/// Report the installed first file if another writer claims the second name.
+/// Preserve the completed second file if another writer claims its name.
 #[test]
 fn pair_reports_a_second_destination_race() {
     let dir = directory();
@@ -151,9 +151,19 @@ fn pair_reports_a_second_destination_race() {
     .unwrap_err();
     assert_eq!(error.code, "E_EXISTS");
     assert!(error.message.contains(&first.display().to_string()));
+    let staged = PathBuf::from(
+        error
+            .message
+            .rsplit_once("completed second output retained at ")
+            .unwrap()
+            .1,
+    );
     assert_eq!(fs::read(&first).unwrap(), b"results");
     assert_eq!(fs::read(&second).unwrap(), b"another writer");
-    assert_eq!(fs::read_dir(&dir).unwrap().count(), 2);
+    assert_eq!(fs::read(&staged).unwrap(), b"staged mesh");
+    fs::remove_file(&second).unwrap();
+    fs::hard_link(&staged, &second).unwrap();
+    assert_eq!(fs::read(&second).unwrap(), b"staged mesh");
     fs::remove_dir_all(dir).unwrap();
 }
 

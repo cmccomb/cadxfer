@@ -12,5 +12,5 @@ the `caexfer` library and CLI have no Python runtime dependency.
 | `check_vtk.py` | Verify Rust-written legacy VTK with VTK's own reader and writer | Built CLI and Python VTK bindings | Prints success; fails on external read or round trip |
 
 The check scripts create temporary files and remove them when they finish.
-`coverage.sh` keeps only its reports under `target/`. Cargo also directs raw
-profiles from instrumented local runs to the system temporary directory.
+`coverage.sh` keeps only its reports under `target/` and cleans up its
+temporary instrumented build and raw profiles.

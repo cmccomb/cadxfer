@@ -16,6 +16,7 @@ pub(super) struct PendingOutput {
     destination: PathBuf,
     source: PathBuf,
     overwrite: bool,
+    retain: bool,
 }
 
 impl PendingOutput {
@@ -47,6 +48,7 @@ impl PendingOutput {
                         destination: destination.to_path_buf(),
                         source: source.to_path_buf(),
                         overwrite,
+                        retain: false,
                     });
                 }
                 Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {}
@@ -92,11 +94,46 @@ impl PendingOutput {
             }
         })
     }
+
+    /// Keep the previous destination available if a later paired install fails.
+    fn backup_existing(&self) -> Result<()> {
+        if !self.overwrite {
+            return Ok(());
+        }
+        check_destination(&self.destination, &self.source, true)?;
+        match fs::symlink_metadata(&self.destination) {
+            Ok(_) => fs::hard_link(&self.destination, self.previous()).map_err(|error| {
+                Error::new(
+                    "E_OUTPUT",
+                    format!(
+                        "could not retain previous {}: {error}",
+                        self.destination.display()
+                    ),
+                )
+            }),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+            Err(error) => Err(error.into()),
+        }
+    }
+
+    fn previous(&self) -> PathBuf {
+        self.directory.join("previous-output")
+    }
+
+    /// Report only files that still exist after a partial installation.
+    fn recovery_files(&self) -> Vec<PathBuf> {
+        [self.previous(), self.temporary.clone()]
+            .into_iter()
+            .filter(|path| fs::symlink_metadata(path).is_ok())
+            .collect()
+    }
 }
 
 impl Drop for PendingOutput {
     fn drop(&mut self) {
-        let _ = fs::remove_dir_all(&self.directory);
+        if !self.retain {
+            let _ = fs::remove_dir_all(&self.directory);
+        }
     }
 }
 
@@ -175,20 +212,45 @@ fn same_file(first: &Path, second: &Path) -> Result<bool> {
 }
 
 /// Install an approved OP2 and companion, reporting a partial pair precisely.
-pub(super) fn install_pair(first: &PendingOutput, second: &PendingOutput) -> Result<()> {
+pub(super) fn install_pair(first: &mut PendingOutput, second: &mut PendingOutput) -> Result<()> {
+    install_pair_with(first, second, || {})
+}
+
+/// The hook lets tests create a deterministic race after the first install.
+fn install_pair_with(
+    first: &mut PendingOutput,
+    second: &mut PendingOutput,
+    after_first: impl FnOnce(),
+) -> Result<()> {
     // Check both destinations before changing either. A later race can still
     // prevent the second install after the first succeeds.
     check_destination(&first.destination, &first.source, first.overwrite)?;
     check_destination(&second.destination, &second.source, second.overwrite)?;
+    first.backup_existing()?;
+    second.backup_existing()?;
     first.install()?;
+    after_first();
     second.install().map_err(|error| {
+        first.retain = true;
+        second.retain = true;
+        let recovery = first
+            .recovery_files()
+            .into_iter()
+            .chain(second.recovery_files())
+            .map(|path| path.display().to_string())
+            .collect::<Vec<_>>();
         Error::new(
             error.code,
             format!(
-                "{} was installed, but {} could not be installed: {}",
+                "{} was installed, but {} could not be installed: {}; recovery files: {}",
                 first.destination.display(),
                 second.destination.display(),
-                error.message
+                error.message,
+                if recovery.is_empty() {
+                    "none".to_owned()
+                } else {
+                    recovery.join(", ")
+                }
             ),
         )
     })

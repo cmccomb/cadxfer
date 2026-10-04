@@ -15,8 +15,8 @@ pub(super) fn run_convert(args: &Args) -> Result<u8> {
     if args.mesh_out.as_deref() == Some(args.paths[1].as_path()) {
         return Err(Error::new("E_USAGE", "paired outputs need distinct paths"));
     }
-    let primary = PendingOutput::new(&args.paths[1], &args.paths[0], args.overwrite)?;
-    let companion = args
+    let mut primary = PendingOutput::new(&args.paths[1], &args.paths[0], args.overwrite)?;
+    let mut companion = args
         .mesh_out
         .as_deref()
         .map(|path| PendingOutput::new(path, &args.paths[0], args.overwrite))
@@ -43,8 +43,8 @@ pub(super) fn run_convert(args: &Args) -> Result<u8> {
             .as_ref()
             .map(|item| item.omissions.as_slice()),
     )?;
-    if let Some(companion) = &companion {
-        output::install_pair(&primary, companion)?;
+    if let Some(companion) = &mut companion {
+        output::install_pair(&mut primary, companion)?;
         if let Some(receipt) = &mut report.mesh_output {
             receipt.path.clone_from(
                 args.mesh_out

@@ -103,8 +103,9 @@ fn main() -> Result<()> {
 When `mesh_output` is set for OP2 output, both files are staged before either
 is installed. The returned `ConversionReport.mesh_output` contains the companion
 path, format, and separate omissions. Two file installs cannot be atomic: an
-error during the second install can leave the first completed OP2 file in place,
-and the error names it.
+error during the second install can leave the first completed OP2 file in place.
+The error names that file and the retained, completed companion file. Check
+the destination before installing or deleting the retained file.
 
 BDF output and INP output are geometry exchange decks, not complete runnable
 solver models. No units are inferred. Keep the source file whenever omitted

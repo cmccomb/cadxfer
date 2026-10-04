@@ -7,7 +7,7 @@
 
 <p align="center"><img src="https://raw.githubusercontent.com/cmccomb/caexfer/main/assets/logo.svg" alt="caexfer logo" width="320"></p>
 
-**Exchange finite-element meshes and results across formats.**
+**Transfer finite-element meshes and results across formats.**
 
 `caexfer` reads and writes supported subsets of STL, SU2, UNV, Exodus II,
 VTU, legacy VTK, Gmsh MSH 4.1/2.2, Abaqus/CalculiX INP, CalculiX FRD,
