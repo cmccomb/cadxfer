@@ -18,6 +18,9 @@ pub struct Projection {
     /// Validated projected mesh and fields.
     pub dataset: Dataset,
 
+    /// True when no native node number map supplied original IDs.
+    pub generated_point_ids: bool,
+
     /// Source data or identities that cannot be represented here.
     pub omissions: Vec<String>,
 }
@@ -417,6 +420,7 @@ pub fn read_projection(source: &[u8], selected_step: Option<usize>) -> Result<Pr
     let node_count = dimension(data, "num_nodes", source.len())?;
     let cell_count = dimension(data, "num_elem", source.len())?;
     let block_count = dimension(data, "num_el_blk", source.len())?;
+    let generated_point_ids = !data.has_var("node_num_map");
     let mut omissions = Vec::new();
     let points = points(&mut reader, node_count, dim, source.len(), &mut omissions)?;
     let (cells, offsets) = cells(
@@ -494,7 +498,11 @@ pub fn read_projection(source: &[u8], selected_step: Option<usize>) -> Result<Pr
         fields,
     };
     dataset.validate()?;
-    Ok(Projection { dataset, omissions })
+    Ok(Projection {
+        dataset,
+        generated_point_ids,
+        omissions,
+    })
 }
 
 /// A seekable shared buffer for `NetCDF`'s writer and our caller-owned stream.

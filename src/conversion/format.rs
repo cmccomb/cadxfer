@@ -175,7 +175,7 @@ pub struct Options {
     /// Override source extension detection.
     pub input_format: Option<Format>,
 
-    /// Matching BDF, VTU, VTK, MSH, INP, or FRD mesh for OP2/PCH input.
+    /// Companion mesh with original node IDs for OP2/PCH input.
     pub mesh: Option<PathBuf>,
 
     /// Assert basic-frame coordinates and displacements for a non-BDF result mesh.

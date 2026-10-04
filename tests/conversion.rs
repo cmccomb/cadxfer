@@ -420,6 +420,7 @@ fn classic_exodus_and_stl_report_destination_projection() {
         format: Format::Stl,
         dataset: caexfer::stl::read_projection(stl).unwrap().dataset,
         omissions: Vec::new(),
+        generated_point_ids: true,
         assumed_zero: false,
     };
     read.dataset.mesh.cells[0].property_id = Some(7);
@@ -563,6 +564,7 @@ fn geometry_only_writers_reject_fields_while_conversion_reports_them() {
                 format,
                 dataset,
                 omissions: Vec::new(),
+                generated_point_ids: matches!(format, Format::Stl | Format::Su2),
                 assumed_zero: false,
             },
             format,
@@ -605,6 +607,7 @@ fn writers_reject_unmapped_properties_while_conversion_reports_them() {
                 format,
                 dataset,
                 omissions: Vec::new(),
+                generated_point_ids: matches!(format, Format::Stl | Format::Su2),
                 assumed_zero: false,
             },
             format,
@@ -827,7 +830,10 @@ fn external_vtu_without_identity_arrays_gets_explicit_stable_ids() {
         let last = source.find(end).unwrap() + end.len();
         source.replace_range(first..last, "");
     }
-    let dataset = caexfer::vtu::read(&source).unwrap();
+    let projection = caexfer::vtu::read_projection(&source).unwrap();
+    assert!(projection.generated_point_ids);
+    assert!(projection.generated_cell_ids);
+    let dataset = projection.dataset;
     assert_eq!(
         dataset
             .mesh
@@ -839,4 +845,52 @@ fn external_vtu_without_identity_arrays_gets_explicit_stable_ids() {
     );
     assert_eq!(dataset.mesh.cells[0].id, 1);
     assert_eq!(dataset.mesh.cells[0].property_id, None);
+
+    let scratch = Scratch::new();
+    let path = scratch.write("generated.vtu", source);
+    let read = conversion::read_path(&path, &Options::default()).unwrap();
+    assert!(read.generated_point_ids);
+    assert!(
+        read.omissions
+            .iter()
+            .any(|item| item.detail.contains("original point IDs"))
+    );
+    let options = Options {
+        mesh: Some(path),
+        assume_basic_frame: true,
+        subcase: Some(1),
+        ..Options::default()
+    };
+    let pch = root.join("tests/fixtures/pch-multiple.pch");
+    let error = conversion::read_path(&pch, &options).unwrap_err();
+    assert_eq!(error.code, "E_USAGE");
+    assert!(error.message.contains("original node IDs"));
+}
+
+#[test]
+fn generated_ids_cannot_validate_nastran_result_companions() {
+    let scratch = Scratch::new();
+    let vtk = "# vtk DataFile Version 2.0\nmesh\nASCII\nDATASET UNSTRUCTURED_GRID\nPOINTS 2 double\n0 0 0\n1 0 0\nCELLS 1 3\n2 0 1\nCELL_TYPES 1\n3\n";
+    let stl = "solid mesh\nfacet normal 0 0 1\nouter loop\nvertex 0 0 0\nvertex 1 0 0\nvertex 0 1 0\nendloop\nendfacet\nendsolid mesh\n";
+    let su2 = "NDIME= 2\nNELEM= 1\n5 0 1 2\nNPOIN= 3\n0 0\n1 0\n0 1\nNMARK= 0\n";
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    for (name, path) in [
+        ("vtk", scratch.write("generated.vtk", vtk)),
+        ("stl", scratch.write("generated.stl", stl)),
+        ("su2", scratch.write("generated.su2", su2)),
+        ("exodus", root.join("tests/fixtures/exodus-legacy.exo")),
+    ] {
+        let read = conversion::read_path(&path, &Options::default()).unwrap();
+        assert!(read.generated_point_ids, "{name}");
+        let options = Options {
+            mesh: Some(path),
+            assume_basic_frame: true,
+            subcase: Some(1),
+            ..Options::default()
+        };
+        let error = conversion::read_path(&root.join("tests/fixtures/pch-multiple.pch"), &options)
+            .unwrap_err();
+        assert_eq!(error.code, "E_USAGE", "{name}");
+        assert!(error.message.contains("original node IDs"), "{name}");
+    }
 }

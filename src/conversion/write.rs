@@ -74,7 +74,7 @@ pub fn convert_path(
 /// let source = ReadResult {
 ///     format: Format::Bdf,
 ///     dataset: Dataset { mesh: document.geometry()?.mesh, fields: vec![] },
-///     omissions: vec![], assumed_zero: false,
+///     omissions: vec![], generated_point_ids: false, assumed_zero: false,
 /// };
 /// let mut inp = Vec::new();
 /// // INP carries this geometry but not generic numeric result fields.

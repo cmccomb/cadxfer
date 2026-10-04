@@ -9,6 +9,19 @@ use quick_xml::reader::Reader;
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::Write;
 
+/// Parsed VTU data and whether original identity arrays were absent.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Projection {
+    /// Validated mesh and numeric fields.
+    pub dataset: Dataset,
+
+    /// True when point IDs were assigned in array order.
+    pub generated_point_ids: bool,
+
+    /// True when cell IDs were assigned in array order.
+    pub generated_cell_ids: bool,
+}
+
 /// Map a supported linear topology to VTK's unstructured-cell type number.
 fn vtk_type(kind: CellKind) -> u8 {
     // These are VTK's linear cell codes; mesh connectivity is already in VTK order.
@@ -489,7 +502,7 @@ fn cell_kind(code: u8) -> Result<CellKind> {
 /// Returns an error for unsupported VTU layouts, malformed numeric arrays,
 /// inconsistent counts, or invalid reconstructed mesh and fields.
 #[allow(clippy::too_many_lines)] // Parsed XML sections are validated against one piece together.
-pub fn read(source: &str) -> Result<Dataset> {
+pub fn read_projection(source: &str) -> Result<Projection> {
     if !valid_xml_text(source) {
         return Err(Error::new("E_VTU", "invalid XML character"));
     }
@@ -556,13 +569,14 @@ pub fn read(source: &str) -> Result<Dataset> {
     // Original node IDs are optional for external VTU files. Without them,
     // assign stable one-based IDs while retaining VTK's zero-based positions.
     let pd = piece.optional("PointData")?;
-    let point_ids: Vec<u64> = match pd
+    let point_id_array = pd
         .map(|node| node.children("DataArray"))
         .transpose()?
         .unwrap_or_default()
         .into_iter()
-        .find(|node| node.attr("Name") == Some("nastran_node_id"))
-    {
+        .find(|node| node.attr("Name") == Some("nastran_node_id"));
+    let generated_point_ids = point_id_array.is_none();
+    let point_ids: Vec<u64> = match point_id_array {
         Some(node) => {
             if node.attr("type") != Some("UInt64") {
                 return Err(Error::new("E_VTU", "node ID type must be UInt64"));
@@ -599,13 +613,14 @@ pub fn read(source: &str) -> Result<Dataset> {
     // As with nodes, fall back to one-based element IDs if the source lacks
     // caexfer's original-ID array.
     let cd = piece.optional("CellData")?;
-    let element_ids: Vec<u64> = match cd
+    let cell_id_array = cd
         .map(|node| node.children("DataArray"))
         .transpose()?
         .unwrap_or_default()
         .into_iter()
-        .find(|node| node.attr("Name") == Some("nastran_element_id"))
-    {
+        .find(|node| node.attr("Name") == Some("nastran_element_id"));
+    let generated_cell_ids = cell_id_array.is_none();
+    let element_ids: Vec<u64> = match cell_id_array {
         Some(node) => {
             if node.attr("type") != Some("UInt64") {
                 return Err(Error::new("E_VTU", "element ID type must be UInt64"));
@@ -761,7 +776,23 @@ pub fn read(source: &str) -> Result<Dataset> {
 
     // Apply the core mesh and field invariants after rebuilding the dataset.
     dataset.validate()?;
-    Ok(dataset)
+    Ok(Projection {
+        dataset,
+        generated_point_ids,
+        generated_cell_ids,
+    })
+}
+
+/// Read one ASCII `UnstructuredGrid` piece into a mesh and numeric fields.
+///
+/// Use [`read_projection`] when assigned point or cell IDs must be reported.
+///
+/// # Errors
+///
+/// Returns an error for unsupported layouts, malformed arrays, invalid counts,
+/// or invalid reconstructed data.
+pub fn read(source: &str) -> Result<Dataset> {
+    Ok(read_projection(source)?.dataset)
 }
 
 #[cfg(test)]

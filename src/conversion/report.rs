@@ -61,6 +61,10 @@ pub struct ReadResult {
     /// Source information absent from the projected dataset.
     pub omissions: Vec<Omission>,
 
+    /// True when source point IDs were assigned because the file did not carry them.
+    /// Such a mesh cannot verify Nastran result node identity.
+    pub generated_point_ids: bool,
+
     /// Whether an OP2 title marks its result as synthetic all-zero data.
     pub assumed_zero: bool,
 }

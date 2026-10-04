@@ -242,8 +242,10 @@ does not assert that a solver computed any included values.
 The native Rust OP2 adapter decodes one real six-component SORT1 OUGV1
 displacement table from 32-bit Fortran records. The tested solver and
 independently generated fixtures use little endian records. Pass
-`--mesh FILE` with a matching BDF, VTU, VTK, MSH, INP, or FRD mesh and, if needed,
-`--subcase N` and zero-based `--step N`. Result node IDs must match the companion mesh exactly;
+`--mesh FILE` with a matching mesh and, if needed,
+`--subcase N` and zero-based `--step N`. The companion must carry original node
+IDs; generated one-based IDs cannot verify result identity. Result node IDs
+must match the companion mesh exactly;
 the OP2 result table cannot verify companion coordinates or connectivity.
 A BDF must project to a basic-frame mesh and all GRID CD values must be zero.
 The other formats do not encode GRID CD; they require `--assume-basic-frame`,

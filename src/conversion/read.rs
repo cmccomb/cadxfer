@@ -110,6 +110,12 @@ fn read_result_mesh(
                 ..options.clone()
             };
             let read = read_path(path, &mesh_options)?;
+            if read.generated_point_ids {
+                return Err(Error::new(
+                    "E_USAGE",
+                    "result companion mesh has assigned point IDs; original node IDs are required",
+                ));
+            }
 
             // A companion contributes geometry only; report ignored fields.
             let mut omissions = read
@@ -195,6 +201,7 @@ pub fn read_path(path: &Path, options: &Options) -> Result<ReadResult> {
             "step applies only to OP2, PCH, FRD, or Exodus input",
         ));
     }
+    let mut generated_point_ids = false;
     let (dataset, omissions, assumed_zero) = match format {
         Format::Bdf => {
             // BDF projection can lose solver cards while retaining geometry.
@@ -222,13 +229,29 @@ pub fn read_path(path: &Path, options: &Options) -> Result<ReadResult> {
             let bytes = read_limited(path, options.max_bytes)?;
             let text = std::str::from_utf8(&bytes)
                 .map_err(|_| Error::new("E_VTU", "VTU must be UTF-8 XML"))?;
-            (vtu::read(text)?, Vec::new(), false)
+            let projection = vtu::read_projection(text)?;
+            generated_point_ids = projection.generated_point_ids;
+            let mut omissions = Vec::new();
+            if projection.generated_point_ids {
+                omissions.push(Omission::new(
+                    Stage::Source,
+                    "VTU has no original point IDs; assigned one-based IDs",
+                ));
+            }
+            if projection.generated_cell_ids {
+                omissions.push(Omission::new(
+                    Stage::Source,
+                    "VTU has no original cell IDs; assigned one-based IDs",
+                ));
+            }
+            (projection.dataset, omissions, false)
         }
         Format::Vtk => {
             let bytes = read_limited(path, options.max_bytes)?;
             let text = std::str::from_utf8(&bytes)
                 .map_err(|_| Error::new("E_VTK", "legacy VTK must be ASCII text"))?;
             let projection = vtk::read_projection(text)?;
+            generated_point_ids = projection.generated_point_ids;
             let mut omissions = Vec::new();
             if projection.generated_point_ids {
                 omissions.push(Omission::new(
@@ -247,6 +270,7 @@ pub fn read_path(path: &Path, options: &Options) -> Result<ReadResult> {
         Format::Stl => {
             let bytes = read_limited(path, options.max_bytes)?;
             let projection = stl::read_projection(&bytes)?;
+            generated_point_ids = true;
             let mut omissions = vec![Omission::new(
                 Stage::Source,
                 "STL has no node or element IDs; assigned one-based facet-local IDs without welding",
@@ -276,6 +300,7 @@ pub fn read_path(path: &Path, options: &Options) -> Result<ReadResult> {
             let text = std::str::from_utf8(&bytes)
                 .map_err(|_| Error::new("E_SU2", "SU2 mesh must be UTF-8 ASCII"))?;
             let projection = su2::read_projection(text)?;
+            generated_point_ids = true;
             let omissions = vec![Omission::new(
                 Stage::Source,
                 "SU2 uses positional connectivity; assigned one-based node and element IDs",
@@ -303,6 +328,7 @@ pub fn read_path(path: &Path, options: &Options) -> Result<ReadResult> {
         Format::Exodus => {
             let bytes = read_limited(path, options.max_bytes)?;
             let projection = exodus::read_projection(&bytes, options.step)?;
+            generated_point_ids = projection.generated_point_ids;
             let omissions = projection
                 .omissions
                 .into_iter()
@@ -460,6 +486,7 @@ pub fn read_path(path: &Path, options: &Options) -> Result<ReadResult> {
         format,
         dataset,
         omissions,
+        generated_point_ids,
         assumed_zero,
     })
 }
