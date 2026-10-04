@@ -120,6 +120,7 @@ pub fn convert(
     // Count fields before destination-specific filtering; the report describes
     // the source dataset as well as any losses during output.
     let source_fields = source.dataset.fields.len();
+    let mut voxel_summary = None;
     let dataset = &mut source.dataset;
     let omissions = &mut source.omissions;
     if target != Format::Su2 {
@@ -210,6 +211,7 @@ pub fn convert(
             } else {
                 vti::write(&grid, &mut writer)?;
             }
+            voxel_summary = Some((grid.dims, grid.occupied.iter().filter(|&&v| v != 0).count()));
         }
         Format::Vtu => {
             // VTU has one array per location and name; multiple source steps
@@ -572,6 +574,7 @@ pub fn convert(
         points: dataset.mesh.points.len(),
         cells: dataset.mesh.cells.len(),
         fields: source_fields,
+        voxel_grid: voxel_summary,
         omissions: source.omissions,
         mesh_output: None,
     })

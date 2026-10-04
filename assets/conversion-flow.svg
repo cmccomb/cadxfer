@@ -71,7 +71,7 @@
   <text x="862" y="212" class="formats">VTU · VTK · MSH</text>
   <text x="862" y="244" class="formats">Exodus II · FRD</text>
   <text x="862" y="276" class="formats">VTI · VOX</text>
-  <text x="862" y="299" class="note">Fields and voxel occupancy</text>
+  <text x="862" y="294" class="note">Fields and voxel occupancy</text>
 
   <rect x="840" y="342" width="320" height="180" rx="18" class="card"/>
   <text x="862" y="384" class="group" fill="#f28eaa">COMPANION RESULTS</text>

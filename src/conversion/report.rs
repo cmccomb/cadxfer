@@ -116,6 +116,9 @@ pub struct ConversionReport {
     /// Number of source numeric fields before destination filtering.
     pub fields: usize,
 
+    /// Destination grid dimensions and occupied cell count for VTI/VOX output.
+    pub voxel_grid: Option<([usize; 3], usize)>,
+
     /// Source and destination omissions, including explicit assumptions.
     pub omissions: Vec<Omission>,
 
