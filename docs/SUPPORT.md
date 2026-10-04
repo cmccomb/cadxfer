@@ -1,4 +1,4 @@
-# 0.1.0 support contract
+# 0.1.1 support contract
 
 ## BDF geometry contract
 
@@ -260,7 +260,9 @@ BDF, VTU, VTK, MSH, INP, or FRD. The companion carries no result fields; BDF and
 INP companions are not runnable solver decks. Each output is staged before
 either is installed, and existing output paths are never overwritten. Because
 two file installs cannot be atomic, a failed second install can leave the OP2
-file in place; the CLI error identifies it. Other fields and a nonzero source
+file in place. The library retains the completed companion at the staged path
+named in its error so it can be installed after the destination is checked.
+Other fields and a nonzero source
 step number are omitted with reports. A mesh-only BDF/INP cannot generate an OP2
 result from analysis. When converting a BDF or INP mesh to OP2, the CLI proposes
 a **synthetic** static table with T1/T2/T3/R1/R2/R3 all set to float
@@ -313,6 +315,11 @@ renames to replace existing regular output files after approval, including
 both outputs when `--mesh-out` is used. The CLI refuses symbolic-link and
 nonregular replacement destinations and input aliases. It rechecks both paths
 before installing a pair, but a race during installation can leave the first
-file replaced and the second unchanged. This is not a cross-platform
-transactional filesystem or guaranteed power-loss durability. The public
+file replaced and the second unchanged. In that case, the CLI keeps private
+recovery directories containing the staged companion and hard links to any
+previous destination files; its error names the retained paths. Inspect the
+current destinations before restoring or installing any recovery file. A
+concurrent in-place write can also change a hard-linked previous file. This is
+not a cross-platform transactional filesystem or guaranteed power-loss
+durability. The public
 `caexfer::convert` operation retains its staged, no-clobber policy.

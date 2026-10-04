@@ -11,15 +11,20 @@ use crate::core::{Error, Result};
 // Distinguish staged filenames created by this process, even within one clock tick.
 static COUNTER: AtomicU64 = AtomicU64::new(0);
 
-/// Staged pathname removed on drop after success or failure.
-struct Temporary(PathBuf);
+/// Staged pathname removed on drop unless a partial pair needs recovery.
+struct Temporary {
+    path: PathBuf,
+    retain: bool,
+}
 impl Drop for Temporary {
     /// Remove the staged file when it falls out of scope, including on error.
     /// A successfully installed hard link remains at the destination path.
     fn drop(&mut self) {
         // Once installed, only the temporary name is removed; the destination
         // hard link keeps the complete file alive.
-        let _ = fs::remove_file(&self.0);
+        if !self.retain {
+            let _ = fs::remove_file(&self.path);
+        }
     }
 }
 
@@ -78,7 +83,13 @@ impl Staged {
             let temp = parent.join(temp_name);
             match OpenOptions::new().write(true).create_new(true).open(&temp) {
                 Ok(file) => {
-                    staged = Some((Temporary(temp), file));
+                    staged = Some((
+                        Temporary {
+                            path: temp,
+                            retain: false,
+                        },
+                        file,
+                    ));
                     break;
                 }
                 Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {}
@@ -109,7 +120,7 @@ impl Staged {
     /// Hard links make the no-overwrite step atomic on supported filesystems.
     pub(super) fn install(&self) -> Result<()> {
         // hard_link fails if the destination name appeared during staging.
-        fs::hard_link(&self.temporary.0, &self.path).map_err(|error| {
+        fs::hard_link(&self.temporary.path, &self.path).map_err(|error| {
             if error.kind() == std::io::ErrorKind::AlreadyExists {
                 Error::new(
                     "E_EXISTS",
@@ -119,5 +130,15 @@ impl Staged {
                 Error::new("E_OUTPUT", format!("could not install staged output (destination filesystem must support hard links): {error}"))
             }
         })
+    }
+
+    /// Keep a completed second output when its installation fails.
+    pub(super) fn retain_for_recovery(&mut self) -> Option<&Path> {
+        if fs::symlink_metadata(&self.temporary.path).is_ok_and(|metadata| metadata.is_file()) {
+            self.temporary.retain = true;
+            Some(&self.temporary.path)
+        } else {
+            None
+        }
     }
 }

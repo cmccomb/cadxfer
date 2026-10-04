@@ -24,8 +24,8 @@ pub(crate) fn create_new(
 }
 
 /// Stage two outputs before installing either. Both paths must be new. If the
-/// second install fails after the first succeeds, the error names the first
-/// output that remains; a two-file commit cannot be atomic.
+/// second install fails after the first succeeds, retain the staged second
+/// file and name it in the error so the caller can recover the pair.
 pub(crate) fn create_pair(
     first_path: &Path,
     first_write: impl FnOnce(&mut BufWriter<File>) -> Result<()>,
@@ -39,16 +39,20 @@ pub(crate) fn create_pair(
     ensure_new(first_path)?;
     ensure_new(second_path)?;
     let first = Staged::new(first_path, first_write)?;
-    let second = Staged::new(second_path, second_write)?;
+    let mut second = Staged::new(second_path, second_write)?;
 
     // The two installations cannot be atomic together; report partial
     // installation accurately if the second hard link fails.
     first.install()?;
     second.install().map_err(|error| {
+        let recovery = second.retain_for_recovery().map_or_else(
+            || "the staged second output is unavailable".to_owned(),
+            |path| format!("completed second output retained at {}", path.display()),
+        );
         Error::new(
             error.code,
             format!(
-                "{} was created, but {} could not be installed: {}",
+                "{} was created, but {} could not be installed: {}; {recovery}",
                 first_path.display(),
                 second_path.display(),
                 error.message

@@ -138,4 +138,8 @@ supporting hard links, including when `--overwrite` is used.
 For paired output, the CLI stages both files and rechecks both destinations
 before installing either. Two different filenames cannot be committed
 atomically: if installing the second fails after the OP2 is installed, the
-error names the OP2 file that remains or was replaced.
+error names the OP2 file that remains or was replaced and any retained recovery
+files. The CLI keeps the staged companion and hard links to previous outputs in
+private sibling directories. Inspect the current destinations before restoring
+or installing those files; concurrent in-place writes can change a hard-linked
+previous file.
