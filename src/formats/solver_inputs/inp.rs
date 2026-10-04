@@ -62,7 +62,7 @@ pub struct Inspection {
 /// # Examples
 ///
 /// ```
-/// use caexfer::inp;
+/// use caexfer::formats::inp;
 /// let input = "*NODE\n1,0,0,0\n2,1,0,0\n*ELEMENT, TYPE=T3D2\n10,1,2\n*MATERIAL, NAME=STEEL\n";
 /// // Material data is reported as omitted rather than interpreted.
 /// let inspected = inp::read(input)?;

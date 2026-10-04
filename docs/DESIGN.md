@@ -8,9 +8,10 @@ writing. `src/formats/` groups adapters by role: `solver_inputs/` holds BDF
 and INP; `geometry_only/` holds STL, SU2, and UNV; `mesh_datasets/` holds
 Exodus, FRD, MSH, VTK, and VTU; and `companion_results/` holds OP2, PCH, and
 their shared displacement projection. OP2's record codec lives in its own
-subdirectory. `src/cli/` contains JSON rendering and staged output;
-`src/main.rs` handles commands. Public module paths such as `caexfer::vtu`
-and `caexfer::op2` remain unchanged through explicit paths in `src/lib.rs`.
+subdirectory. `src/formats/mod.rs` exposes every adapter directly under
+`caexfer::formats`, so callers do not depend on role folders. `src/cli/`
+contains parsing, dispatch, JSON rendering, and staged output. `src/main.rs`
+only starts the private CLI.
 
 ## Project deliberately
 

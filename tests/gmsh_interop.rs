@@ -1,8 +1,6 @@
 //! Opt-in external Gmsh import gate, enabled by `CAEXFER_GMSH=gmsh`.
-use caexfer::bdf;
 use caexfer::core::{Cell, CellKind, Dataset, Mesh, Point};
-use caexfer::msh;
-use caexfer::stl;
+use caexfer::formats::{bdf, msh, stl};
 use std::collections::BTreeMap;
 use std::fs;
 use std::process::Command;

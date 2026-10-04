@@ -2,9 +2,8 @@ use std::collections::BTreeSet;
 use std::io::Write;
 use std::path::Path;
 
-use crate::bdf;
 use crate::core::{Error, FieldLocation, Mesh, Result};
-use crate::{exodus, frd, inp, msh, op2, stl, su2, unv, vtk, vtu};
+use crate::formats::{bdf, exodus, frd, inp, msh, op2, stl, su2, unv, vtk, vtu};
 
 use super::{ConversionReport, Format, Omission, Options, ReadResult, Stage, read_path};
 
@@ -65,7 +64,7 @@ pub fn convert_path(
 /// # Examples
 ///
 /// ```
-/// use caexfer::bdf;
+/// use caexfer::formats::bdf;
 /// use caexfer::conversion::{convert, Format, Options, ReadResult, Stage};
 /// use caexfer::core::Dataset;
 /// let projection = bdf::mesh::read(

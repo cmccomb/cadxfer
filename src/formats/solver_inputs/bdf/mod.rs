@@ -5,7 +5,7 @@
 //! claims to read or write a complete Nastran model.
 //!
 //! ```
-//! use caexfer::bdf;
+//! use caexfer::formats::bdf;
 //! let source = b"GRID,1,,0.,0.,0.\n";
 //! assert_eq!(bdf::mesh::read(source).unwrap().mesh.points.len(), 1);
 //! ```

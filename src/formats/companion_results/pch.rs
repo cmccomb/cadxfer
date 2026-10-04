@@ -3,8 +3,8 @@
 //! Only GRID displacement rows with three translations and optional three
 //! rotations are projected. A matching basic-frame mesh is required.
 
+use super::nastran_result;
 use crate::core::{Dataset, Error, Mesh, Result};
-use crate::nastran_result;
 use std::collections::BTreeMap;
 
 /// One selected punch result and count of other result blocks skipped.

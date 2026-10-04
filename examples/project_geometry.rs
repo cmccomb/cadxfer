@@ -1,5 +1,6 @@
 //! Run: `cargo run --example project_geometry`
-use caexfer::{bdf, core::Result, vtu};
+use caexfer::core::Result;
+use caexfer::formats::{bdf, vtu};
 
 fn main() -> Result<()> {
     let projection = bdf::mesh::read("GRID,1,,0,0,0\nGRID,2,,1,0,0\nCROD,10,7,1,2\n")?;

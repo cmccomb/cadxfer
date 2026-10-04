@@ -36,7 +36,7 @@ fn gmsh_imports_written_unv_geometry() {
         String::from_utf8_lossy(&output.stderr)
     );
     let checked = fs::read_to_string(checked).unwrap();
-    let dataset = caexfer::msh::read(&checked).unwrap();
+    let dataset = caexfer::formats::msh::read(&checked).unwrap();
     // Gmsh drops the fixture's unreferenced ninth point when it resaves.
     assert_eq!(
         (dataset.mesh.points.len(), dataset.mesh.cells.len()),

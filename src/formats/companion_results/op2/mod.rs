@@ -3,8 +3,8 @@
 //! displacements must be in the basic frame; unsupported tables fail explicitly.
 mod binary;
 
+use super::nastran_result;
 use crate::core::{Dataset, Error, Field, FieldLocation, Mesh, Result};
-use crate::nastran_result;
 
 /// Decode one real six-component OUGV1 displacement table from OP2 bytes.
 /// `step` is a zero-based index within the subcase.
@@ -50,7 +50,8 @@ pub fn read_displacements(
 /// # Examples
 ///
 /// ```
-/// use caexfer::{core::{Dataset, Field, FieldLocation}, op2};
+/// use caexfer::core::{Dataset, Field, FieldLocation};
+/// use caexfer::formats::op2;
 /// let field = Field {
 ///     name: "DISP".into(), location: FieldLocation::Point,
 ///     components: vec!["T1".into(), "T2".into(), "T3".into()],

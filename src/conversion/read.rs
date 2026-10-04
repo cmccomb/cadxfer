@@ -3,7 +3,7 @@ use std::io::Read;
 use std::path::Path;
 
 use crate::core::{Dataset, Error, Mesh, Result};
-use crate::{bdf, exodus, frd, inp, msh, op2, pch, stl, su2, unv, vtk, vtu};
+use crate::formats::{bdf, exodus, frd, inp, msh, op2, pch, stl, su2, unv, vtk, vtu};
 
 use super::{Format, Omission, Options, ReadResult, Stage};
 

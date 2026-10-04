@@ -28,17 +28,20 @@ same result type for both caexfer and filesystem operations.
 
 ## Choose the right representation
 
+Import adapters from `caexfer::formats`, such as `caexfer::formats::vtu`.
+The role directories under `src/formats/` are internal source organization.
+
 | Need | Start with | Outcome |
 | --- | --- | --- |
-| Extract supported BDF geometry | `bdf::mesh::read(bytes)` or `bdf::mesh::read_from(reader, max_bytes)` | `GeometryProjection { mesh, omissions, has_nonbasic_output_frame }` |
-| Read a mesh and numeric results | `vtu::read`, `msh::read`, or `frd::read` | `core::Dataset` |
-| Read a flat INP mesh | `inp::read` | `Inspection { mesh, omitted_keywords }` |
-| Read an STL triangle surface | `stl::read_projection` | Generated facet-local IDs and explicit source losses |
-| Read SU2 markers or Gmsh physical groups | `su2::read_projection` or `msh::read_projection` | `Mesh` with named boundary cell sets |
-| Read UNV geometry | `unv::read_projection` | Original node and element labels; other datasets reported |
-| Read classic Exodus II | `exodus::read_projection` | Linear blocks, ID maps, complete scalar nodal and element time series |
-| Read one OP2 displacement result | `op2::read_displacements` | `(Dataset, assumed_zero)`; matching `Mesh` required |
-| Read one PCH displacement result | `pch::read` | `Projection { dataset, skipped_blocks }`; matching `Mesh` required |
+| Extract supported BDF geometry | `formats::bdf::mesh::read(bytes)` or `formats::bdf::mesh::read_from(reader, max_bytes)` | `GeometryProjection { mesh, omissions, has_nonbasic_output_frame }` |
+| Read a mesh and numeric results | `formats::vtu::read`, `formats::msh::read`, or `formats::frd::read` | `core::Dataset` |
+| Read a flat INP mesh | `formats::inp::read` | `Inspection { mesh, omitted_keywords }` |
+| Read an STL triangle surface | `formats::stl::read_projection` | Generated facet-local IDs and explicit source losses |
+| Read SU2 markers or Gmsh physical groups | `formats::su2::read_projection` or `formats::msh::read_projection` | `Mesh` with named boundary cell sets |
+| Read UNV geometry | `formats::unv::read_projection` | Original node and element labels; other datasets reported |
+| Read classic Exodus II | `formats::exodus::read_projection` | Linear blocks, ID maps, complete scalar nodal and element time series |
+| Read one OP2 displacement result | `formats::op2::read_displacements` | `(Dataset, assumed_zero)`; matching `Mesh` required |
+| Read one PCH displacement result | `formats::pch::read` | `Projection { dataset, skipped_blocks }`; matching `Mesh` required |
 | Convert a file and inspect losses | `conversion::convert_path` | Caller-owned output stream and `ConversionReport` |
 
 `core::Mesh` contains positive point and cell IDs plus named node and cell sets.
@@ -54,7 +57,8 @@ represent every field.
 ## Project BDF geometry
 
 ```rust
-use caexfer::{bdf, core::Result};
+use caexfer::core::Result;
+use caexfer::formats::bdf;
 
 fn main() -> Result<()> {
     let input = std::fs::File::open("model.bdf")?;
@@ -110,7 +114,8 @@ For direct control over format-specific features, call an adapter:
 Read a supported ASCII VTU piece and write its mesh and fields as Gmsh MSH 4.1:
 
 ```rust
-use caexfer::{core::Result, msh, vtu};
+use caexfer::core::Result;
+use caexfer::formats::{msh, vtu};
 
 fn main() -> Result<()> {
     let source = std::fs::read_to_string("results.vtu")?;
@@ -139,17 +144,17 @@ stages no-clobber output. If those attributes matter, check the
 
 | Output | Library call | Input |
 | --- | --- | --- |
-| Geometry-only BDF | `bdf::mesh::write(&mesh, writer)` | `&Mesh` |
-| VTU | `vtu::write(&mesh, writer)` or `vtu::write_data(&dataset, writer)` | `&Mesh` or `&Dataset` |
-| Legacy VTK | `vtk::write(&mesh, writer)` or `vtk::write_data(&dataset, writer)` | `&Mesh` or `&Dataset` |
-| MSH 4.1 / 2.2 | `msh::write(&dataset, writer)` or `msh::write_version(&dataset, version, writer)` | `&Dataset` |
-| Geometry-only INP | `inp::write(&mesh, writer)` | `&Mesh` |
-| FRD | `frd::write(&dataset, writer)` | `&Dataset` with supported nodal fields |
-| OP2 | `op2::write_displacements(...)` | One real displacement field; native Rust writer |
-| STL | `stl::write_data(&dataset, writer)` or `stl::write_ascii(&dataset, writer)` | Triangle surface without numeric fields, properties, or named sets |
-| SU2 | `su2::write_data(&dataset, writer)` | 2D/3D mesh with named boundary cell sets; no numeric fields or property IDs |
-| UNV geometry | `unv::write_data(&dataset, writer)` | Six supported linear cell families; no pyramids |
-| Classic Exodus II | `exodus::write_data(&dataset, writer)` | One cell dimension, topology blocks, scalar time series |
+| Geometry-only BDF | `formats::bdf::mesh::write(&mesh, writer)` | `&Mesh` |
+| VTU | `formats::vtu::write(&mesh, writer)` or `formats::vtu::write_data(&dataset, writer)` | `&Mesh` or `&Dataset` |
+| Legacy VTK | `formats::vtk::write(&mesh, writer)` or `formats::vtk::write_data(&dataset, writer)` | `&Mesh` or `&Dataset` |
+| MSH 4.1 / 2.2 | `formats::msh::write(&dataset, writer)` or `formats::msh::write_version(&dataset, version, writer)` | `&Dataset` |
+| Geometry-only INP | `formats::inp::write(&mesh, writer)` | `&Mesh` |
+| FRD | `formats::frd::write(&dataset, writer)` | `&Dataset` with supported nodal fields |
+| OP2 | `formats::op2::write_displacements(...)` | One real displacement field; native Rust writer |
+| STL | `formats::stl::write_data(&dataset, writer)` or `formats::stl::write_ascii(&dataset, writer)` | Triangle surface without numeric fields, properties, or named sets |
+| SU2 | `formats::su2::write_data(&dataset, writer)` | 2D/3D mesh with named boundary cell sets; no numeric fields or property IDs |
+| UNV geometry | `formats::unv::write_data(&dataset, writer)` | Six supported linear cell families; no pyramids |
+| Classic Exodus II | `formats::exodus::write_data(&dataset, writer)` | One cell dimension, topology blocks, scalar time series |
 
 The BDF and INP exporters emit mesh exchange decks, not runnable solver
 models. FRD rounds ASCII values. Each writer can reject a dataset that is
@@ -159,10 +164,12 @@ structurally valid but outside that format's supported subset.
 
 The OP2 adapter reads a bounded 32-bit real OUGV1 subset directly. To read,
 first project the matching BDF into a basic-frame mesh, then pass the OP2 bytes
-and mesh to `op2::read_displacements`:
+and mesh to `formats::op2::read_displacements`:
 
 ```rust
-use caexfer::{bdf, core::Result, op2};
+use caexfer::core::Result;
+use caexfer::formats::{bdf, op2};
+
 fn main() -> Result<()> {
     let input = std::fs::File::open("model.bdf")?;
     let projection = bdf::mesh::read_from(input, 256 * 1024 * 1024)?;
@@ -182,23 +189,24 @@ fn main() -> Result<()> {
 The low-level OP2 reader accepts any validated `Mesh` with matching node IDs.
 Its caller must ensure basic-frame coordinates and displacement components.
 All GRID CD values in a BDF must be zero because OP2 displacements in
-nonbasic output frames are not transformed. Check `has_nonbasic_output_frame` before calling
-the adapter; the file-level conversion API performs this check for BDF and
+nonbasic output frames are not transformed. Check `has_nonbasic_output_frame`
+before calling the adapter; the file-level conversion API performs this check for BDF and
 requires an explicit assertion for the other formats. The returned boolean marks
 an explicitly assumed all-zero table. The OP2 file contains results but no
 mesh. The write function returns bytes; the caller chooses how to persist them
 and must keep a matching mesh separately. See [`SUPPORT.md`](SUPPORT.md) for
 subcase, step, component, precision, and synthetic-result limits.
 
-For text results, call `pch::read(&source, &mesh, subcase, step)` with a
+For text results, call `formats::pch::read(&source, &mesh, subcase, step)` with a
 matching mesh. Its `Projection` contains one normalized displacement field
 and the number of other result block headers skipped. The file-level API
 enforces the same BDF frame check as OP2. PCH has no writer.
 
 All `read` functions report `core::Error` with a stable `code` and optional
 one-based source `line`. Human-readable `message` wording is not a stable
-interface. `bdf::mesh::read_from` takes an explicit byte limit. Other format readers accept source text or bytes supplied by the caller;
-bound file reads yourself. Library writers use caller-owned streams and can
+interface. `formats::bdf::mesh::read_from` takes an explicit byte limit. Other
+format readers accept source text or bytes supplied by the caller; bound file
+reads yourself. Library writers use caller-owned streams and can
 leave partial output after an I/O error. Use a temporary file and rename or
 another persistence policy appropriate to your application, or use the CLI's
 staged output behavior.

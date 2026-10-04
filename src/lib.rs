@@ -2,14 +2,14 @@
 //!
 //! [`conversion::convert_path`] provides format selection and a typed report of
 //! omissions and assumptions. [`core::Mesh`] holds geometry and original IDs;
-//! [`core::Dataset`] adds complete numeric fields. Format modules expose scoped
-//! readers and writers. [`bdf::mesh::read`] projects supported BDF geometry.
-//! See the [library guide] for format contracts and installation instructions.
+//! [`core::Dataset`] adds complete numeric fields. [`formats`] exposes scoped
+//! readers and writers. [`formats::bdf::mesh::read`] projects supported BDF
+//! geometry. See the [library guide] for format contracts and installation.
 //!
 //! [library guide]: https://github.com/cmccomb/caexfer/blob/main/docs/LIBRARY.md
 //!
 //! ```
-//! use caexfer::{bdf, vtu};
+//! use caexfer::formats::{bdf, vtu};
 //! let projection = bdf::mesh::read("GRID,1,,0,0,0\nGRID,2,,1,0,0\nCROD,10,7,1,2\n")?;
 //! for omission in &projection.omissions {
 //!     eprintln!("{}: {}", omission.category, omission.detail);
@@ -25,35 +25,6 @@
 //! after an I/O failure. The CLI provides staged, no-clobber file output.
 #![warn(missing_docs)]
 
-#[path = "formats/solver_inputs/bdf/mod.rs"]
-pub mod bdf;
 pub mod conversion;
 pub mod core;
-
-#[path = "formats/solver_inputs/inp.rs"]
-pub mod inp;
-
-#[path = "formats/geometry_only/stl.rs"]
-pub mod stl;
-#[path = "formats/geometry_only/su2.rs"]
-pub mod su2;
-#[path = "formats/geometry_only/unv.rs"]
-pub mod unv;
-
-#[path = "formats/mesh_datasets/exodus.rs"]
-pub mod exodus;
-#[path = "formats/mesh_datasets/frd.rs"]
-pub mod frd;
-#[path = "formats/mesh_datasets/msh.rs"]
-pub mod msh;
-#[path = "formats/mesh_datasets/vtk.rs"]
-pub mod vtk;
-#[path = "formats/mesh_datasets/vtu.rs"]
-pub mod vtu;
-
-#[path = "formats/companion_results/nastran_result.rs"]
-mod nastran_result;
-#[path = "formats/companion_results/op2/mod.rs"]
-pub mod op2;
-#[path = "formats/companion_results/pch.rs"]
-pub mod pch;
+pub mod formats;

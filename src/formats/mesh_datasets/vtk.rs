@@ -683,7 +683,7 @@ pub fn write(mesh: &Mesh, writer: impl Write) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::bdf;
+    use crate::formats::bdf;
 
     /// Round-trip legacy VTK topology, original IDs, and numeric arrays.
     #[test]

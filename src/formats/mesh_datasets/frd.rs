@@ -96,7 +96,8 @@ fn label(value: &str, limit: usize, what: &str) -> Result<()> {
 /// # Examples
 ///
 /// ```
-/// use caexfer::{core::Dataset, frd, inp};
+/// use caexfer::core::Dataset;
+/// use caexfer::formats::{frd, inp};
 /// let mesh = inp::read("*NODE\n1,0,0,0\n2,1,0,0\n*ELEMENT, TYPE=T3D2\n10,1,2\n")?.mesh;
 /// let mut bytes = Vec::new();
 /// frd::write(&Dataset { mesh, fields: vec![] }, &mut bytes)?;
@@ -718,10 +719,11 @@ mod tests {
     /// Round-trip every supported FRD linear cell family in one dataset.
     #[test]
     fn all_supported_linear_topologies_roundtrip_in_one_file() {
-        let mut mesh =
-            crate::bdf::mesh::read(include_bytes!("../../../tests/fixtures/mixed-linear.bdf"))
-                .unwrap()
-                .mesh;
+        let mut mesh = crate::formats::bdf::mesh::read(include_bytes!(
+            "../../../tests/fixtures/mixed-linear.bdf"
+        ))
+        .unwrap()
+        .mesh;
         mesh.cells.retain(|cell| cell.kind != CellKind::Pyramid5);
         for cell in &mut mesh.cells {
             cell.property_id = None;

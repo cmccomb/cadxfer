@@ -81,6 +81,9 @@ caexfer = { git = "https://github.com/cmccomb/caexfer.git" }
 
 For a local checkout, use `caexfer = { path = "../caexfer" }` instead.
 
+Format adapters live at paths such as `caexfer::formats::vtu` and
+`caexfer::formats::msh`. The role directories in the source tree are internal.
+
 Convert a VTU file to MSH and inspect the conversion report:
 
 ```rust

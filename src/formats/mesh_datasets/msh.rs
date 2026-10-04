@@ -275,7 +275,8 @@ fn attach_node_sets(
 /// # Examples
 ///
 /// ```
-/// use caexfer::{core::Dataset, inp, msh};
+/// use caexfer::core::Dataset;
+/// use caexfer::formats::{inp, msh};
 /// let mesh = inp::read("*NODE\n1,0,0,0\n2,1,0,0\n*ELEMENT, TYPE=T3D2\n10,1,2\n")?.mesh;
 /// let mut bytes = Vec::new();
 /// msh::write(&Dataset { mesh, fields: vec![] }, &mut bytes)?;
@@ -1040,7 +1041,7 @@ mod tests {
             .cell_sets
             .retain(|set| set.dimension == 1);
         let mut output = Vec::new();
-        crate::su2::write_data(&boundary_only, &mut output).unwrap();
+        crate::formats::su2::write_data(&boundary_only, &mut output).unwrap();
         assert!(
             std::str::from_utf8(&output)
                 .unwrap()

@@ -17,9 +17,9 @@ Measured on 2026-10-04 with Rust 1.99.0, cargo-llvm-cov 0.8.7, and pyNastran
 
 | Measure | Covered / total | Coverage |
 | --- | ---: | ---: |
-| Rust source lines | 8,119 / 8,999 | 90.22% |
-| Rust source regions | 12,822 / 14,564 | 88.04% |
-| Rust functions | 627 / 865 | 72.49% |
+| Rust source lines | 8,123 / 9,003 | 90.23% |
+| Rust source regions | 12,825 / 14,567 | 88.04% |
+| Rust functions | 628 / 866 | 72.52% |
 
 The run executed 142 Rust tests, the independent CLI interoperability checks,
 and 76 conversion routes across BDF, VTU, legacy VTK, MSH 4.1/2.2, INP, FRD,

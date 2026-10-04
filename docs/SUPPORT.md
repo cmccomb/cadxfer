@@ -115,7 +115,8 @@ welding. Facet normals and nonstandard binary attribute bytes are reported as
 source omissions. Units are not inferred.
 
 The default writer emits binary STL with float32 coordinates and unit normals
-computed from written triangle winding. The library also offers `stl::write_ascii`
+computed from written triangle winding. The library also offers
+`caexfer::formats::stl::write_ascii`
 with f64 coordinate text. Only triangle cells are accepted; volume meshes are
 not silently reduced to their boundary. Numeric fields, properties, IDs, and
 shared-vertex identity have no STL mapping and are reported as destination
