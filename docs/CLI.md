@@ -30,17 +30,19 @@ JSON/human display of non-UTF-8 paths is lossy, not an exact path serialization.
 | `formats` | Actual read/write capabilities, not a roadmap |
 | `info INPUT` | Record counts and whether geometry projection is available |
 | `validate INPUT` | BDF geometry diagnostics or supported mesh/field subset checks |
-| `convert INPUT OUTPUT --accept-projection` | Explicit mesh/field projection to BDF, VTU, legacy VTK, MSH, INP, FRD, or OP2 when the source has suitable results |
+| `convert INPUT OUTPUT --accept-projection` | Explicit projection to any writable format listed by `caexfer formats`, subject to that format's supported geometry and fields |
 
 Input extensions are `.bdf`, `.nas`, `.dat`, `.pch`, `.vtu`, `.vtk`, `.msh`, `.inp`,
-`.frd`, and `.op2` (case-insensitive). `--from FORMAT` overrides the extension;
+`.frd`, `.op2`, `.stl`, `.su2`, `.unv`, `.exo`, `.e`, and `.exodus`
+(case-insensitive). `--from FORMAT` overrides the extension;
 this is not content autodetection. `.pch` selects the read-only PCH results
 adapter. Output extension selects the writer.
 MSH input version is detected from `$MeshFormat`; `--msh-version 2.2` selects
 2.2 output, while 4.1 remains the default. The option also applies to an MSH
 companion written through `--mesh-out`.
-`--mesh FILE` supplies geometry when reading OP2 or PCH. It accepts BDF, VTU, VTK, MSH,
-INP, or FRD with the same node IDs as the displacement table. BDF input
+`--mesh FILE` supplies geometry when reading OP2 or PCH. The companion must
+carry original node IDs that match the displacement table; generated one-based
+IDs are rejected. BDF input
 verifies `GRID CD=0`. The other formats do not carry that check, so
 `--assume-basic-frame` explicitly asserts that both mesh coordinates and result
 displacements use the basic frame. Any fields in the companion file are ignored.

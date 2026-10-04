@@ -99,8 +99,9 @@ fn main() -> Result<()> {
 ```
 
 `Options` sets source format, result selection, and byte limits. For OP2 or PCH input,
-set `mesh` to a matching BDF, VTU, VTK, MSH,
-INP, or FRD file. Set `assume_basic_frame` for a non-BDF companion only when
+set `mesh` to a matching mesh file with original node IDs. A mesh whose node IDs
+were assigned during import cannot verify Nastran GRID identity.
+Set `assume_basic_frame` for a non-BDF companion only when
 its coordinates and the result displacements are known to use the basic frame.
 `read_path` returns a `ReadResult` if an application needs
 to inspect or modify the dataset before calling `conversion::convert`. The
@@ -149,6 +150,8 @@ stages no-clobber output. If those attributes matter, check the
 | Geometry-only INP | `inp::write(&mesh, writer)` | `&Mesh` |
 | FRD | `frd::write(&dataset, writer)` | `&Dataset` with supported nodal fields |
 | OP2 | `op2::write_displacements(...)` | One real displacement field; native Rust writer |
+| STL | `stl::write_data(&dataset, writer)` or `stl::write_ascii(&dataset, writer)` | Triangle surface without numeric fields, properties, or named sets |
+| SU2 | `su2::write_data(&dataset, writer)` | 2D/3D mesh with named boundary cell sets; no numeric fields or property IDs |
 | UNV geometry | `unv::write_data(&dataset, writer)` | Six supported linear cell families; no pyramids |
 | Classic Exodus II | `exodus::write_data(&dataset, writer)` | One cell dimension, topology blocks, scalar time series |
 

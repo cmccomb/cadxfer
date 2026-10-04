@@ -49,38 +49,18 @@ files must be new; the CLI never overwrites an existing path.
 
 ## Conversion routes
 
-[![Schematic of BDF, VTU, VTK, MSH, INP, FRD, OP2, and PCH representations](https://raw.githubusercontent.com/cmccomb/caexfer/main/assets/conversion-flow.svg)](https://github.com/cmccomb/caexfer/blob/main/assets/conversion-flow.svg)
+`caexfer formats` lists the current readers and writers. Mesh sources can be
+converted when the destination supports their cell types and data. VTU, legacy
+VTK, MSH, and classic Exodus carry numeric fields within their documented
+subsets; FRD carries nodal fields. BDF, INP, STL, SU2, and UNV provide narrower
+geometry routes. MSH physical groups become named selections, and SU2 carries
+named boundary markers. OP2 and PCH displacement results require a companion
+mesh with original node IDs; OP2 can write a selected displacement table, while
+PCH is read-only.
 
-The figure and matrix summarize the original mesh and result routes. STL is
-available for triangle surfaces. SU2 carries named boundary markers, including
-those read from Gmsh physical groups. UNV carries linear geometry and original
-IDs; other datasets are reported as omissions. Classic Exodus carries a
-linear mesh and complete scalar time series. See the
-[format limits](https://github.com/cmccomb/caexfer/blob/main/docs/SUPPORT.md)
-for their conversion contracts.
-
-| From ↓ / To →           | BDF | VTU | VTK | MSH 4.1/2.2 | INP | FRD | OP2 (+ optional mesh) |
-|-------------------------|-----|-----|-----|-------------|-----|-----|-----------------------|
-| **BDF**                 | M   | M   | M   | M           | M   | M†  | Z                     |
-| **VTU**                 | M   | F   | F   | F           | M   | F†  | D‡                    |
-| **VTK legacy**          | M   | F   | F   | F           | M   | F†  | D‡                    |
-| **MSH 4.1/2.2**         | M   | F   | F   | F           | M   | F†  | D‡                    |
-| **INP**                 | M   | M   | M   | M           | M   | M†  | Z                     |
-| **FRD**                 | M   | F   | F   | F           | M   | F†  | D‡                    |
-| **OP2 + matching mesh** | M*  | F*  | F*  | F*          | M*  | F*† | D*‡                   |
-| **PCH + matching mesh** | M*  | F*  | F*  | F*          | M*  | F*† | D*‡                   |
-
-| Key   | Result                                                                                                                                                                                                                                                                                                                                |
-|-------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **M** | Linear mesh projection with original node and element IDs.                                                                                                                                                                                                                                                                            |
-| **F** | Mesh plus supported numeric fields.                                                                                                                                                                                                                                                                                                   |
-| **D** | One real displacement table written to OP2 in Rust.                                                                                                                                                                                                                                                                                   |
-| **Z** | Synthetic OP2 with six float-zero displacement components per node; requires `--assume-zero-displacement` and labels its values as assumed, not solver results.                                                                                                                                                                       |
-| `*`   | Reading OP2 or PCH requires `--mesh` with a matching BDF, VTU, VTK, MSH, INP, or FRD mesh. Node IDs must match; results cannot verify companion coordinates or cells. BDF verifies `GRID CD=0`. Other formats require `--assume-basic-frame`.                                                                                         |
-| `†`   | FRD does not support five-node pyramids; its output can carry nodal fields and rounds ASCII values to six significant digits. `‡` OP2 writing requires one selected three- or six-component `DISP` field. If rotations are absent, `--zero-missing-rotations` explicitly asserts they are float zero; otherwise the conversion fails. |
-
-The [format limits](https://github.com/cmccomb/caexfer/blob/main/docs/SUPPORT.md)
-describe supported cells, result subsets, omissions, and resource limits.
+Every conversion returns a receipt of source omissions, destination omissions,
+and explicit assumptions. The [format limits](https://github.com/cmccomb/caexfer/blob/main/docs/SUPPORT.md)
+explain topology, field, group, and result restrictions for each adapter.
 
 ## Rust library
 

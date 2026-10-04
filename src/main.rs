@@ -35,7 +35,7 @@ OPTIONS
   -V, --version               Show version
 
 NASTRAN RESULT OPTIONS
-  --mesh FILE                 Matching BDF, VTU, VTK, MSH, INP, or FRD mesh for OP2/PCH input
+  --mesh FILE                 Companion mesh with original node IDs for OP2/PCH input
   --assume-basic-frame        Assert basic frame for non-BDF mesh and result
   --subcase N                 Select a displacement subcase when reading
 OP2 OUTPUT OPTIONS
