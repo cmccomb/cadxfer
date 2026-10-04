@@ -707,9 +707,6 @@
     <path d="M1029.576022 363.211782 A500 500 0 0 1 1076.772729 446.631678" stroke="#c95618" stroke-width="12"/>
     <path d="M1029.576022 363.211782 A500 500 0 0 1 1076.772729 446.631678" stroke="#ff9d27" stroke-width="7"/>
     <path d="M1086.790213 470.816025 1087.735274 441.750839 1065.810183 451.512518Z" fill="#ff9d27" stroke="#c95618" stroke-width="3" stroke-linejoin="round"/>
-    <path d="M1116.273076 589.065328 A500 500 0 0 1 1115.134034 719.586550" stroke="#c95618" stroke-width="12"/>
-    <path d="M1116.273076 589.065328 A500 500 0 0 1 1115.134034 719.586550" stroke="#ff9d27" stroke-width="7"/>
-    <path d="M1110.813592 745.404498 1127.017251 721.256628 1103.250818 717.916473Z" fill="#ff9d27" stroke="#c95618" stroke-width="3" stroke-linejoin="round"/>
   </g>
 
   <g id="cube-card" transform="translate(326.107374 245.491503) rotate(-12) scale(.85) translate(-322 -215)">
@@ -739,11 +736,6 @@
     <ellipse cx="1085" cy="401" rx="14" ry="7" fill="#dce0e3" stroke="#535b68" stroke-width="4"/>
     <ellipse cx="1058" cy="462" rx="8" ry="11" transform="rotate(-27 1058 462)" fill="#58616f" stroke="#444b59" stroke-width="3"/>
     <ellipse cx="1106" cy="460" rx="8" ry="11" transform="rotate(27 1106 460)" fill="#58616f" stroke="#444b59" stroke-width="3"/>
-  </g>
-  <g id="graph-card" transform="translate(1105.147863 529.039052) rotate(12) scale(.85) translate(-1080 -643)">
-    <use xlink:href="#file" x="1005" y="548" width="150" height="190"/>
-    <path d="M1037 681h100m-91-1v-91" fill="none" stroke="#505868" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
-    <path d="M1047 665q23 2 39-21 17-25 28-28 16-4 19 32 2 15 11 17" fill="none" stroke="#505868" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
   </g>
 
   <!-- Happy Ferris from rustacean.net; source and CC0 notice: assets/FERRIS.md. -->
@@ -933,6 +925,20 @@
       <path d="M0 0 C1.57 -0.04 3.13 -0.08 4.75 -0.12 C5.63 -0.15 6.51 -0.17 7.42 -0.2 C10 0 10 0 14 2 C14 5 14 5 11 9 C9.16 7.69 7.33 6.38 5.5 5.06 C4.48 4.33 3.46 3.6 2.41 2.85 C1.61 2.24 0.82 1.63 0 1 C0 0.67 0 0.34 0 0 Z " fill="#A59595" transform="translate(130,259)"/>
       <path d="M0 0 C-0.99 0.33 -1.98 0.66 -3 1 C-3 1.66 -3 2.32 -3 3 C-7.86 5.01 -11.71 6.4 -17 6 C-12.92 -2.16 -8.17 -1.2 0 0 Z " fill="#F9EED4" transform="translate(706,357)"/>
     </g>
+  </g>
+
+  <!-- The outgoing arrow lands on top of the receiving stack. -->
+  <g id="outgoing-arrow" fill="none" stroke-linecap="round">
+    <path d="M1116.273076 589.065328 A500 500 0 0 1 1115.134034 719.586550" stroke="#c95618" stroke-width="12"/>
+    <path d="M1116.273076 589.065328 A500 500 0 0 1 1115.134034 719.586550" stroke="#ff9d27" stroke-width="7"/>
+    <path d="M1110.813592 745.404498 1127.017251 721.256628 1103.250818 717.916473Z" fill="#ff9d27" stroke="#c95618" stroke-width="3" stroke-linejoin="round"/>
+  </g>
+
+  <!-- The graph card covers the outgoing arrow at its source. -->
+  <g id="graph-card" transform="translate(1105.147863 529.039052) rotate(12) scale(.85) translate(-1080 -643)">
+    <use xlink:href="#file" x="1005" y="548" width="150" height="190"/>
+    <path d="M1037 681h100m-91-1v-91" fill="none" stroke="#505868" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M1047 665q23 2 39-21 17-25 28-28 16-4 19 32 2 15 11 17" fill="none" stroke="#505868" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
   </g>
 
   <!-- Vector paths traced at source resolution from the generated laptop. -->
