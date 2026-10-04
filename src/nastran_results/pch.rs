@@ -8,7 +8,7 @@ use crate::nastran_result;
 use std::collections::BTreeMap;
 
 /// One selected punch result and count of other result blocks skipped.
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Projection {
     /// Companion mesh and one normalized displacement field.
     pub dataset: Dataset,

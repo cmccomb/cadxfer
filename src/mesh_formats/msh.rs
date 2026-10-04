@@ -5,17 +5,18 @@ use std::fmt::Write as _;
 use std::io::Write;
 
 /// Output dialect for the shared MSH format family.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub enum Version {
     /// Traditional flat node and element sections.
     V2_2,
 
-    /// Entity-block node and element sections.
+    /// Entity-block node and element sections; the default output dialect.
+    #[default]
     V4_1,
 }
 
 /// Mesh projection and count of ignored 2.2 element tag lists.
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Projection {
     /// Complete supported geometry and numeric fields.
     pub dataset: Dataset,

@@ -44,7 +44,7 @@ pub struct Omission {
 }
 
 /// Geometry extracted from a BDF plus a report of discarded semantics.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct GeometryProjection {
     /// Supported points and linear cells with their original IDs.
     pub mesh: Mesh,

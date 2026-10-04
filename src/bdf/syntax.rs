@@ -9,7 +9,7 @@ use crate::core::{Error, Result};
 /// Resource limits apply before semantic interpretation. No INCLUDE is opened.
 /// Reduce these limits when accepting untrusted or unusually large input; they
 /// bound source bytes, physical lines, cards, and fields independently.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ParseOptions {
     /// Maximum input bytes (default: 256 MiB).
     pub max_bytes: usize,

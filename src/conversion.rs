@@ -157,7 +157,7 @@ fn extension(path: &Path) -> String {
 /// Defaults detect the input format from its extension, bound reads to the BDF
 /// parser's default byte limit, and do not silently assert a Nastran result frame
 /// or missing rotation values.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Options {
     /// Override source extension detection.
     pub input_format: Option<Format>,
@@ -248,7 +248,7 @@ impl Omission {
 /// Supported source data and its read-side omissions.
 /// The `dataset` is a projection; `omissions` explains what was not carried
 /// from the source format. Retain the original file when those details matter.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ReadResult {
     /// Detected or explicitly selected source format.
     pub format: Format,
@@ -266,7 +266,8 @@ pub struct ReadResult {
 /// Counts and omissions for one conversion.
 /// `fields` counts fields before destination filtering, while `omissions`
 /// records source losses, destination losses, and explicit assumptions.
-#[derive(Debug, Clone)]
+/// The default is an empty report with zero counts.
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct ConversionReport {
     /// Number of source mesh points.
     pub points: usize,
@@ -825,7 +826,7 @@ pub fn convert(
             }
             msh::write_version(
                 dataset,
-                options.msh_version.unwrap_or(msh::Version::V4_1),
+                options.msh_version.unwrap_or_default(),
                 &mut writer,
             )?;
         }

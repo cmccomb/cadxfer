@@ -9,7 +9,7 @@ use std::io::Write;
 use std::str::SplitWhitespace;
 
 /// A legacy VTK projection and whether missing source IDs needed allocation.
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Projection {
     /// Mesh and complete numeric fields.
     pub dataset: Dataset,

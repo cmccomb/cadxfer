@@ -113,6 +113,7 @@ impl From<Error> for Diagnostic {
 
 /// Findings from validation of a documented subset, not solver correctness.
 /// Warnings leave a report valid *within its stated scope*; errors do not.
+/// The default report has no findings.
 ///
 /// # Examples
 ///
@@ -130,7 +131,7 @@ impl From<Error> for Diagnostic {
 /// report.diagnostics[0].severity = Severity::Error;
 /// assert!(!report.valid_in_scope());
 /// ```
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct ValidationReport {
     /// Findings in source order.
     pub diagnostics: Vec<Diagnostic>,

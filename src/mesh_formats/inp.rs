@@ -39,7 +39,7 @@ fn name(kind: CellKind) -> &'static str {
 ///
 /// Inspect [`Self::omitted_keywords`] before projecting the mesh to another
 /// format; these cards are not represented by [`Mesh`].
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Inspection {
     /// Global nodes and linear elements from supported blocks.
     pub mesh: Mesh,
