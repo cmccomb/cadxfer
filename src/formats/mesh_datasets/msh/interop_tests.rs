@@ -1,6 +1,6 @@
 //! Opt-in external Gmsh import gate, enabled by `CAEXFER_GMSH=gmsh`.
-use caexfer::core::{Cell, CellKind, Dataset, Mesh, Point};
-use caexfer::formats::{bdf, msh, stl};
+use crate::core::{Cell, CellKind, Dataset, Mesh, Point};
+use crate::formats::{bdf, msh, stl};
 use std::collections::BTreeMap;
 use std::fs;
 use std::process::Command;
@@ -168,9 +168,11 @@ fn gmsh_imports_msh22_all_linear_topologies() {
     let Ok(gmsh) = std::env::var("CAEXFER_GMSH") else {
         return;
     };
-    let mut mesh = bdf::mesh::read(include_bytes!("fixtures/mixed-linear.bdf"))
-        .unwrap()
-        .mesh;
+    let mut mesh = bdf::mesh::read(include_bytes!(
+        "../../../../tests/fixtures/mixed-linear.bdf"
+    ))
+    .unwrap()
+    .mesh;
     for cell in &mut mesh.cells {
         cell.property_id = None;
     }

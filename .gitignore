@@ -1,6 +1,7 @@
 /target/
 /dist/
 /Cargo.lock
+/model.vtu
 *.tmp
 __pycache__/
 .DS_Store

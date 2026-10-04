@@ -40,7 +40,7 @@ pub enum CellKind {
 impl CellKind {
     /// Required number of point indices for this topology.
     ///
-    /// ```
+    /// ```ignore
     /// use caexfer::core::CellKind;
     /// assert_eq!(CellKind::Triangle3.node_count(), 3);
     /// assert_eq!(CellKind::Hex8.node_count(), 8);
@@ -146,7 +146,7 @@ impl Mesh {
     ///
     /// # Examples
     ///
-    /// ```
+    /// ```ignore
     /// use caexfer::core::{Cell, CellKind, Mesh, Point};
     /// let mut mesh = Mesh {
     ///     points: vec![

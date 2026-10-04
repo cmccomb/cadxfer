@@ -1,7 +1,7 @@
-//! Public BDF geometry tests, including malformed input and lossy projection.
+//! BDF geometry parser tests, including malformed input and lossy projection.
 
-use caexfer::core::CellKind;
-use caexfer::formats::bdf;
+use crate::core::CellKind;
+use crate::formats::bdf;
 use std::fmt::Write as _;
 
 /// Small deck with stable GRID and element IDs for read/write checks.

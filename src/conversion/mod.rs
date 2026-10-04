@@ -11,7 +11,10 @@ mod read;
 mod report;
 mod write;
 
+#[cfg(test)]
+mod tests;
+
 pub use format::{Format, Options};
 pub use read::read_path;
-pub use report::{AssumptionKind, ConversionReport, Omission, ReadResult, Stage};
+pub use report::{AssumptionKind, CompanionReport, ConversionReport, Omission, ReadResult, Stage};
 pub use write::{convert, convert_path};

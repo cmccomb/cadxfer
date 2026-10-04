@@ -11,7 +11,7 @@ USAGE
 
 COMMANDS
   validate  Check supported data, counts, and omissions
-  convert   Write a supported projection to a new file
+  convert   Write a supported projection to an output file
 
 Run 'caexfer COMMAND --help' for options and examples.
 
@@ -49,7 +49,7 @@ EXAMPLES
 ";
 
 /// Explain conversion in the order users choose source, destination, and receipt.
-const CONVERT: &str = "caexfer convert: write a supported projection to a new file
+const CONVERT: &str = "caexfer convert: write a supported projection to an output file
 
 USAGE
   caexfer convert INPUT OUTPUT [OPTIONS]
@@ -64,6 +64,7 @@ INPUT OPTIONS
 DESTINATION OPTIONS
   --msh-version 2.2|4.1      MSH output dialect (default: 4.1)
   --mesh-out FILE            Write a companion mesh alongside OP2 output
+  --overwrite                Replace an existing regular file (single output only)
 
 ACCEPTANCE OPTIONS
   --accept-omissions        Accept reported source and destination losses
@@ -76,7 +77,9 @@ GENERAL OPTIONS
   --json                     Return the report as JSON (schema_version=1)
   -h, --help                 Show this command's help
 
-OUTPUT is selected by its extension. Existing files are never overwritten.
+OUTPUT is selected by its extension. Existing files require --overwrite.
+Replacement occurs after conversion and acceptance; it does not imply acceptance.
+--overwrite cannot be used with --mesh-out or to replace the input file.
 Conversions with reported losses or assumptions list them and ask for
 confirmation. In a noninteractive session, pass the listed acceptance flags.
 

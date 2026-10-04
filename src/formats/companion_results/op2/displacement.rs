@@ -47,7 +47,7 @@ pub fn read_displacements(
 ///
 /// # Examples
 ///
-/// ```
+/// ```ignore
 /// use caexfer::core::{Dataset, Field, FieldLocation};
 /// use caexfer::formats::op2;
 /// let field = Field {

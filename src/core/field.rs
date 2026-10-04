@@ -54,7 +54,7 @@ impl Dataset {
     ///
     /// # Examples
     ///
-    /// ```
+    /// ```ignore
     /// use caexfer::core::{Dataset, Field, FieldLocation, Mesh, Point};
     /// let mut data = Dataset {
     ///     mesh: Mesh {

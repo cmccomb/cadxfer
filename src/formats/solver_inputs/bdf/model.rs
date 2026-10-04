@@ -309,7 +309,17 @@ impl ParsedBdf {
                 "GRID" => match self.parse_grid(card) {
                     Ok(grid) => {
                         if grid.cp != 0 {
-                            report.diagnostics.push(Error::new("E_COORDINATE_SYSTEM", format!("GRID {} uses CP={}; v0.1 does not resolve coordinate systems", grid.id, grid.cp)).at(grid.line).into());
+                            report.diagnostics.push(
+                                Error::new(
+                                    "E_COORDINATE_SYSTEM",
+                                    format!(
+                                        "GRID {} uses CP={}; coordinates are local and caexfer cannot transform them to the basic frame. Resolve the frame with a trusted BDF preprocessor before conversion; approval flags cannot bypass this error",
+                                        grid.id, grid.cp
+                                    ),
+                                )
+                                .at(grid.line)
+                                .into(),
+                            );
                         }
                         if grid.seid != 0 {
                             report.diagnostics.push(Error::new("E_SUPERELEMENT", format!("GRID {} uses SEID={}; superelements are unsupported", grid.id, grid.seid)).at(grid.line).into());

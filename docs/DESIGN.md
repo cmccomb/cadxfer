@@ -8,20 +8,22 @@ writing. `src/formats/` groups adapters by role: `solver_inputs/` holds BDF
 and INP; `geometry_only/` holds STL, SU2, and UNV; `mesh_datasets/` holds
 Exodus, FRD, MSH, VTK, and VTU; and `companion_results/` holds OP2, PCH, and
 their shared displacement projection. OP2's record codec lives in its own
-subdirectory. `src/formats/mod.rs` exposes every adapter directly under
-`caexfer::formats`, so callers do not depend on role folders. `src/cli/`
-contains parsing, dispatch, JSON rendering, and staged output. `src/main.rs`
-only starts the private CLI.
+subdirectory. Format adapters and intermediate mesh types are private to the
+crate. `src/api/` separates file conversion and validation while `src/lib.rs`
+exposes only those operations plus supporting options and reports. `src/file_output/`
+owns staged file installation. `src/cli/` parses flags, calls the two library operations,
+renders receipts, and holds converted files privately until interactive approval.
+`src/main.rs` starts the CLI without compiling another copy of the engine.
 Each `mod.rs` is a module map; implementation and tests live in the files it
 declares. CLI arguments, conversion, validation, and dispatch have separate
 files, as do OP2 binary records and displacement handling.
 
 ## Project deliberately
 
-BDF parsing is internal to its geometry adapter. The public reader returns a
-mesh and omission report, refuses unknown geometry-affecting inputs, and never
-invents units or coordinate transformations. Its writer emits a new geometry
-deck. It does not copy or validate a complete solver model.
+BDF parsing is internal to its geometry adapter. The file-level operations
+report omissions, refuse unknown geometry-affecting inputs, and never invent
+units or coordinate transformations. BDF output is a new geometry deck; it
+does not copy or validate a complete solver model.
 
 ## Projected datasets
 
@@ -74,8 +76,11 @@ nothing about solver-model correctness. Opaque solver cards appear as omissions.
 
 Input reads are bounded. INCLUDE is an inert native record, not permission to
 traverse the filesystem. Format adapters do not spawn tools.
-Outputs use a new filename; the CLI stages writes and refuses an existing path.
-The library writes to caller-provided streams and documents partial-I/O behavior.
+Both the CLI and public library stage writes and refuse an existing path by
+default. For single-file conversions, the CLI can replace an existing regular
+file with `--overwrite` after conversion and acceptance. The library remains
+no-clobber. The internal stream writers may leave partial output in their
+caller-owned streams after an I/O failure.
 
 ## What remains to earn a wider claim
 

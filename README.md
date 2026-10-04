@@ -29,23 +29,6 @@ Add the published library to your Rust project:
 cargo add caexfer
 ```
 
-For the latest development commit, install from GitHub or add a Git dependency:
-
-```sh
-cargo install --git https://github.com/cmccomb/caexfer.git
-cargo add caexfer --git https://github.com/cmccomb/caexfer.git
-```
-
-A local checkout can also be used as a path dependency.
-
-The examples below use fixtures from a repository checkout. Clone it to get
-the inputs, then run the examples from its root:
-
-```sh
-git clone https://github.com/cmccomb/caexfer.git
-cd caexfer
-```
-
 The CLI and library can perform the same conversions. This sequence carries
 nodal results from FRD through VTU to Gmsh MSH 2.2, then reads PCH results
 with a matching BDF mesh.
@@ -62,48 +45,39 @@ caexfer convert tests/fixtures/pch-multiple.pch displacements.vtu \
 **Rust library**
 
 ```rust
-use caexfer::conversion::{convert_path, Format, Options};
-use caexfer::core::Result;
-use caexfer::formats::msh;
-use std::fs::OpenOptions;
-use std::path::Path;
+use caexfer::{MshVersion, Options, Result, convert, validate};
 
-fn convert_file(input: &str, output: &str, format: Format, options: &Options) -> Result<()> {
-    let file = OpenOptions::new().write(true).create_new(true).open(output)?;
-    let report = convert_path(Path::new(input), format, options, file)?;
+fn main() -> Result<()> {
+    let source = validate("tests/fixtures/linear-results.frd", &Options::default())?;
+    assert!(source.passed);
+    let report = convert("tests/fixtures/linear-results.frd", "results.vtu",
+                         &Options { accept_omissions: true, ..Options::default() })?;
     for notice in report.omissions {
         eprintln!("{}: {}", notice.stage.name(), notice.detail);
     }
-    Ok(())
-}
-
-fn main() -> Result<()> {
-    convert_file("tests/fixtures/linear-results.frd", "results.vtu",
-                 Format::Vtu, &Options::default())?;
-    convert_file("results.vtu", "results.msh", Format::Msh,
-                 &Options {
-                     msh_version: Some(msh::Version::V2_2),
-                     ..Options::default()
-                 })?;
-    convert_file("tests/fixtures/pch-multiple.pch", "displacements.vtu",
-                 Format::Vtu,
-                 &Options {
-                     mesh: Some("tests/fixtures/pch-companion.bdf".into()),
-                     subcase: Some(1),
-                     ..Options::default()
-                 })?;
+    convert("results.vtu", "results.msh", &Options {
+        msh_version: Some(MshVersion::V2_2),
+        accept_omissions: true,
+        ..Options::default()
+    })?;
+    convert("tests/fixtures/pch-multiple.pch", "displacements.vtu", &Options {
+        mesh: Some("tests/fixtures/pch-companion.bdf".into()),
+        subcase: Some(1),
+        accept_omissions: true,
+        ..Options::default()
+    })?;
     Ok(())
 }
 ```
 
+The two public library operations use the same supported-subset checks and
+default no-clobber file output as the CLI. Conversion omissions and assumptions
+require explicit options before a file is installed. See the
+[library guide](docs/LIBRARY.md) and [format limits](docs/SUPPORT.md).
+
 `convert` lists reported losses and assumptions before asking for confirmation.
 For scripts, pass the specific `--accept-...` flags named in that list, or use
 `--accept-all` to accept every reported change.
-The library returns the same receipt and writes to a caller-owned stream.
-Output files must be new in these examples. The CLI stages output before
-installation; library callers own their output policy. OP2 and PCH routes run
-in Rust without a Python installation. In a checkout, `cargo run --` can replace
-the installed `caexfer` command.
 
 ## Conversion routes
 
@@ -117,17 +91,3 @@ geometry routes. MSH physical groups become named selections, and SU2 carries
 named boundary markers. OP2 and PCH displacement results require a companion
 mesh with original node IDs; OP2 can write a selected displacement table, while
 PCH is read-only.
-
-Every conversion returns a receipt of source omissions, destination omissions,
-and explicit assumptions. The [format limits](https://github.com/cmccomb/caexfer/blob/main/docs/SUPPORT.md)
-explain topology, field, group, and result restrictions for each adapter.
-
-Format adapters live at paths such as `caexfer::formats::vtu` and
-`caexfer::formats::msh`. See the
-[API documentation](https://docs.rs/caexfer) for public items and the
-[library guide](https://github.com/cmccomb/caexfer/blob/main/docs/LIBRARY.md)
-for conversion workflows.
-
-Licensed under MIT OR Apache-2.0. The imported pyNastran fixtures retain their
-upstream BSD license;
-see [fixture provenance](https://github.com/cmccomb/caexfer/blob/main/tests/fixtures/PROVENANCE.md).

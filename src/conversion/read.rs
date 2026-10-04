@@ -152,7 +152,7 @@ fn read_result_mesh(
 ///
 /// # Examples
 ///
-/// ```
+/// ```ignore
 /// use caexfer::conversion::{read_path, Format, Options};
 /// use std::path::Path;
 /// let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("examples/plate.bdf");

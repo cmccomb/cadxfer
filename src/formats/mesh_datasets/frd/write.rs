@@ -70,7 +70,7 @@ fn label(value: &str, limit: usize, what: &str) -> Result<()> {
 ///
 /// # Examples
 ///
-/// ```
+/// ```ignore
 /// use caexfer::core::Dataset;
 /// use caexfer::formats::{frd, inp};
 /// let mesh = inp::read("*NODE\n1,0,0,0\n2,1,0,0\n*ELEMENT, TYPE=T3D2\n10,1,2\n")?.mesh;

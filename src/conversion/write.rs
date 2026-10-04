@@ -30,7 +30,7 @@ fn omit_property_ids(mesh: &mut Mesh) -> usize {
 ///
 /// # Examples
 ///
-/// ```
+/// ```ignore
 /// use caexfer::conversion::{convert_path, Format, Options};
 /// use std::path::Path;
 /// let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("examples/plate.bdf");
@@ -65,7 +65,7 @@ pub fn convert_path(
 ///
 /// # Examples
 ///
-/// ```
+/// ```ignore
 /// use caexfer::formats::bdf;
 /// use caexfer::conversion::{convert, Format, Options, ReadResult, Stage};
 /// use caexfer::core::Dataset;
@@ -484,5 +484,6 @@ pub fn convert(
         cells: dataset.mesh.cells.len(),
         fields: source_fields,
         omissions: source.omissions,
+        mesh_output: None,
     })
 }

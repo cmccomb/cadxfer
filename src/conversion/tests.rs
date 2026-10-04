@@ -1,11 +1,11 @@
-//! Public conversion tests for supported routes, omissions, and assertions.
+//! Conversion-engine tests for supported routes, omissions, and assertions.
 
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use caexfer::conversion::{self, Format, Options, ReadResult, Stage};
-use caexfer::core::{CellSet, Field, FieldLocation, NodeSet};
+use crate::conversion::{self, Format, Options, ReadResult, Stage};
+use crate::core::{CellSet, Field, FieldLocation, NodeSet};
 
 static NEXT_SCRATCH: AtomicU64 = AtomicU64::new(0);
 
@@ -44,7 +44,7 @@ impl Drop for Scratch {
 fn inp_generators_fail_instead_of_projecting_incomplete_geometry() {
     for generator in ["*NGEN\n1,3,1\n", "*ELGEN\n10,3,1\n"] {
         let input = format!("*NODE\n1,0,0,0\n2,1,0,0\n*ELEMENT, TYPE=T3D2\n10,1,2\n{generator}");
-        let error = caexfer::formats::inp::read(&input).unwrap_err();
+        let error = crate::formats::inp::read(&input).unwrap_err();
         assert_eq!(error.code, "E_INP");
         assert!(error.message.contains("expanded geometry"));
     }
@@ -55,13 +55,13 @@ fn inp_generators_fail_instead_of_projecting_incomplete_geometry() {
 fn msh_declared_counts_cannot_allocate_beyond_input() {
     let huge_nodes = "$MeshFormat\n4.1 0 8\n$EndMeshFormat\n$Nodes\n1 1 1 1\n3 1 0 18446744073709551615\n$EndNodes\n$Elements\n0 0 0 0\n$EndElements\n";
     assert_eq!(
-        caexfer::formats::msh::read(huge_nodes).unwrap_err().code,
+        crate::formats::msh::read(huge_nodes).unwrap_err().code,
         "E_MSH"
     );
 
     let huge_elements = "$MeshFormat\n4.1 0 8\n$EndMeshFormat\n$Nodes\n0 0 0 0\n$EndNodes\n$Elements\n1 1 1 1\n1 1 1 18446744073709551615\n$EndElements\n";
     assert_eq!(
-        caexfer::formats::msh::read(huge_elements).unwrap_err().code,
+        crate::formats::msh::read(huge_elements).unwrap_err().code,
         "E_MSH"
     );
 }
@@ -85,7 +85,7 @@ fn public_conversion_reports_source_and_destination_losses() {
             item.stage == Stage::Destination && item.detail.contains("property IDs")
         })
     );
-    let dataset = caexfer::formats::msh::read(std::str::from_utf8(&output).unwrap()).unwrap();
+    let dataset = crate::formats::msh::read(std::str::from_utf8(&output).unwrap()).unwrap();
     assert_eq!(
         (dataset.mesh.points.len(), dataset.mesh.cells.len()),
         (4, 1)
@@ -161,7 +161,7 @@ fn pch_non_bdf_companion_requires_basic_frame_assertion() {
     std::fs::create_dir_all(&folder).unwrap();
     let path = folder.join("mesh.vtu");
     let file = std::fs::File::create(&path).unwrap();
-    caexfer::formats::vtu::write(&mesh, file).unwrap();
+    crate::formats::vtu::write(&mesh, file).unwrap();
     let mut options = Options {
         mesh: Some(path.clone()),
         subcase: Some(1),
@@ -259,7 +259,7 @@ fn named_msh_boundary_survives_su2_conversion() {
         conversion::convert_path(&source, Format::Su2, &Options::default(), &mut output).unwrap();
     assert_eq!((report.points, report.cells), (3, 2));
     let decoded =
-        caexfer::formats::su2::read_projection(std::str::from_utf8(&output).unwrap()).unwrap();
+        crate::formats::su2::read_projection(std::str::from_utf8(&output).unwrap()).unwrap();
     assert_eq!(decoded.dataset.mesh.cell_sets.len(), 2);
     assert_eq!(decoded.dataset.mesh.cell_sets[0].name, "inlet");
     assert_eq!(decoded.dataset.mesh.cell_sets[1].name, "outer wall");
@@ -299,7 +299,7 @@ fn unv_geometry_route_reports_native_omissions() {
     let report = conversion::convert(read, Format::Unv, &Options::default(), &mut output).unwrap();
     assert_eq!((report.points, report.cells), (9, 6));
     let decoded =
-        caexfer::formats::unv::read_projection(std::str::from_utf8(&output).unwrap()).unwrap();
+        crate::formats::unv::read_projection(std::str::from_utf8(&output).unwrap()).unwrap();
     assert_eq!(decoded.dataset.mesh.cells[5].id, 6);
 
     let pyramid = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/gmsh-2.2-mixed.msh");
@@ -340,7 +340,7 @@ fn classic_exodus_route_preserves_scalar_results_and_reports_blocks() {
             .iter()
             .any(|item| item.detail.contains("generated from cell topology"))
     );
-    let reread = caexfer::formats::exodus::read_projection(&output, Some(1)).unwrap();
+    let reread = crate::formats::exodus::read_projection(&output, Some(1)).unwrap();
     assert_eq!(reread.dataset.fields.len(), 2);
     assert_eq!(reread.dataset.fields[1].values, [20.0, 21.0]);
 }
@@ -405,7 +405,7 @@ fn geometry_outputs_receipt_fields_properties_and_group_losses() {
         );
     }
     assert_eq!(
-        caexfer::formats::su2::read_projection(std::str::from_utf8(&su2).unwrap())
+        crate::formats::su2::read_projection(std::str::from_utf8(&su2).unwrap())
             .unwrap()
             .dataset
             .mesh
@@ -431,7 +431,7 @@ fn geometry_outputs_receipt_fields_properties_and_group_losses() {
         );
     }
     assert_eq!(
-        caexfer::formats::unv::read_projection(std::str::from_utf8(&unv).unwrap())
+        crate::formats::unv::read_projection(std::str::from_utf8(&unv).unwrap())
             .unwrap()
             .dataset
             .mesh
@@ -447,7 +447,7 @@ fn classic_exodus_and_stl_report_destination_projection() {
     let stl = b"solid surface\nfacet normal 0 0 1\nouter loop\nvertex 0 0 0\nvertex 1 0 0\nvertex 0 1 0\nendloop\nendfacet\nendsolid surface\n";
     let mut read = ReadResult {
         format: Format::Stl,
-        dataset: caexfer::formats::stl::read_projection(stl).unwrap().dataset,
+        dataset: crate::formats::stl::read_projection(stl).unwrap().dataset,
         omissions: Vec::new(),
         generated_point_ids: true,
         assumed_zero: false,
@@ -493,7 +493,7 @@ fn classic_exodus_and_stl_report_destination_projection() {
             .iter()
             .any(|item| item.detail.contains("block IDs are generated"))
     );
-    let projected = caexfer::formats::exodus::read_projection(&classic, None)
+    let projected = crate::formats::exodus::read_projection(&classic, None)
         .unwrap()
         .dataset;
     assert_eq!(projected.mesh.cells[0].id, 1);
@@ -505,11 +505,9 @@ fn classic_exodus_and_stl_report_destination_projection() {
 fn source_receipts_include_binary_stl_attributes_and_result_titles() {
     let scratch = Scratch::new();
     let ascii = b"solid sample\nfacet normal 0 0 1\nouter loop\nvertex 0 0 0\nvertex 1 0 0\nvertex 0 1 0\nendloop\nendfacet\nendsolid sample\n";
-    let dataset = caexfer::formats::stl::read_projection(ascii)
-        .unwrap()
-        .dataset;
+    let dataset = crate::formats::stl::read_projection(ascii).unwrap().dataset;
     let mut binary = Vec::new();
-    caexfer::formats::stl::write_data(&dataset, &mut binary).unwrap();
+    crate::formats::stl::write_data(&dataset, &mut binary).unwrap();
     binary[132] = 1;
     let stl = scratch.write("attributes.stl", binary);
     let read = conversion::read_path(&stl, &Options::default()).unwrap();
@@ -556,15 +554,11 @@ fn geometry_only_writers_reject_fields_while_conversion_reports_them() {
     for (format, input) in inputs {
         let mut dataset = match format {
             Format::Stl => {
-                caexfer::formats::stl::read_projection(input.as_bytes())
+                crate::formats::stl::read_projection(input.as_bytes())
                     .unwrap()
                     .dataset
             }
-            Format::Su2 => {
-                caexfer::formats::su2::read_projection(input)
-                    .unwrap()
-                    .dataset
-            }
+            Format::Su2 => crate::formats::su2::read_projection(input).unwrap().dataset,
             _ => unreachable!(),
         };
         dataset.fields.push(Field {
@@ -577,8 +571,8 @@ fn geometry_only_writers_reject_fields_while_conversion_reports_them() {
         });
         assert_eq!(
             match format {
-                Format::Stl => caexfer::formats::stl::write_data(&dataset, Vec::new()),
-                Format::Su2 => caexfer::formats::su2::write_data(&dataset, Vec::new()),
+                Format::Stl => crate::formats::stl::write_data(&dataset, Vec::new()),
+                Format::Su2 => crate::formats::su2::write_data(&dataset, Vec::new()),
                 _ => unreachable!(),
             }
             .unwrap_err()
@@ -591,7 +585,7 @@ fn geometry_only_writers_reject_fields_while_conversion_reports_them() {
         );
         if format == Format::Stl {
             assert_eq!(
-                caexfer::formats::stl::write_ascii(&dataset, Vec::new())
+                crate::formats::stl::write_ascii(&dataset, Vec::new())
                     .unwrap_err()
                     .code,
                 "E_STL"
@@ -624,21 +618,22 @@ fn geometry_only_writers_reject_fields_while_conversion_reports_them() {
 fn writers_reject_unmapped_properties_while_conversion_reports_them() {
     // The direct writer and the converter have intentionally different
     // contracts for the same unsupported property ID.
-    let stl = caexfer::formats::stl::read_projection(b"solid s\nfacet normal 0 0 1\nouter loop\nvertex 0 0 0\nvertex 1 0 0\nvertex 0 1 0\nendloop\nendfacet\nendsolid s\n")
+    let stl = crate::formats::stl::read_projection(b"solid s\nfacet normal 0 0 1\nouter loop\nvertex 0 0 0\nvertex 1 0 0\nvertex 0 1 0\nendloop\nendfacet\nendsolid s\n")
         .unwrap()
         .dataset;
-    let su2 = caexfer::formats::su2::read_projection(
+    let su2 = crate::formats::su2::read_projection(
         "NDIME= 2\nNELEM= 1\n5 0 1 2\nNPOIN= 3\n0 0\n1 0\n0 1\nNMARK= 0\n",
     )
     .unwrap()
     .dataset;
-    let frd = caexfer::formats::frd::read(include_bytes!("fixtures/linear-results.frd")).unwrap();
+    let frd = crate::formats::frd::read(include_bytes!("../../tests/fixtures/linear-results.frd"))
+        .unwrap();
     for (format, mut dataset) in [(Format::Stl, stl), (Format::Su2, su2), (Format::Frd, frd)] {
         dataset.mesh.cells[0].property_id = Some(17);
         let error = match format {
-            Format::Stl => caexfer::formats::stl::write_data(&dataset, Vec::new()),
-            Format::Su2 => caexfer::formats::su2::write_data(&dataset, Vec::new()),
-            Format::Frd => caexfer::formats::frd::write(&dataset, Vec::new()),
+            Format::Stl => crate::formats::stl::write_data(&dataset, Vec::new()),
+            Format::Su2 => crate::formats::su2::write_data(&dataset, Vec::new()),
+            Format::Frd => crate::formats::frd::write(&dataset, Vec::new()),
             _ => unreachable!(),
         }
         .unwrap_err();
@@ -694,12 +689,12 @@ fn result_companion_frames_and_frd_steps_fail_explicitly() {
     );
 
     let frd_source = root.join("tests/fixtures/linear-results.frd");
-    let mut dataset = caexfer::formats::frd::read(&std::fs::read(&frd_source).unwrap()).unwrap();
+    let mut dataset = crate::formats::frd::read(&std::fs::read(&frd_source).unwrap()).unwrap();
     for field in &mut dataset.fields {
         field.step = Some(1);
     }
     let mut encoded = Vec::new();
-    caexfer::formats::frd::write(&dataset, &mut encoded).unwrap();
+    crate::formats::frd::write(&dataset, &mut encoded).unwrap();
     let frd = scratch.write("step.frd", encoded);
     let options = Options {
         step: Some(1),
@@ -809,7 +804,7 @@ fn external_identity_and_ignored_sections_are_visible_in_receipts() {
         "with-other-result.pch",
         format!(
             "$STRESSES\n10 G 1 2 3\n{}",
-            include_str!("fixtures/pch-multiple.pch")
+            include_str!("../../tests/fixtures/pch-multiple.pch")
         ),
     );
     let root = Path::new(env!("CARGO_MANIFEST_DIR"));
@@ -847,7 +842,7 @@ fn destination_reports_ambiguous_or_dropped_fields() {
         "E_VTU"
     );
     let mut cell_field = source.clone();
-    cell_field.dataset.fields[0].location = caexfer::core::FieldLocation::Cell;
+    cell_field.dataset.fields[0].location = crate::core::FieldLocation::Cell;
     cell_field.dataset.fields[0].values.truncate(3);
     let mut encoded = Vec::new();
     let report =
@@ -868,7 +863,7 @@ fn external_vtu_without_identity_arrays_gets_explicit_stable_ids() {
     let read =
         conversion::read_path(&root.join("examples/plate.bdf"), &Options::default()).unwrap();
     let mut encoded = Vec::new();
-    caexfer::formats::vtu::write(&read.dataset.mesh, &mut encoded).unwrap();
+    crate::formats::vtu::write(&read.dataset.mesh, &mut encoded).unwrap();
     let mut source = String::from_utf8(encoded).unwrap();
     for (start, end) in [
         ("<PointData>", "</PointData>"),
@@ -878,7 +873,7 @@ fn external_vtu_without_identity_arrays_gets_explicit_stable_ids() {
         let last = source.find(end).unwrap() + end.len();
         source.replace_range(first..last, "");
     }
-    let projection = caexfer::formats::vtu::read_projection(&source).unwrap();
+    let projection = crate::formats::vtu::read_projection(&source).unwrap();
     assert!(projection.generated_point_ids);
     assert!(projection.generated_cell_ids);
     let dataset = projection.dataset;

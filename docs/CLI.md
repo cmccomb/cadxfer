@@ -19,7 +19,13 @@ caexfer convert results.frd results.op2 --accept-zero-rotations \
   --mesh-out results-mesh.bdf
 ```
 
-Use a fresh output filename for each command.
+Use a fresh output filename by default. For a single-file conversion, pass
+`--overwrite` to replace an existing regular file after conversion and
+acceptance. For example:
+
+```sh
+caexfer convert model.bdf model.vtu --overwrite --accept-omissions
+```
 
 STL reads triangle surfaces and writes binary STL. SU2 carries named boundary
 markers when the input contains oriented boundary cells and corresponding cell
@@ -90,6 +96,14 @@ is not a terminal, or `--json` is selected, an unaccepted change fails before
 output installation and reports the needed flags. A conversion with no reported
 changes proceeds without confirmation.
 
+Approval applies only after the source can be projected into valid geometry.
+For example, `examples/nonbasic-frame.bdf` has a GRID in `CP=42` and cannot
+be converted: caexfer does not resolve its `CORD2R` frame. Resolve the GRID
+coordinates into the basic frame with a trusted BDF preprocessor first.
+`--accept-all` does not override source errors or unsupported topology. To see
+the approval prompt, run `caexfer convert examples/plate.bdf model.vtu` from
+the repository root in a terminal, using a new output filename.
+
 For `validate` and `convert`, `--json` returns the report on stdout as JSON with
 schema_version=1. Human-readable conversion omission reports go to stderr;
 JSON conversion reports place them in an `omissions` array with each item's
@@ -106,10 +120,15 @@ including an unattended conversion that needs acceptance. Use stable diagnostic
 `code` values rather than parsing human descriptions. The version's code list
 can grow.
 
-The CLI never overwrites an output path and deliberately has no `--force` option
-in 0.1.0. Choose a new filename and review the result. File output requires a
-filesystem supporting hard links. Library writers can be used with other
-persistence policies if the application supplies them deliberately.
+The CLI refuses an existing output path unless `convert --overwrite` is given.
+That flag applies only to a single output file; it cannot be combined with
+`--mesh-out`. It does not accept omissions or assumptions. The CLI stages and
+checks the converted file, obtains any required acceptance, then replaces the
+destination with a same-filesystem rename. It refuses symbolic links,
+nonregular destinations, and output paths that refer to the input file
+(including hard links on Unix). The public `caexfer::convert` operation retains
+its staged, no-clobber installation policy. CLI staging requires a filesystem
+supporting hard links, including when `--overwrite` is used.
 For paired output, the CLI stages both files before installing either. Two
 different filenames cannot be committed atomically: if installing the second
 fails after the OP2 is installed, the error names the OP2 file that remains.

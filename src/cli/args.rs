@@ -3,9 +3,7 @@
 use std::ffi::{OsStr, OsString};
 use std::path::PathBuf;
 
-use caexfer::conversion::Format;
-use caexfer::core::{Error, Result};
-use caexfer::formats::msh;
+use caexfer::{Error, Format, MshVersion, Result};
 
 /// Parsed CLI command, paths, and explicitly supplied option flags.
 #[derive(Debug, Default)]
@@ -16,6 +14,7 @@ pub(super) struct Args {
     pub(super) paths: Vec<PathBuf>,
     pub(super) json: bool,
     pub(super) strict: bool,
+    pub(super) overwrite: bool,
     pub(super) accept_omissions: bool,
     pub(super) accept_basic_frame: bool,
     pub(super) accept_zero_rotations: bool,
@@ -27,7 +26,7 @@ pub(super) struct Args {
     pub(super) subcase: Option<i64>,
     pub(super) step: Option<usize>,
     pub(super) max_bytes: Option<usize>,
-    pub(super) msh_version: Option<msh::Version>,
+    pub(super) msh_version: Option<MshVersion>,
 }
 
 /// Wrap a command-line usage failure with the exit-code-selecting `E_USAGE`.
@@ -186,6 +185,8 @@ pub(super) fn parse_args(raw: &[OsString]) -> Result<Args> {
             set_flag(&mut args.json, "--json")?;
         } else if options && arg == "--strict" {
             set_flag(&mut args.strict, "--strict")?;
+        } else if options && arg == "--overwrite" {
+            set_flag(&mut args.overwrite, "--overwrite")?;
         } else if options && arg == "--accept-omissions" {
             set_flag(&mut args.accept_omissions, "--accept-omissions")?;
         } else if options && arg == "--accept-basic-frame" {
@@ -216,8 +217,8 @@ pub(super) fn parse_args(raw: &[OsString]) -> Result<Args> {
             index += 1;
         } else if options && arg == "--msh-version" {
             set_option(&mut args.msh_version, "--msh-version", || match value(1)? {
-                "2.2" => Ok(msh::Version::V2_2),
-                "4.1" => Ok(msh::Version::V4_1),
+                "2.2" => Ok(MshVersion::V2_2),
+                "4.1" => Ok(MshVersion::V4_1),
                 _ => Err(usage("--msh-version requires 2.2 or 4.1")),
             })?;
             index += 1;
@@ -261,6 +262,12 @@ pub(super) fn parse_args(raw: &[OsString]) -> Result<Args> {
     }
     if args.strict && args.command != "validate" {
         return Err(usage("--strict is only for validate"));
+    }
+    if args.overwrite && args.command != "convert" {
+        return Err(usage("--overwrite is only for convert"));
+    }
+    if args.overwrite && args.mesh_out.is_some() {
+        return Err(usage("--overwrite cannot be used with --mesh-out"));
     }
     if (args.accept_omissions
         || args.accept_zero_rotations
@@ -370,7 +377,7 @@ mod tests {
             "--accept-all",
         ])
         .unwrap();
-        assert_eq!(selected.msh_version, Some(msh::Version::V2_2));
+        assert_eq!(selected.msh_version, Some(MshVersion::V2_2));
         assert!(
             args(&[
                 "convert",

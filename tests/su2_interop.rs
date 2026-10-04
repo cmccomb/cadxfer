@@ -1,6 +1,6 @@
 //! Opt-in native SU2 reader gate, enabled with `CAEXFER_SU2=/path/to/SU2_CFD`.
 
-use caexfer::conversion::{self, Format, Options};
+use caexfer::{Options, convert};
 use std::fs;
 use std::path::Path;
 use std::process::Command;
@@ -16,11 +16,16 @@ fn su2_loads_named_markers_from_gmsh_mesh() {
     fs::create_dir_all(&scratch).unwrap();
     let mesh = scratch.join("triangle.su2");
     let config = scratch.join("check.cfg");
-    let mut bytes = Vec::new();
-    let report =
-        conversion::convert_path(&source, Format::Su2, &Options::default(), &mut bytes).unwrap();
+    let report = convert(
+        &source,
+        &mesh,
+        &Options {
+            accept_all: true,
+            ..Options::default()
+        },
+    )
+    .unwrap();
     assert_eq!(report.cells, 6);
-    fs::write(&mesh, bytes).unwrap();
     fs::write(
         &config,
         "SOLVER= EULER\nMESH_FILENAME= triangle.su2\nMESH_FORMAT= SU2\nMARKER_EULER= ( wall )\nCONV_NUM_METHOD_FLOW= ROE\nMACH_NUMBER= 0.5\nITER= 0\nOUTPUT_FILES= ( RESTART )\n",

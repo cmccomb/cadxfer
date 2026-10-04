@@ -1,30 +1,35 @@
-//! Exchange supported engineering meshes and results with explicit projection reports.
+//! Convert and validate supported engineering mesh and result files.
 //!
-//! [`conversion::convert_path`] provides format selection and a typed report of
-//! omissions and assumptions. [`core::Mesh`] holds geometry and original IDs;
-//! [`core::Dataset`] adds complete numeric fields. [`formats`] exposes scoped
-//! readers and writers. [`formats::bdf::mesh::read`] projects supported BDF
-//! geometry. See the [library guide] for format contracts and installation.
+//! [`convert`] writes a new output file and returns a typed report of omissions
+//! and assumptions. [`validate`] checks the supported source subset without
+//! writing a file. Format adapters and the intermediate mesh model are internal.
+//! See the [library guide] for supported routes and options.
 //!
 //! [library guide]: https://github.com/cmccomb/caexfer/blob/main/docs/LIBRARY.md
 //!
 //! ```
-//! use caexfer::formats::{bdf, vtu};
-//! let projection = bdf::mesh::read("GRID,1,,0,0,0\nGRID,2,,1,0,0\nCROD,10,7,1,2\n")?;
-//! for omission in &projection.omissions {
-//!     eprintln!("{}: {}", omission.category, omission.detail);
-//! }
-//! let mut bytes = Vec::new();
-//! vtu::write(&projection.mesh, &mut bytes)?;
-//! let dataset = vtu::read(std::str::from_utf8(&bytes).unwrap())?;
-//! assert_eq!(dataset.mesh.points.len(), 2);
-//! # Ok::<(), caexfer::core::Error>(())
+//! use caexfer::{Options, validate};
+//! let path = concat!(env!("CARGO_MANIFEST_DIR"), "/examples/plate.bdf");
+//! let report = validate(path, &Options::default())?;
+//! assert!(report.passed);
+//! assert_eq!(report.points, 4);
+//! # Ok::<(), caexfer::Error>(())
 //! ```
-//!
-//! Library writers accept caller-owned streams; they can leave partial output
-//! after an I/O failure. The CLI provides staged, no-clobber file output.
 #![warn(missing_docs)]
 
-pub mod conversion;
-pub mod core;
-pub mod formats;
+#[allow(dead_code, unused_imports)]
+mod conversion;
+#[allow(dead_code, unused_imports)]
+mod core;
+#[allow(dead_code, unused_imports)]
+mod formats;
+
+mod api;
+mod file_output;
+
+pub use api::{ValidationReport, convert, validate};
+pub use conversion::{
+    AssumptionKind, CompanionReport, ConversionReport, Format, Omission, Options, Stage,
+};
+pub use core::{Error, Result};
+pub use formats::msh::Version as MshVersion;

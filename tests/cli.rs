@@ -60,6 +60,7 @@ fn help_and_version_work() {
     assert!(convert.contains("convert INPUT OUTPUT [OPTIONS]"));
     assert!(convert.contains("--accept-omissions"));
     assert!(convert.contains("--accept-all"));
+    assert!(convert.contains("--overwrite"));
     assert!(!convert.contains("Treat following arguments as paths"));
     assert!(convert.contains("--mesh-out FILE"));
     assert!(convert.contains("caexfer --formats"));
@@ -123,6 +124,7 @@ fn refused_conversion_does_not_create_output() {
         Some(2)
     );
     assert!(!s.0.join("mesh.vtu").exists());
+    assert_eq!(std::fs::read_dir(&s.0).unwrap().count(), 1);
 }
 
 /// Write VTU geometry and a machine-readable omission receipt.
@@ -145,6 +147,7 @@ fn geometry_conversion_creates_vtu_and_reports_losses() {
             .unwrap()
             .contains("nastran_node_id")
     );
+    assert_eq!(std::fs::read_dir(&s.0).unwrap().count(), 2);
 }
 
 /// Protect an input file even when selected as the output path.
@@ -158,6 +161,172 @@ fn source_file_is_never_overwritten() {
             .success()
     );
     assert_eq!(before, std::fs::read(s.0.join("mesh.bdf")).unwrap());
+}
+
+/// Existing output requires explicit replacement, which still requires loss approval.
+#[test]
+fn overwrite_replaces_only_after_acceptance() {
+    let s = Scratch::new();
+    let destination = s.0.join("mesh.vtu");
+    std::fs::write(&destination, b"previous output").unwrap();
+
+    assert_eq!(
+        s.run(&["convert", "mesh.bdf", "mesh.vtu", "--accept-all"])
+            .status
+            .code(),
+        Some(1)
+    );
+    assert_eq!(std::fs::read(&destination).unwrap(), b"previous output");
+
+    let unapproved = s.run(&["convert", "mesh.bdf", "mesh.vtu", "--overwrite"]);
+    assert_eq!(unapproved.status.code(), Some(2));
+    assert_eq!(std::fs::read(&destination).unwrap(), b"previous output");
+
+    let invalid = s.run(&[
+        "convert",
+        "missing.bdf",
+        "mesh.vtu",
+        "--overwrite",
+        "--accept-all",
+    ]);
+    assert_eq!(invalid.status.code(), Some(1));
+    assert_eq!(std::fs::read(&destination).unwrap(), b"previous output");
+
+    let replaced = s.run(&[
+        "convert",
+        "mesh.bdf",
+        "mesh.vtu",
+        "--overwrite",
+        "--accept-all",
+    ]);
+    assert!(
+        replaced.status.success(),
+        "{}",
+        String::from_utf8_lossy(&replaced.stderr)
+    );
+    assert!(
+        std::fs::read_to_string(&destination)
+            .unwrap()
+            .contains("nastran_node_id")
+    );
+    assert_eq!(std::fs::read_dir(&s.0).unwrap().count(), 2);
+
+    let fresh = s.run(&[
+        "convert",
+        "mesh.bdf",
+        "fresh.vtu",
+        "--overwrite",
+        "--accept-all",
+    ]);
+    assert!(fresh.status.success());
+    assert!(s.0.join("fresh.vtu").is_file());
+}
+
+/// Replacement never consumes the source or a nonregular destination.
+#[test]
+fn overwrite_rejects_source_and_nonfile_destinations() {
+    let s = Scratch::new();
+    let before = std::fs::read(s.0.join("mesh.bdf")).unwrap();
+    assert_eq!(
+        s.run(&[
+            "convert",
+            "mesh.bdf",
+            "mesh.bdf",
+            "--overwrite",
+            "--accept-all",
+        ])
+        .status
+        .code(),
+        Some(2)
+    );
+    assert_eq!(std::fs::read(s.0.join("mesh.bdf")).unwrap(), before);
+
+    std::fs::create_dir(s.0.join("directory.vtu")).unwrap();
+    assert_eq!(
+        s.run(&[
+            "convert",
+            "mesh.bdf",
+            "directory.vtu",
+            "--overwrite",
+            "--accept-all",
+        ])
+        .status
+        .code(),
+        Some(2)
+    );
+    assert!(s.0.join("directory.vtu").is_dir());
+}
+
+/// Resolve path aliases and hard links before replacing a destination.
+#[cfg(unix)]
+#[test]
+fn overwrite_rejects_source_aliases_and_symlinks() {
+    use std::os::unix::fs::symlink;
+
+    let s = Scratch::new();
+    let before = std::fs::read(s.0.join("mesh.bdf")).unwrap();
+    std::fs::hard_link(s.0.join("mesh.bdf"), s.0.join("linked.bdf")).unwrap();
+    assert_eq!(
+        s.run(&[
+            "convert",
+            "mesh.bdf",
+            "linked.bdf",
+            "--overwrite",
+            "--accept-all",
+        ])
+        .status
+        .code(),
+        Some(2)
+    );
+    assert_eq!(std::fs::read(s.0.join("linked.bdf")).unwrap(), before);
+
+    std::fs::write(s.0.join("unrelated.vtu"), b"unrelated output").unwrap();
+    symlink("unrelated.vtu", s.0.join("linked-symlink.vtu")).unwrap();
+    assert_eq!(
+        s.run(&[
+            "convert",
+            "mesh.bdf",
+            "linked-symlink.vtu",
+            "--overwrite",
+            "--accept-all",
+        ])
+        .status
+        .code(),
+        Some(2)
+    );
+    assert_eq!(std::fs::read(s.0.join("mesh.bdf")).unwrap(), before);
+    assert_eq!(
+        std::fs::read(s.0.join("unrelated.vtu")).unwrap(),
+        b"unrelated output"
+    );
+}
+
+/// Keep paired output installation on its existing no-clobber path.
+#[test]
+fn overwrite_is_rejected_for_paired_outputs_and_validate() {
+    let s = Scratch::new();
+    assert_eq!(
+        s.run(&["validate", "mesh.bdf", "--overwrite"])
+            .status
+            .code(),
+        Some(2)
+    );
+    assert_eq!(
+        s.run(&[
+            "convert",
+            "mesh.bdf",
+            "zeros.op2",
+            "--mesh-out",
+            "zeros.bdf",
+            "--overwrite",
+            "--accept-all",
+        ])
+        .status
+        .code(),
+        Some(2)
+    );
+    assert!(!s.0.join("zeros.op2").exists());
+    assert!(!s.0.join("zeros.bdf").exists());
 }
 
 /// Require a suitable companion format only on Nastran result input.
@@ -621,6 +790,23 @@ fn entry_help_and_bdf_diagnostics_are_visible_to_human_users() {
             .unwrap()
             .contains("E_COORDINATE_SYSTEM")
     );
+}
+
+/// A nonbasic GRID cannot be accepted as an omission or installed as false geometry.
+#[test]
+fn nonbasic_frame_is_a_blocking_source_error_even_with_accept_all() {
+    let s = Scratch::new();
+    let fixture = concat!(env!("CARGO_MANIFEST_DIR"), "/examples/nonbasic-frame.bdf");
+    for flags in [vec![], vec!["--accept-all"]] {
+        let mut args = vec!["convert", fixture, "nonbasic.stl"];
+        args.extend(flags);
+        let result = s.run(&args);
+        assert_eq!(result.status.code(), Some(1));
+        let diagnostic = String::from_utf8(result.stderr).unwrap();
+        assert!(diagnostic.contains("E_COORDINATE_SYSTEM at line 2"));
+        assert!(diagnostic.contains("approval flags cannot bypass this error"));
+        assert!(!s.0.join("nonbasic.stl").exists());
+    }
 }
 
 /// Stage a synthetic OP2 result with an explicitly selected MSH 2.2 mesh.

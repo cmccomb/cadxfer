@@ -60,7 +60,9 @@ jobs:
         if: matrix.os == 'ubuntu-latest' && matrix.rust == 'stable'
         env:
           CAEXFER_GMSH: gmsh
-        run: cargo test --test gmsh_interop --offline
+        run: |
+          cargo test --lib formats::msh::interop_tests --offline
+          cargo test --test unv_interop --offline
       - name: Execute independent CLI interoperability checks
         run: python scripts/check_interop.py
       - name: Check core conversion matrix

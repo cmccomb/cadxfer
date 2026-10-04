@@ -115,13 +115,12 @@ and leaves vertices facet-local; it does not infer shared nodes by coordinate
 welding. Facet normals and nonstandard binary attribute bytes are reported as
 source omissions. Units are not inferred.
 
-The default writer emits binary STL with float32 coordinates and unit normals
-computed from written triangle winding. The library also offers
-`caexfer::formats::stl::write_ascii`
-with f64 coordinate text. Only triangle cells are accepted; volume meshes are
+The writer emits binary STL with float32 coordinates and unit normals
+computed from written triangle winding. Only triangle cells are accepted; volume meshes are
 not silently reduced to their boundary. Numeric fields, properties, IDs, and
 shared-vertex identity have no STL mapping and are reported as destination
-losses by conversion. Direct writers reject numeric fields, property IDs, and named sets.
+losses by conversion. Invalid fields, property IDs, and named sets are rejected
+before writing.
 Degenerate facets and values that overflow or underflow
 binary float32 fail.
 
@@ -163,7 +162,7 @@ The writer requires every lower-dimensional cell to belong to a named marker
 set. It does not invent a marker for an ungrouped face or extract a volume
 boundary. A 2D mesh must have z=0. Node sets, interior cell sets, properties,
 numeric fields, and source IDs cannot be encoded; conversion reports these
-losses. The direct writer rejects numeric fields, property IDs, and unsupported sets. Marker names carry no
+losses. Invalid fields, property IDs, and unsupported sets are rejected. Marker names carry no
 boundary-condition values. An opt-in test converts a Gmsh-generated named
 boundary mesh and verifies the output with SU2_CFD 8.4.0.
 
@@ -196,10 +195,10 @@ variables are reported as omissions. Units and result frames are not inferred.
 The writer requires one cell dimension and complete scalar time series with
 explicit contiguous steps and times. It creates one block per cell kind,
 preserves original IDs through number maps, and reports that block identity is
-generated. Named sets and property IDs are reported and omitted by conversion;
-the direct writer rejects them. Multi-component fields fail until a declared
+generated. Named sets and property IDs are reported and omitted by conversion.
+Multi-component fields fail until a declared
 component-name mapping exists. Output is capped at an estimated 256 MiB; the
-caller owns the output stream. The fixture is generated with Unidata `ncgen`,
+public library stages its output file. The fixture is generated with Unidata `ncgen`,
 and exported files have also been read by independent `ncdump` and meshio.
 
 ### Abaqus/CalculiX INP
@@ -250,7 +249,7 @@ this read route. The OP2 writer accepts one named `DISP`/`DISPLACEMENT` nodal
 field with three or six real components. Three-component displacements have
 unknown rotations. The CLI proposes filling R1/R2/R3 with typed float `0.0`,
 reports the fill, and requires confirmation or `--accept-zero-rotations`.
-The library writer still requires an explicit option. OP2 has six numeric slots,
+The library operation requires `Options.zero_missing_rotations`. OP2 has six numeric slots,
 not a typed null marker. The writer
 emits a single static or one-time transient MSC-style real displacement table
 in Rust. CI independently rereads written files with pyNastran. Values use float32;
@@ -305,9 +304,13 @@ Defaults: 256 MiB input, 1 MiB per line, two million physical lines, two million
 cards, and 65,536 indexed fields per card. These are rejection thresholds, not
 a hard total-memory budget. Use OS process limits for hostile or very large data.
 
-The CLI creates a temporary file in the destination directory, flushes/syncs it,
-then installs a new destination via a hard link. Existing destinations are never
-replaced. A filesystem without hard-link support receives an explicit error;
-there is no unsafe fallback. This provides staged no-clobber writes, not a
-cross-platform transactional filesystem or guaranteed power-loss durability.
-The library's stream writers leave persistence policy to their callers.
+The public converter stages, flushes, and syncs output before installing a new
+file via a hard link. The CLI first converts into a private sibling directory
+and obtains any required acceptance. By default, it links the completed file
+into a new destination; a filesystem without hard-link support receives an
+explicit error during staging. For a single output, `convert --overwrite` uses a
+same-filesystem rename to replace an existing regular file after approval.
+The CLI refuses symbolic-link and nonregular replacement destinations, input
+aliases, and `--overwrite` with `--mesh-out`. This is not a cross-platform
+transactional filesystem or guaranteed power-loss durability. The public
+`caexfer::convert` operation retains its staged, no-clobber policy.

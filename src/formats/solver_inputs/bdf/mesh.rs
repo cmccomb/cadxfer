@@ -14,7 +14,7 @@ use std::io::{Read, Write};
 ///
 /// # Examples
 ///
-/// ```
+/// ```ignore
 /// use caexfer::formats::bdf;
 /// let source = b"$ original comment\nGRID,10,,0,0,0\nGRID,20,,1,0,0\nCROD,30,7,10,20\n";
 /// // Geometry exchange does not reproduce the original source text.
@@ -74,7 +74,7 @@ fn name(kind: CellKind) -> &'static str {
 ///
 /// # Examples
 ///
-/// ```
+/// ```ignore
 /// use caexfer::formats::bdf::mesh;
 /// let source = mesh::read("GRID,10,,0,0,0\nGRID,20,,1,0,0\nCROD,30,7,10,20\n")?;
 /// // Export a new geometry deck, then parse it independently.

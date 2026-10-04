@@ -3,8 +3,7 @@
 use std::io::Write;
 use std::path::Path;
 
-use caexfer::conversion::{Format, Options};
-use caexfer::core::Result;
+use caexfer::{Format, Options, Result};
 
 use super::args::Args;
 use super::json::quote;
@@ -41,5 +40,10 @@ pub(super) fn conversion_options(args: &Args) -> Result<Options> {
         max_bytes: args.max_bytes.unwrap_or(Options::default().max_bytes),
         msh_version: args.msh_version,
         zero_missing_rotations: args.accept_zero_rotations,
+        accept_omissions: args.accept_omissions || args.accept_all,
+        accept_synthetic_zero: args.accept_synthetic_zero || args.accept_all,
+        mesh_output: args.mesh_out.clone(),
+        strict: args.strict,
+        accept_all: args.accept_all,
     })
 }

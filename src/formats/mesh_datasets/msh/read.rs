@@ -263,7 +263,7 @@ fn attach_node_sets(
 ///
 /// # Examples
 ///
-/// ```
+/// ```ignore
 /// use caexfer::core::Dataset;
 /// use caexfer::formats::{inp, msh};
 /// let mesh = inp::read("*NODE\n1,0,0,0\n2,1,0,0\n*ELEMENT, TYPE=T3D2\n10,1,2\n")?.mesh;

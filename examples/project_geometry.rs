@@ -1,16 +1,20 @@
-//! Run: `cargo run --example project_geometry`
-use caexfer::core::Result;
-use caexfer::formats::{bdf, vtu};
+//! Run: `cargo run --example project_geometry -- OUTPUT.vtu`
+use caexfer::{Options, Result, convert};
 
 fn main() -> Result<()> {
-    let projection = bdf::mesh::read("GRID,1,,0,0,0\nGRID,2,,1,0,0\nCROD,10,7,1,2\n")?;
-
-    // Surface losses before writing the projected mesh to stdout.
-    for omission in &projection.omissions {
-        eprintln!("{}: {}", omission.category, omission.detail);
+    let output = std::env::args_os()
+        .nth(1)
+        .ok_or_else(|| caexfer::Error::new("E_USAGE", "supply a new output .vtu path"))?;
+    let report = convert(
+        "examples/plate.bdf",
+        &output,
+        &Options {
+            accept_omissions: true,
+            ..Options::default()
+        },
+    )?;
+    for omission in report.omissions {
+        eprintln!("{}: {}", omission.stage.name(), omission.detail);
     }
-
-    // Stream the projected geometry.
-    vtu::write(&projection.mesh, std::io::stdout())?;
     Ok(())
 }

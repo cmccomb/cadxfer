@@ -3,7 +3,7 @@
 use std::ffi::OsString;
 use std::io::Write;
 
-use caexfer::core::Result;
+use caexfer::Result;
 
 use super::args::{Args, parse_args};
 use super::common::emit;

@@ -3,8 +3,7 @@
 use std::collections::BTreeSet;
 use std::io::{BufRead, IsTerminal, Write};
 
-use caexfer::conversion::{AssumptionKind, ConversionReport, Omission, Stage};
-use caexfer::core::{Error, Result};
+use caexfer::{AssumptionKind, ConversionReport, Error, Omission, Result, Stage};
 
 use super::args::Args;
 
@@ -38,7 +37,7 @@ fn accepted(args: &Args, flag: &str) -> bool {
 fn confirm_with(
     args: &Args,
     report: &ConversionReport,
-    companion: Option<&ConversionReport>,
+    companion: Option<&[Omission]>,
     interactive: bool,
     input: &mut impl BufRead,
     warning: &mut impl Write,
@@ -46,7 +45,7 @@ fn confirm_with(
     let mut notices: Vec<(&Omission, bool)> =
         report.omissions.iter().map(|item| (item, false)).collect();
     if let Some(companion) = companion {
-        for item in &companion.omissions {
+        for item in companion {
             if !notices.iter().any(|(previous, _)| *previous == item) {
                 notices.push((item, true));
             }
@@ -108,7 +107,7 @@ fn confirm_with(
 pub(super) fn confirm(
     args: &Args,
     report: &ConversionReport,
-    companion: Option<&ConversionReport>,
+    companion: Option<&[Omission]>,
 ) -> Result<()> {
     confirm_with(
         args,
@@ -123,7 +122,7 @@ pub(super) fn confirm(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use caexfer::conversion::{AssumptionKind, Omission};
+    use caexfer::{AssumptionKind, Omission};
 
     /// A prompt lists the exact flag needed for each unaccepted change.
     #[test]

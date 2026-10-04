@@ -89,10 +89,10 @@ impl Format {
     /// Returns `E_FORMAT` for an unknown canonical name.
     ///
     /// ```
-    /// use caexfer::conversion::Format;
+    /// use caexfer::Format;
     /// assert_eq!(Format::parse("VTU")?, Format::Vtu);
     /// assert_eq!(Format::parse("nas").unwrap_err().code, "E_FORMAT");
-    /// # Ok::<(), caexfer::core::Error>(())
+    /// # Ok::<(), caexfer::Error>(())
     /// ```
     pub fn parse(name: &str) -> Result<Self> {
         Self::ALL
@@ -109,11 +109,11 @@ impl Format {
     /// Returns `E_FORMAT` when the suffix has no supported reader.
     ///
     /// ```
-    /// use caexfer::conversion::Format;
+    /// use caexfer::Format;
     /// use std::path::Path;
     /// assert_eq!(Format::from_input_path(Path::new("model.NAS"))?, Format::Bdf);
     /// assert_eq!(Format::from_input_path(Path::new("result.op2"))?, Format::Op2);
-    /// # Ok::<(), caexfer::core::Error>(())
+    /// # Ok::<(), caexfer::Error>(())
     /// ```
     pub fn from_input_path(path: &Path) -> Result<Self> {
         let extension = extension(path);
@@ -137,12 +137,12 @@ impl Format {
     /// Returns `E_FORMAT` when the suffix has no supported writer.
     ///
     /// ```
-    /// use caexfer::conversion::Format;
+    /// use caexfer::Format;
     /// use std::path::Path;
     /// assert_eq!(Format::from_output_path(Path::new("mesh.NAS"))?, Format::Bdf);
     /// assert_eq!(Format::from_output_path(Path::new("mesh.dat")).unwrap_err().code,
     ///            "E_FORMAT");
-    /// # Ok::<(), caexfer::core::Error>(())
+    /// # Ok::<(), caexfer::Error>(())
     /// ```
     pub fn from_output_path(path: &Path) -> Result<Self> {
         let extension = extension(path);
@@ -170,6 +170,7 @@ fn extension(path: &Path) -> String {
 /// and do not silently assert a Nastran result frame
 /// or missing rotation values.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[allow(clippy::struct_excessive_bools)] // Independent conversion assertions and acceptance choices.
 pub struct Options {
     /// Override source extension detection.
     pub input_format: Option<Format>,
@@ -194,6 +195,21 @@ pub struct Options {
 
     /// Assert that absent OP2 R1/R2/R3 components are known float zero.
     pub zero_missing_rotations: bool,
+
+    /// Accept reported source and destination omissions when writing a file.
+    pub accept_omissions: bool,
+
+    /// Permit a synthetic all-zero OP2 table from a result-free BDF or INP.
+    pub accept_synthetic_zero: bool,
+
+    /// Optional geometry companion to write alongside an OP2 result.
+    pub mesh_output: Option<PathBuf>,
+
+    /// Fail validation when the supported projection omits source information.
+    pub strict: bool,
+
+    /// Accept every reported omission and explicit assumption for file output.
+    pub accept_all: bool,
 }
 
 impl Default for Options {
@@ -208,6 +224,11 @@ impl Default for Options {
             max_bytes: 256 * 1024 * 1024,
             msh_version: None,
             zero_missing_rotations: false,
+            accept_omissions: false,
+            accept_synthetic_zero: false,
+            mesh_output: None,
+            strict: false,
+            accept_all: false,
         }
     }
 }

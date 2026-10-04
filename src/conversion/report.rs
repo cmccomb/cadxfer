@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use crate::core::Dataset;
 
 use super::Format;
@@ -111,5 +113,19 @@ pub struct ConversionReport {
     pub fields: usize,
 
     /// Source and destination omissions, including explicit assumptions.
+    pub omissions: Vec<Omission>,
+
+    /// Separate receipt when an OP2 companion mesh is written.
+    pub mesh_output: Option<CompanionReport>,
+}
+
+/// Receipt for a separately written OP2 companion mesh.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CompanionReport {
+    /// Installed companion path.
+    pub path: PathBuf,
+    /// Companion mesh format.
+    pub format: Format,
+    /// Source and destination omissions for the companion.
     pub omissions: Vec<Omission>,
 }

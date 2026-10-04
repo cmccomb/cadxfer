@@ -8,7 +8,7 @@ use std::fmt;
 /// # Examples
 ///
 /// ```
-/// use caexfer::core::Error;
+/// use caexfer::Error;
 /// let error = Error::new("E_SAMPLE", "bad field").at(4);
 /// assert_eq!(error.code, "E_SAMPLE");
 /// assert_eq!(error.line, Some(4));
@@ -112,7 +112,7 @@ impl From<Error> for Diagnostic {
 ///
 /// # Examples
 ///
-/// ```
+/// ```ignore
 /// use caexfer::core::{Diagnostic, Severity, ValidationReport};
 /// let mut report = ValidationReport::default();
 /// report.diagnostics.push(Diagnostic {

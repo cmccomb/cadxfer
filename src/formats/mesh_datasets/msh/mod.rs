@@ -4,6 +4,8 @@ mod read;
 mod write;
 
 #[cfg(test)]
+mod interop_tests;
+#[cfg(test)]
 mod tests;
 
 pub use read::{Projection, read, read_projection};
