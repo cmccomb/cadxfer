@@ -1,0 +1,26 @@
+netcdf exodus_legacy {
+dimensions:
+ num_dim = 3 ;
+ num_nodes = 4 ;
+ num_elem = 1 ;
+ num_el_blk = 1 ;
+ num_el_in_blk1 = 1 ;
+ num_nod_per_el1 = 4 ;
+ num_node_sets = 1 ;
+ num_nod_ns1 = 2 ;
+variables:
+ double coord(num_dim, num_nodes) ;
+ int connect1(num_el_in_blk1, num_nod_per_el1) ;
+   connect1:elem_type = "TETRA" ;
+ int ns_prop1(num_node_sets) ;
+ int node_ns1(num_nod_ns1) ;
+ :title = "Legacy coordinate layout and one node set" ;
+ :api_version = 8.24f ;
+ :version = 8.24f ;
+ :floating_point_word_size = 8 ;
+data:
+ coord = 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 ;
+ connect1 = 1, 2, 3, 4 ;
+ ns_prop1 = 7 ;
+ node_ns1 = 1, 3 ;
+}

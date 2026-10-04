@@ -187,6 +187,27 @@ within signed 32-bit range for Gmsh interoperability; conversion reports
 omitted fields, properties, and named sets. It does not infer units or solver
 semantics. Gmsh 4.15.2 is used for independent input and output checks.
 
+### Exodus II classic
+
+Read/write the NetCDF-3 classic subset in pure Rust. NetCDF-4/HDF5, 64-bit
+integer maps, and files with larger classic variants are outside this reader.
+The reader imports the seven linear cell families from element blocks, original
+node and element IDs from number maps, and complete scalar nodal and element
+variables at every time step or one selected zero-based `--step`. Missing maps
+get one-based IDs and a source notice. A partial element-variable truth table
+fails rather than filling absent values. Block IDs are reported, never mapped
+to solver property IDs. Sets, global variables, metadata, and other unhandled
+variables are reported as omissions. Units and result frames are not inferred.
+
+The writer requires one cell dimension and complete scalar time series with
+explicit contiguous steps and times. It creates one block per cell kind,
+preserves original IDs through number maps, and reports that block identity is
+generated. Named sets and property IDs are reported and omitted by conversion;
+the direct writer rejects them. Multi-component fields fail until a declared
+component-name mapping exists. Output is capped at an estimated 256 MiB; the
+caller owns the output stream. The fixture is generated with Unidata `ncgen`,
+and exported files have also been read by independent `ncdump` and meshio.
+
 ### Abaqus/CalculiX INP
 
 Read global `*NODE` and supported linear `*ELEMENT, TYPE=...` blocks. Node IDs

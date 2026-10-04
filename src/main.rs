@@ -23,10 +23,10 @@ USAGE
   caexfer convert INPUT OUTPUT --accept-projection [--json]
 
 OPTIONS
-  --from FORMAT               bdf, vtu, vtk, msh, inp, frd, op2, pch; else infer extension
+  --from FORMAT               bdf, vtu, vtk, msh, inp, frd, op2, pch, stl, su2, unv, exodus
   --strict                    Fail validation on warnings or omissions
   --accept-projection         Required for conversion into the supported subset
-  --step N                    Zero-based OP2/PCH result step or FRD step number
+  --step N                    Zero-based OP2/PCH/Exodus result step or FRD step number
   --max-bytes N               Input byte limit (default: 268435456)
   --msh-version 2.2|4.1        MSH output dialect (default: 4.1)
   --json                      Machine-readable output (schema_version=1)
@@ -699,6 +699,11 @@ fn run(args: &Args) -> Result<u8> {
                         "ASCII 2411/2412 linear geometry; other datasets reported",
                         "ASCII 2411/2412 linear geometry; pyramids unsupported",
                     ),
+                    (
+                        "exodus",
+                        "NetCDF-3 classic mesh + complete scalar results",
+                        "NetCDF-3 classic mesh + complete scalar results",
+                    ),
                 ];
                 emit(&object([
                     ("schema_version", "1".into()),
@@ -717,7 +722,7 @@ fn run(args: &Args) -> Result<u8> {
                 ]))?;
             } else {
                 emit(
-                    "bdf  document + linear mesh; geometry export\nvtu  ASCII XML mesh + numeric fields, read/write\nvtk  ASCII legacy unstructured grid + numeric fields, read/write\nmsh  ASCII 4.1/2.2 mesh + numeric fields, read/write (output defaults to 4.1)\ninp  flat mesh subset, read/geometry write\nfrd  ASCII mesh + nodal fields, read/write\nop2  32-bit real OUGV1 displacement, read/write; explicit synthetic-zero option; optional companion mesh\npch  ASCII real SORT1 displacement, read-only; matching mesh required\nstl  ASCII/binary triangle surface, binary write; no IDs or fields\nsu2  ASCII mesh and named boundary markers, read/write\nunv  ASCII 2411/2412 linear geometry, read/write; no pyramids",
+                    "bdf  document + linear mesh; geometry export\nvtu  ASCII XML mesh + numeric fields, read/write\nvtk  ASCII legacy unstructured grid + numeric fields, read/write\nmsh  ASCII 4.1/2.2 mesh + numeric fields, read/write (output defaults to 4.1)\ninp  flat mesh subset, read/geometry write\nfrd  ASCII mesh + nodal fields, read/write\nop2  32-bit real OUGV1 displacement, read/write; explicit synthetic-zero option; optional companion mesh\npch  ASCII real SORT1 displacement, read-only; matching mesh required\nstl  ASCII/binary triangle surface, binary write; no IDs or fields\nsu2  ASCII mesh and named boundary markers, read/write\nunv  ASCII 2411/2412 linear geometry, read/write; no pyramids\nexodus  NetCDF-3 classic mesh + complete scalar fields, read/write",
                 )?;
             }
             return Ok(0);

@@ -364,4 +364,66 @@ mod tests {
         data.mesh.cell_sets.clear();
         assert_eq!(write_data(&data, Vec::new()).unwrap_err().code, "E_SU2");
     }
+
+    #[test]
+    fn three_dimensional_linear_cells_round_trip() {
+        let kinds = [
+            CellKind::Tet4,
+            CellKind::Hex8,
+            CellKind::Wedge6,
+            CellKind::Pyramid5,
+        ];
+        let points = (0..8)
+            .map(|index| Point {
+                id: u64::try_from(index + 1).unwrap(),
+                position: [f64::from(u32::try_from(index).unwrap()), 0.0, 0.0],
+            })
+            .collect();
+        let cells = kinds
+            .into_iter()
+            .enumerate()
+            .map(|(index, kind)| Cell {
+                id: u64::try_from(index + 1).unwrap(),
+                kind,
+                connectivity: (0..kind.node_count()).collect(),
+                property_id: None,
+            })
+            .collect();
+        let dataset = Dataset {
+            mesh: Mesh {
+                points,
+                cells,
+                ..Mesh::default()
+            },
+            fields: Vec::new(),
+        };
+        let mut output = Vec::new();
+        write_data(&dataset, &mut output).unwrap();
+        let parsed = read_projection(std::str::from_utf8(&output).unwrap()).unwrap();
+        assert_eq!(parsed.dimension, 3);
+        assert_eq!(parsed.dataset, dataset);
+    }
+
+    #[test]
+    fn positional_indices_and_unrecognized_types_fail() {
+        let base = "NDIME= 2\nNELEM= 1\n5 0 1 2 0\nNPOIN= 3\n0 0 0\n1 0 1\n0 1 2\nNMARK= 0\n";
+        assert_eq!(read_projection(base).unwrap().dataset.mesh.cells.len(), 1);
+        for bad in [
+            base.replace("5 0 1 2 0", "5 0 1 2 9"),
+            base.replace("0 1 2\n", "0 1 9\n"),
+            base.replace("5 0 1 2 0", "99 0 1 2 0"),
+        ] {
+            assert_eq!(read_projection(&bad).unwrap_err().code, "E_SU2");
+        }
+        let quad = "NDIME= 2\nNELEM= 1\n9 0 1 2 3\nNPOIN= 4\n0 0\n1 0\n1 1\n0 1\nNMARK= 0\n";
+        let data = read_projection(quad).unwrap().dataset;
+        let mut output = Vec::new();
+        write_data(&data, &mut output).unwrap();
+        assert_eq!(
+            read_projection(std::str::from_utf8(&output).unwrap())
+                .unwrap()
+                .dataset,
+            data
+        );
+    }
 }

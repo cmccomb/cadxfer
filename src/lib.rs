@@ -31,6 +31,8 @@
 pub mod bdf;
 pub mod conversion;
 pub mod core;
+#[path = "mesh_formats/exodus.rs"]
+pub mod exodus;
 #[path = "mesh_formats/frd.rs"]
 pub mod frd;
 #[path = "mesh_formats/inp.rs"]

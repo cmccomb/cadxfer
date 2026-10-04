@@ -2,7 +2,8 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use caexfer::conversion::{self, Format, Options, Stage};
+use caexfer::conversion::{self, Format, Options, ReadResult, Stage};
+use caexfer::core::{CellSet, Field, FieldLocation, NodeSet};
 
 static NEXT_SCRATCH: AtomicU64 = AtomicU64::new(0);
 
@@ -271,6 +272,281 @@ fn unv_geometry_route_reports_native_omissions() {
             .unwrap_err()
             .code,
         "E_UNV"
+    );
+}
+
+#[test]
+fn classic_exodus_route_preserves_scalar_results_and_reports_blocks() {
+    let source = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/exodus-two-blocks.exo");
+    let read = conversion::read_path(&source, &Options::default()).unwrap();
+    assert_eq!(read.format, Format::Exodus);
+    assert_eq!(
+        (
+            read.dataset.mesh.points.len(),
+            read.dataset.mesh.cells.len(),
+            read.dataset.fields.len()
+        ),
+        (4, 2, 4)
+    );
+    assert!(
+        read.omissions
+            .iter()
+            .any(|item| item.detail.contains("block ID"))
+    );
+    let mut output = Vec::new();
+    let report =
+        conversion::convert(read, Format::Exodus, &Options::default(), &mut output).unwrap();
+    assert_eq!(report.fields, 4);
+    assert!(
+        report
+            .omissions
+            .iter()
+            .any(|item| item.detail.contains("generated from cell topology"))
+    );
+    let reread = caexfer::exodus::read_projection(&output, Some(1)).unwrap();
+    assert_eq!(reread.dataset.fields.len(), 2);
+    assert_eq!(reread.dataset.fields[1].values, [20.0, 21.0]);
+}
+
+#[test]
+fn geometry_outputs_receipt_fields_properties_and_group_losses() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let source = root.join("tests/fixtures/named-boundary.msh");
+    let mut read = conversion::read_path(&source, &Options::default()).unwrap();
+    let first_id = read.dataset.mesh.points[0].id;
+    let surface = read
+        .dataset
+        .mesh
+        .cells
+        .iter()
+        .find(|cell| cell.kind.dimension() == 2)
+        .unwrap()
+        .id;
+    read.dataset.mesh.node_sets.push(NodeSet {
+        name: "pin".into(),
+        point_ids: vec![first_id],
+    });
+    read.dataset.mesh.cell_sets.push(CellSet {
+        name: "interior".into(),
+        dimension: 2,
+        cell_ids: vec![surface],
+    });
+    read.dataset
+        .mesh
+        .cells
+        .iter_mut()
+        .find(|cell| cell.id == surface)
+        .unwrap()
+        .property_id = Some(17);
+    read.dataset.fields.push(Field {
+        name: "TEMPERATURE".into(),
+        location: FieldLocation::Point,
+        components: vec!["C1".into()],
+        values: vec![1.0; read.dataset.mesh.points.len()],
+        step: Some(1),
+        time: Some(0.25),
+    });
+    let mut su2 = Vec::new();
+    let report =
+        conversion::convert(read.clone(), Format::Su2, &Options::default(), &mut su2).unwrap();
+    for phrase in [
+        "numeric field",
+        "node set",
+        "not SU2 boundary",
+        "property IDs",
+        "positional connectivity",
+    ] {
+        assert!(
+            report
+                .omissions
+                .iter()
+                .any(|item| item.detail.contains(phrase)),
+            "missing {phrase}"
+        );
+    }
+    assert_eq!(
+        caexfer::su2::read_projection(std::str::from_utf8(&su2).unwrap())
+            .unwrap()
+            .dataset
+            .mesh
+            .cell_sets
+            .len(),
+        2
+    );
+
+    let mut unv = Vec::new();
+    let report = conversion::convert(read, Format::Unv, &Options::default(), &mut unv).unwrap();
+    for phrase in [
+        "named node set",
+        "named cell set",
+        "numeric field",
+        "property ID",
+    ] {
+        assert!(
+            report
+                .omissions
+                .iter()
+                .any(|item| item.detail.contains(phrase)),
+            "missing {phrase}"
+        );
+    }
+    assert_eq!(
+        caexfer::unv::read_projection(std::str::from_utf8(&unv).unwrap())
+            .unwrap()
+            .dataset
+            .mesh
+            .cells
+            .len(),
+        2
+    );
+}
+
+#[test]
+fn classic_exodus_and_stl_report_destination_projection() {
+    let stl = b"solid surface\nfacet normal 0 0 1\nouter loop\nvertex 0 0 0\nvertex 1 0 0\nvertex 0 1 0\nendloop\nendfacet\nendsolid surface\n";
+    let mut read = ReadResult {
+        format: Format::Stl,
+        dataset: caexfer::stl::read_projection(stl).unwrap().dataset,
+        omissions: Vec::new(),
+        assumed_zero: false,
+    };
+    read.dataset.mesh.cells[0].property_id = Some(7);
+    read.dataset.fields.push(Field {
+        name: "TEMP".into(),
+        location: FieldLocation::Point,
+        components: vec!["C1".into()],
+        values: vec![1.0, 2.0, 3.0],
+        step: Some(1),
+        time: Some(0.0),
+    });
+    let mut binary = Vec::new();
+    let report =
+        conversion::convert(read.clone(), Format::Stl, &Options::default(), &mut binary).unwrap();
+    assert!(
+        report
+            .omissions
+            .iter()
+            .any(|item| item.detail.contains("numeric field"))
+    );
+    assert!(
+        report
+            .omissions
+            .iter()
+            .any(|item| item.detail.contains("property IDs"))
+    );
+    assert_eq!(binary.len(), 134);
+
+    let mut classic = Vec::new();
+    let report =
+        conversion::convert(read, Format::Exodus, &Options::default(), &mut classic).unwrap();
+    assert!(
+        report
+            .omissions
+            .iter()
+            .any(|item| item.detail.contains("property ID"))
+    );
+    assert!(
+        report
+            .omissions
+            .iter()
+            .any(|item| item.detail.contains("block IDs are generated"))
+    );
+    let projected = caexfer::exodus::read_projection(&classic, None)
+        .unwrap()
+        .dataset;
+    assert_eq!(projected.mesh.cells[0].id, 1);
+    assert_eq!(projected.fields[0].values, [1.0, 2.0, 3.0]);
+}
+
+#[test]
+fn source_receipts_include_binary_stl_attributes_and_result_titles() {
+    let scratch = Scratch::new();
+    let ascii = b"solid sample\nfacet normal 0 0 1\nouter loop\nvertex 0 0 0\nvertex 1 0 0\nvertex 0 1 0\nendloop\nendfacet\nendsolid sample\n";
+    let dataset = caexfer::stl::read_projection(ascii).unwrap().dataset;
+    let mut binary = Vec::new();
+    caexfer::stl::write_data(&dataset, &mut binary).unwrap();
+    binary[132] = 1;
+    let stl = scratch.write("attributes.stl", binary);
+    let read = conversion::read_path(&stl, &Options::default()).unwrap();
+    assert!(
+        read.omissions
+            .iter()
+            .any(|item| item.detail.contains("attribute bytes"))
+    );
+
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let titled = format!(
+        "$TITLE = trial\n{}",
+        std::fs::read_to_string(root.join("tests/fixtures/pch-multiple.pch")).unwrap()
+    );
+    let pch = scratch.write("titled.pch", titled);
+    let options = Options {
+        mesh: Some(root.join("tests/fixtures/pch-companion.bdf")),
+        subcase: Some(1),
+        ..Options::default()
+    };
+    let read = conversion::read_path(&pch, &options).unwrap();
+    assert!(
+        read.omissions
+            .iter()
+            .any(|item| item.detail.contains("title, subtitle"))
+    );
+}
+
+#[test]
+fn result_companion_frames_and_frd_steps_fail_explicitly() {
+    let scratch = Scratch::new();
+    let companion = scratch.write(
+        "nonbasic.bdf",
+        "GRID,10,,0,0,0,42\nGRID,20,,1,0,0\nCROD,30,1,10,20\n",
+    );
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let pch = root.join("tests/fixtures/pch-multiple.pch");
+    let options = Options {
+        mesh: Some(companion),
+        subcase: Some(1),
+        ..Options::default()
+    };
+    assert_eq!(
+        conversion::read_path(&pch, &options).unwrap_err().code,
+        "E_PCH"
+    );
+    let options = Options {
+        mesh: Some(root.join("tests/fixtures/solid_bending.op2")),
+        subcase: Some(1),
+        ..Options::default()
+    };
+    assert_eq!(
+        conversion::read_path(&pch, &options).unwrap_err().code,
+        "E_USAGE"
+    );
+
+    let frd_source = root.join("tests/fixtures/linear-results.frd");
+    let mut dataset = caexfer::frd::read(&std::fs::read(&frd_source).unwrap()).unwrap();
+    for field in &mut dataset.fields {
+        field.step = Some(1);
+    }
+    let mut encoded = Vec::new();
+    caexfer::frd::write(&dataset, &mut encoded).unwrap();
+    let frd = scratch.write("step.frd", encoded);
+    let options = Options {
+        step: Some(1),
+        ..Options::default()
+    };
+    assert!(
+        !conversion::read_path(&frd, &options)
+            .unwrap()
+            .dataset
+            .fields
+            .is_empty()
+    );
+    let options = Options {
+        step: Some(99),
+        ..Options::default()
+    };
+    assert_eq!(
+        conversion::read_path(&frd, &options).unwrap_err().code,
+        "E_FRD"
     );
 }
 

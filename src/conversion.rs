@@ -14,7 +14,7 @@ use std::path::{Path, PathBuf};
 
 use crate::bdf::{self, Document, ParseOptions};
 use crate::core::{Dataset, Error, FieldLocation, Mesh, Result};
-use crate::{frd, inp, msh, op2, pch, stl, su2, unv, vtk, vtu};
+use crate::{exodus, frd, inp, msh, op2, pch, stl, su2, unv, vtk, vtu};
 
 /// Supported conversion format.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -51,6 +51,9 @@ pub enum Format {
 
     /// UNV 2411/2412 ASCII geometry datasets.
     Unv,
+
+    /// NetCDF-3 classic Exodus II mesh and complete scalar results.
+    Exodus,
 }
 
 impl Format {
@@ -69,6 +72,7 @@ impl Format {
             Self::Stl => "stl",
             Self::Su2 => "su2",
             Self::Unv => "unv",
+            Self::Exodus => "exodus",
         }
     }
 
@@ -99,6 +103,7 @@ impl Format {
             "stl" => Ok(Self::Stl),
             "su2" => Ok(Self::Su2),
             "unv" => Ok(Self::Unv),
+            "exodus" => Ok(Self::Exodus),
             _ => Err(Error::new(
                 "E_FORMAT",
                 format!("unknown input format {name}"),
@@ -124,8 +129,13 @@ impl Format {
         let extension = extension(path);
         match extension.as_str() {
             "bdf" | "nas" | "dat" => Ok(Self::Bdf),
-            "vtu" | "vtk" | "msh" | "inp" | "frd" | "op2" | "pch" | "stl" | "su2" | "unv" => {
-                Self::parse(&extension)
+            "vtu" | "vtk" | "msh" | "inp" | "frd" | "op2" | "pch" | "stl" | "su2" | "unv"
+            | "exo" | "e" | "exodus" => {
+                if matches!(extension.as_str(), "exo" | "e") {
+                    Ok(Self::Exodus)
+                } else {
+                    Self::parse(&extension)
+                }
             }
             _ => Err(Error::new(
                 "E_FORMAT",
@@ -153,8 +163,13 @@ impl Format {
         let extension = extension(path);
         match extension.as_str() {
             "bdf" | "nas" => Ok(Self::Bdf),
-            "vtu" | "vtk" | "msh" | "inp" | "frd" | "op2" | "stl" | "su2" | "unv" => {
-                Self::parse(&extension)
+            "vtu" | "vtk" | "msh" | "inp" | "frd" | "op2" | "stl" | "su2" | "unv" | "exo" | "e"
+            | "exodus" => {
+                if matches!(extension.as_str(), "exo" | "e") {
+                    Ok(Self::Exodus)
+                } else {
+                    Self::parse(&extension)
+                }
             }
             _ => Err(Error::new(
                 "E_FORMAT",
@@ -478,10 +493,14 @@ pub fn read_path(path: &Path, options: &Options) -> Result<ReadResult> {
             "basic-frame assertion applies only to OP2/PCH input",
         ));
     }
-    if !matches!(format, Format::Op2 | Format::Pch | Format::Frd) && options.step.is_some() {
+    if !matches!(
+        format,
+        Format::Op2 | Format::Pch | Format::Frd | Format::Exodus
+    ) && options.step.is_some()
+    {
         return Err(Error::new(
             "E_USAGE",
-            "step applies only to OP2, PCH, or FRD input",
+            "step applies only to OP2, PCH, FRD, or Exodus input",
         ));
     }
     let (dataset, omissions, assumed_zero) = match format {
@@ -587,6 +606,16 @@ pub fn read_path(path: &Path, options: &Options) -> Result<ReadResult> {
                     format!("{} UNV element header(s) have entity, physical, or color tags without a mapping", projection.tagged_elements),
                 ));
             }
+            (projection.dataset, omissions, false)
+        }
+        Format::Exodus => {
+            let bytes = read_limited(path, options.max_bytes)?;
+            let projection = exodus::read_projection(&bytes, options.step)?;
+            let omissions = projection
+                .omissions
+                .into_iter()
+                .map(|detail| Omission::new(Stage::Source, detail))
+                .collect();
             (projection.dataset, omissions, false)
         }
         Format::Msh => {
@@ -1001,6 +1030,28 @@ pub fn convert(
                 cell.property_id = None;
             }
             unv::write_data(dataset, &mut writer)?;
+        }
+        Format::Exodus => {
+            let properties = dataset
+                .mesh
+                .cells
+                .iter()
+                .filter(|cell| cell.property_id.is_some())
+                .count();
+            if properties > 0 {
+                omissions.push(Omission::new(
+                    Stage::Destination,
+                    format!("{properties} solver property ID(s) have no Exodus block mapping"),
+                ));
+            }
+            for cell in &mut dataset.mesh.cells {
+                cell.property_id = None;
+            }
+            omissions.push(Omission::new(
+                Stage::Destination,
+                "Exodus element block IDs are generated from cell topology; no source block identity is inferred",
+            ));
+            exodus::write_data(dataset, &mut writer)?;
         }
         Format::Msh => {
             // MSH stores numeric tuples but loses these component labels and
