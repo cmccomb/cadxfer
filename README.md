@@ -5,18 +5,18 @@
 
 <p align="center"><img src="https://raw.githubusercontent.com/cmccomb/caexfer/main/assets/logo.png" alt="caexfer logo" width="320"></p>
 
-**Preserve engineering documents. Transfer the parts another format can represent.**
+**Exchange finite-element meshes and results across formats.**
 
-`caexfer` preserves Nastran BDF source bytes and projects supported linear
-meshes and numeric results between BDF, VTU, legacy VTK, MSH 4.1/2.2, INP,
-FRD, OP2, and read-only PCH.
-Conversions report information the destination cannot carry.
+`caexfer` reads and writes supported subsets of VTU, legacy VTK, Gmsh MSH
+4.1/2.2, Abaqus/CalculiX INP, CalculiX FRD, Nastran BDF, and Nastran OP2.
+It also reads displacement results from PCH when given a
+matching mesh. Each conversion reports omitted data and explicit assumptions.
+BDF users can also keep and inspect the original document bytes.
 
 ## Install and try the CLI
 
-Uses the Rust 2024 edition and requires Rust 1.85 or newer. Install the
-published CLI with `cargo install caexfer`. For unreleased commits, install
-directly from GitHub:
+Requires Rust 1.85 or newer. Until version 0.1.0 is published, install the CLI
+from GitHub:
 
 ```sh
 cargo install --git https://github.com/cmccomb/caexfer.git
@@ -29,18 +29,18 @@ To run the included examples, clone the repository first:
 git clone https://github.com/cmccomb/caexfer.git
 cd caexfer
 
-# Inspect supported formats and the example deck before projecting it.
+# Inspect supported formats and a source with nodal results.
 caexfer formats
-caexfer info examples/plate.bdf
-caexfer convert examples/plate.bdf plate.vtu --accept-projection
+caexfer info tests/fixtures/linear-results.frd
 
-# With a source containing displacement results:
-caexfer convert tests/fixtures/linear-results.frd results.op2 --zero-missing-rotations \
-  --mesh-out results-mesh.bdf --accept-projection
+# Carry the supported mesh and fields through two output formats.
+caexfer convert tests/fixtures/linear-results.frd results.vtu --accept-projection
+caexfer convert results.vtu results.msh --msh-version 2.2 --accept-projection
 ```
 
-For a local checkout without installing, replace `caexfer` with
-`cargo run --`. OP2 and PCH routes run in Rust without a Python installation.
+After publication, install the released CLI with `cargo install caexfer`. For a
+local checkout without installing, replace `caexfer` with `cargo run --`. OP2
+and PCH routes run in Rust without a Python installation.
 
 `convert` requires `--accept-projection` to acknowledge projection into the
 supported mesh and field subset. Output
@@ -72,24 +72,8 @@ The figure shows what each format can carry; the matrix lists `convert` routes:
 | `*`   | Reading OP2 or PCH requires `--mesh` with a matching BDF, VTU, VTK, MSH, INP, or FRD mesh. Node IDs must match; results cannot verify companion coordinates or cells. BDF verifies `GRID CD=0`. Other formats require `--assume-basic-frame`.                                                                                         |
 | `†`   | FRD does not support five-node pyramids; its output can carry nodal fields and rounds ASCII values to six significant digits. `‡` OP2 writing requires one selected three- or six-component `DISP` field. If rotations are absent, `--zero-missing-rotations` explicitly asserts they are float zero; otherwise the conversion fails. |
 
-See [format limits](https://github.com/cmccomb/caexfer/blob/main/docs/SUPPORT.md) for other omissions and conditions.
-
-## Scope
-
-- BDF parsing preserves comments, unknown cards, line endings, and other source
-  bytes. The original document can be copied without rewriting its contents.
-- Projection supports linear lines, triangles, quads, tetrahedra, wedges,
-  hexahedra, and pyramids. Bars and beams contribute centerlines only;
-  higher-order geometry is rejected.
-- BDF and INP exports are geometry-only decks, not runnable solver models. OP2
-  exports results only and needs a matching mesh for later reading.
-- PCH imports real SORT1 GRID displacement results with explicit subcase and
-  step selection. PCH writing is not supported.
-- `validate` checks the supported geometry or mesh/field subset, not full solver
-  validity. No format adapter launches Python.
-
-The full boundary, including rejected dialects and resource limits, is in
-[SUPPORT.md](docs/SUPPORT.md).
+The [format limits](https://github.com/cmccomb/caexfer/blob/main/docs/SUPPORT.md)
+describe supported cells, result subsets, omissions, and resource limits.
 
 ## Rust library
 
@@ -110,50 +94,30 @@ caexfer = { git = "https://github.com/cmccomb/caexfer.git" }
 
 For a local checkout, use `caexfer = { path = "../caexfer" }` instead.
 
-Preserve a BDF while explicitly exporting its supported geometry:
+Convert a VTU file to MSH and inspect the conversion report:
 
 ```rust
-use caexfer::{bdf::Document, core::Result, vtu};
+use caexfer::conversion::{convert_path, Format, Options};
+use caexfer::core::Result;
+use std::path::Path;
 
 fn main() -> Result<()> {
-    // Keep the original BDF document available for byte-preserving inspection.
-    let document = Document::open("model.bdf")?;
-
-    // Geometry is an explicit projection; inspect what it leaves behind.
-    let projection = document.geometry()?;
-    for omission in &projection.omissions {
-        eprintln!("{}: {}", omission.category, omission.detail);
-    }
-
-    // Create a new destination; library writers receive caller-owned streams.
     let output = std::fs::OpenOptions::new()
-        .write(true).create_new(true).open("model.vtu")?;
-    vtu::write(&projection.mesh, output)?;
+        .write(true).create_new(true).open("results.msh")?;
+    let report = convert_path(
+        Path::new("results.vtu"), Format::Msh, &Options::default(), output,
+    )?;
+    for omission in &report.omissions {
+        eprintln!("{}: {}", omission.stage.name(), omission.detail);
+    }
     Ok(())
 }
 ```
 
-`Document` keeps the native BDF; `geometry()` explicitly projects it and
-returns omissions to inspect. For geometry exchange, `bdf::read_geometry` and
-`bdf::write_geometry` offer matching functions. [`conversion::convert_path`](https://github.com/cmccomb/caexfer/blob/main/docs/LIBRARY.md)
-provides format-aware conversion and a typed omission report. Library writers
-use caller-owned streams; the CLI stages output files.
-
-## Documentation and development
-
-- [CLI reference](https://github.com/cmccomb/caexfer/blob/main/docs/CLI.md): commands, flags, JSON output, and exit codes.
-- [Library guide](https://github.com/cmccomb/caexfer/blob/main/docs/LIBRARY.md): dependencies, API map, examples, and I/O contracts.
-- [Support contract](https://github.com/cmccomb/caexfer/blob/main/docs/SUPPORT.md): format subsets and conversion limits.
-- [Design](https://github.com/cmccomb/caexfer/blob/main/docs/DESIGN.md): preservation, projection, and validation decisions.
-- [Test coverage](https://github.com/cmccomb/caexfer/blob/main/docs/COVERAGE.md): measured Rust coverage, scope, and gaps.
-- [Implementation references](https://github.com/cmccomb/caexfer/blob/main/docs/REFERENCES.md) and [contributing](https://github.com/cmccomb/caexfer/blob/main/CONTRIBUTING.md).
-
-Run `cargo test --offline` for Rust tests and `cargo doc --no-deps --open`
-for API documentation. Run `cargo clippy --all-targets --offline -- -D warnings`
-to enforce the pedantic lint group enabled in `Cargo.toml`. CI also checks formatting,
-Clippy, rustdoc, the generated diagram, Cargo packaging, and independent
-conversion routes on Linux, macOS, Windows, and Rust 1.85. Regenerate the figure
-with `python3 scripts/generate_readme_diagram.py` after changing format support.
+The library accepts caller-owned output streams. The CLI stages files and
+refuses to overwrite them. For source-preserving BDF work, use
+`bdf::Document`; see the [library guide](https://github.com/cmccomb/caexfer/blob/main/docs/LIBRARY.md)
+for that API and other format adapters.
 
 Licensed under MIT OR Apache-2.0. The imported pyNastran fixtures retain their
 upstream BSD license; see [fixture provenance](https://github.com/cmccomb/caexfer/blob/main/tests/fixtures/PROVENANCE.md).
