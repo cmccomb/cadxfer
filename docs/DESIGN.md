@@ -60,7 +60,8 @@ coordinate system has been resolved or is the basic frame.
 
 ## Scope-aware validation
 
-`info` and `validate` use the same supported-subset reader for every format.
+`validate` uses the supported-subset reader for every format and reports
+projected counts and source omissions.
 Successful BDF validation establishes a usable geometry projection; it says
 nothing about solver-model correctness. Opaque solver cards appear as omissions.
 

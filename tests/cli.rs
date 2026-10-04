@@ -51,6 +51,8 @@ fn help_and_version_work() {
     assert!(overview.contains("caexfer COMMAND --help"));
     assert!(overview.contains("-f, --formats"));
     assert!(!overview.contains("  formats   "));
+    assert!(!overview.contains("  info      "));
+    assert_eq!(s.run(&["info", "mesh.bdf"]).status.code(), Some(2));
 
     let convert = s.run(&["convert", "--help"]);
     assert!(convert.status.success());
@@ -77,10 +79,10 @@ fn help_and_version_work() {
     );
 }
 
-/// Expose schema version and projected BDF counts in JSON info.
+/// Expose schema version and projected BDF counts in JSON validation.
 #[test]
-fn info_json_has_version_and_scope() {
-    let result = Scratch::new().run(&["info", "mesh.bdf", "--json"]);
+fn validation_json_has_version_and_counts() {
+    let result = Scratch::new().run(&["validate", "mesh.bdf", "--json"]);
     assert!(result.status.success());
     let out = String::from_utf8(result.stdout).unwrap();
     assert!(out.contains("\"schema_version\":1"));
@@ -200,7 +202,7 @@ fn strict_validation_fails_on_opaque_material() {
 /// Return a structured JSON diagnostic for absent input.
 #[test]
 fn missing_file_json_error() {
-    let result = Scratch::new().run(&["info", "absent.bdf", "--json"]);
+    let result = Scratch::new().run(&["validate", "absent.bdf", "--json"]);
     assert_eq!(result.status.code(), Some(1));
     assert!(
         String::from_utf8(result.stdout)
@@ -227,15 +229,10 @@ fn op2_requires_matching_mesh() {
     );
 }
 
-/// Show PCH read-only capability in JSON and human formats output.
+/// Show the PCH read-only capability in the global format listing.
 #[test]
-fn formats_advertises_read_only_pch_in_both_presentations() {
+fn formats_advertises_read_only_pch() {
     let s = Scratch::new();
-    let machine = s.run(&["--formats", "--json"]);
-    assert!(machine.status.success());
-    let machine = String::from_utf8(machine.stdout).unwrap();
-    assert!(machine.contains("\"format\":\"pch\""));
-    assert!(machine.contains("\"writable\":false"));
     let human = s.run(&["-f"]);
     assert!(human.status.success());
     assert!(
@@ -243,21 +240,18 @@ fn formats_advertises_read_only_pch_in_both_presentations() {
             .unwrap()
             .contains("pch  ASCII real SORT1 displacement, read-only")
     );
+    let unsupported_json = s.run(&["--formats", "--json"]);
+    assert_eq!(unsupported_json.status.code(), Some(2));
+    assert_eq!(unsupported_json.stdout, b"");
+    assert!(String::from_utf8_lossy(&unsupported_json.stderr).contains("E_USAGE"));
 }
 
-/// Explain projected counts and validation scope in human CLI output.
+/// Report projected counts and omissions in human validation output.
 #[test]
-fn human_inspection_and_validation_report_their_scopes() {
+fn human_validation_reports_counts_and_omissions() {
     // BDF and INP share the projected-data CLI path, but INP also supplies
     // a source omission that strict validation must reject.
     let s = Scratch::new();
-    let bdf = s.run(&["info", "mesh.bdf"]);
-    assert!(bdf.status.success());
-    assert!(
-        String::from_utf8(bdf.stdout)
-            .unwrap()
-            .contains("BDF: 2 points, 1 cells, 0 fields")
-    );
     let validated = s.run(&["validate", "mesh.bdf"]);
     assert!(validated.status.success());
     assert!(
@@ -271,15 +265,11 @@ fn human_inspection_and_validation_report_their_scopes() {
         "*NODE\n1,0,0,0\n2,1,0,0\n*ELEMENT, TYPE=T3D2\n10,1,2\n*MATERIAL, NAME=STEEL\n",
     )
     .unwrap();
-    let info = s.run(&["info", "omitted.inp"]);
-    assert!(info.status.success());
-    assert!(
-        String::from_utf8(info.stdout)
-            .unwrap()
-            .contains("INP: 2 points")
-    );
     let relaxed = s.run(&["validate", "omitted.inp"]);
     assert!(relaxed.status.success());
+    let relaxed = String::from_utf8(relaxed.stdout).unwrap();
+    assert!(relaxed.contains("INP supported-subset checks passed: 2 points"));
+    assert!(relaxed.contains("Omission:"));
     let strict = s.run(&["validate", "omitted.inp", "--strict", "--json"]);
     assert_eq!(strict.status.code(), Some(1));
     assert!(
@@ -368,14 +358,15 @@ fn bounded_and_explicit_format_input_fail_before_output_creation() {
 fn malformed_cli_options_fail_without_writing() {
     let s = Scratch::new();
     for command in [
-        vec!["info", "mesh.bdf", "--step", "bad"],
-        vec!["info", "mesh.bdf", "--max-bytes", "0"],
-        vec!["info", "mesh.bdf", "--max-bytes", "bad"],
-        vec!["info", "mesh.bdf", "--unknown"],
-        vec!["info", "mesh.bdf", "--from"],
-        vec!["info", "mesh.bdf", "--assume-basic-frame"],
-        vec!["info", "mesh.bdf", "--mesh", "mesh.bdf"],
+        vec!["validate", "mesh.bdf", "--step", "bad"],
+        vec!["validate", "mesh.bdf", "--max-bytes", "0"],
+        vec!["validate", "mesh.bdf", "--max-bytes", "bad"],
+        vec!["validate", "mesh.bdf", "--unknown"],
+        vec!["validate", "mesh.bdf", "--from"],
+        vec!["validate", "mesh.bdf", "--assume-basic-frame"],
+        vec!["validate", "mesh.bdf", "--mesh", "mesh.bdf"],
         vec!["--formats", "--mesh", "mesh.bdf"],
+        vec!["--formats", "--json"],
         vec![
             "convert",
             "mesh.bdf",
@@ -394,7 +385,7 @@ fn malformed_cli_options_fail_without_writing() {
         let result = s.run(&command);
         assert_eq!(result.status.code(), Some(2), "{command:?}");
     }
-    let unknown_format = s.run(&["info", "mesh.bdf", "--from", "bogus", "--json"]);
+    let unknown_format = s.run(&["validate", "mesh.bdf", "--from", "bogus", "--json"]);
     assert_eq!(unknown_format.status.code(), Some(1));
     assert!(
         String::from_utf8(unknown_format.stdout)
@@ -444,18 +435,18 @@ fn synthetic_result_rejects_nonbasic_output_frames_and_mesh_sources() {
 fn entry_help_and_bdf_diagnostics_are_visible_to_human_users() {
     let s = Scratch::new();
     assert!(s.run(&[]).status.success());
-    assert!(s.run(&["info", "mesh.bdf", "--help"]).status.success());
+    assert!(s.run(&["validate", "mesh.bdf", "--help"]).status.success());
     assert_eq!(
-        s.run(&["info", "mesh.bdf", "--accept-projection"])
+        s.run(&["validate", "mesh.bdf", "--accept-projection"])
             .status
             .code(),
         Some(2)
     );
     std::fs::write(s.0.join("invalid.bdf"), "GRID,1,42,0,0,0\n").unwrap();
-    let info = s.run(&["info", "invalid.bdf"]);
-    assert_eq!(info.status.code(), Some(1));
+    let validated = s.run(&["validate", "invalid.bdf"]);
+    assert_eq!(validated.status.code(), Some(1));
     assert!(
-        String::from_utf8(info.stderr)
+        String::from_utf8(validated.stderr)
             .unwrap()
             .contains("E_COORDINATE_SYSTEM")
     );

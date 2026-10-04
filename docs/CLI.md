@@ -7,7 +7,6 @@ run without Python.
 
 ```sh
 caexfer --formats
-caexfer info model.bdf
 caexfer validate model.bdf --json
 caexfer convert model.bdf model.vtu --accept-projection
 caexfer convert model.bdf model.msh --msh-version 2.2 --accept-projection
@@ -38,19 +37,16 @@ These commands use example input names. The [format limits](SUPPORT.md) describe
 which cells, sets, fields, and time data each route can retain.
 
 `caexfer --help` lists the commands and global options. `caexfer -f` and
-`caexfer --formats` list format capabilities; add `--json` for a JSON object.
-Use `caexfer convert --help` (or `caexfer help convert`) for that command's
-options and examples. The other
-commands have their own help in the same form. Paths can occur before or after
-options; use `--` for paths beginning with a hyphen. Filenames use OS-native
-strings internally; JSON/human display of non-UTF-8 paths is lossy, not an exact
-path serialization.
+`caexfer --formats` list format capabilities. Use `caexfer validate --help` or
+`caexfer convert --help` for command options and examples. Paths can occur
+before or after options; use `--` for paths beginning with a hyphen. Filenames
+use OS-native strings internally; JSON/human display of non-UTF-8 paths is
+lossy, not an exact path serialization.
 
 | Command or option | Result |
 | --- | --- |
 | `-f`, `--formats` | Actual read/write capabilities, not a roadmap |
-| `info INPUT` | Projected point, cell, and field counts |
-| `validate INPUT` | Supported mesh and field subset checks, with source omissions |
+| `validate INPUT` | Supported subset checks, projected counts, and source omissions |
 | `convert INPUT OUTPUT --accept-projection` | Explicit projection to any writable format listed by `caexfer --formats`, subject to that format's supported geometry and fields |
 
 Input extensions are `.bdf`, `.nas`, `.dat`, `.pch`, `.vtu`, `.vtk`, `.msh`, `.inp`,
@@ -71,7 +67,7 @@ OP2 output carries one displacement table and needs a separately retained
 matching mesh. `--mesh-out FILE` optionally writes a geometry-only companion
 in BDF, VTU, VTK, MSH, INP, or FRD format. `--subcase N` and
 zero-based `--step N` select an OP2 or PCH displacement result. For FRD, `--step N` selects the
-step number. These selection options also work with `info` and `validate`.
+step number. These selection options also work with `validate`.
 For Exodus input, `--step N` selects a zero-based time step. Without it, the
 reader carries all complete scalar fields and times that the destination can
 represent.
@@ -83,19 +79,21 @@ static OP2 displacement table with six float zeros per node. It requires
 no external adapter, labels the OP2 title as assumed data, and never runs a solver.
 For INP, retain the source mesh or use `--mesh-out` to export a companion.
 
-`--json` produces one JSON object on stdout, with schema_version=1. Human-readable
-conversion omission reports go to stderr; JSON conversion reports place them in
-an `omissions` array with each item's `stage` (`source`, `destination`, or
-`assumption`) and detail. A paired export adds `mesh_output` with its path,
-format, and separate omissions. JSON error output also goes to stdout. Schema version 1
-is intentionally small; consumers should tolerate new keys.
+For `validate` and `convert`, `--json` produces one JSON object on stdout with
+schema_version=1. Human-readable conversion omission reports go to stderr;
+JSON conversion reports place them in an `omissions` array with each item's
+`stage` (`source`, `destination`, or `assumption`) and detail. A paired export
+adds `mesh_output` with its path, format, and separate omissions. JSON error
+output also goes to stdout. Schema version 1 is intentionally small; consumers
+should tolerate new keys.
 
-Exit 0 means the requested scoped operation succeeded. `info` fails if the
-source cannot be safely projected into the supported subset.
-Exit 1 means I/O, parsing, projection, or validation failed. `validate
---strict` also exits 1 on a warning. Exit 2 means invalid CLI usage, including
-conversion without `--accept-projection`. Use stable diagnostic `code` values rather
-than parsing human descriptions. The version's code list can grow.
+Exit 0 means the requested scoped operation succeeded. `validate` reports
+projected counts and omissions; without `--strict`, omissions do not fail it.
+Exit 1 means I/O, parsing, projection, or validation failed.
+`validate --strict` also exits 1 on a source omission. Exit 2 means invalid CLI usage,
+including conversion without `--accept-projection`. Use stable diagnostic
+`code` values rather than parsing human descriptions. The version's code list
+can grow.
 
 The CLI never overwrites an output path and deliberately has no `--force` option
 in 0.1.0. Choose a new filename and review the result. File output requires a

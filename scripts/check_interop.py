@@ -37,11 +37,12 @@ def main() -> None:
         return result
     with tempfile.TemporaryDirectory(prefix="caexfer-interop-") as temp:
         temp = Path(temp)
-        # Inspect the current projected-data JSON contract before conversion.
-        info = json.loads(run("info", "examples/plate.bdf", "--json").stdout)
-        assert info["schema_version"] == 1 and (info["points"], info["cells"], info["fields"]) == (4, 1, 0)
-        assert info["format"] == "bdf" and info["omissions"]
-        checks.append("CLI info emits projected counts and source omissions")
+        # Validate the projected-data JSON contract before conversion.
+        validation = json.loads(run("validate", "examples/plate.bdf", "--json").stdout)
+        assert validation["schema_version"] == 1
+        assert (validation["points"], validation["cells"], validation["fields"]) == (4, 1, 0)
+        assert validation["format"] == "bdf" and validation["omissions"]
+        checks.append("CLI validation emits projected counts and source omissions")
         source = ROOT / "tests/fixtures/mixed-linear.bdf"
         destination = temp / "mixed.vtu"
         result = run("convert", source, destination, "--accept-projection", "--json")

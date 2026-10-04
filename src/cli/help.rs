@@ -6,12 +6,11 @@ pub(super) const OVERVIEW: &str = "caexfer: exchange finite-element meshes and r
 USAGE
   caexfer --help
   caexfer --version
-  caexfer --formats [--json]
+  caexfer --formats
   caexfer COMMAND [OPTIONS]
 
 COMMANDS
-  info      Show projected mesh and field counts
-  validate  Check supported data and report omissions
+  validate  Check supported data, counts, and omissions
   convert   Write a supported projection to a new file
 
 Run 'caexfer COMMAND --help' for options and examples.
@@ -19,35 +18,11 @@ Run 'caexfer COMMAND --help' for options and examples.
 GLOBAL OPTIONS
   -h, --help     Show this help
   -V, --version  Show the version
-  -f, --formats  List supported formats and read/write capabilities; add --json for JSON
+  -f, --formats  List supported formats and read/write capabilities
 ";
 
-/// Explain inspection and source selection without implying full solver validation.
-const INFO: &str = "caexfer info: show projected mesh and field counts
-
-USAGE
-  caexfer info INPUT [OPTIONS]
-
-INPUT OPTIONS
-  --from FORMAT         Override the input extension; see 'caexfer --formats'
-  --max-bytes N         Limit input size in bytes (default: 268435456 / 256 MiB)
-  --mesh FILE           Companion mesh for OP2/PCH results
-  --assume-basic-frame  Assert basic frame with a non-BDF companion mesh
-  --subcase N           Select an OP2/PCH displacement subcase
-  --step N              Select OP2/PCH/Exodus step by zero-based index, or FRD step number
-
-GENERAL OPTIONS
-  --json                Write one JSON object (schema_version=1)
-  --                    Treat following arguments as paths
-  -h, --help            Show this command's help
-
-EXAMPLES
-  caexfer info model.bdf
-  caexfer info results.op2 --mesh model.bdf --subcase 1
-";
-
-/// Explain validation and when warnings make it fail.
-const VALIDATE: &str = "caexfer validate: check the supported mesh and field subset
+/// Explain validation and when source omissions make it fail.
+const VALIDATE: &str = "caexfer validate: check supported data, counts, and omissions
 
 USAGE
   caexfer validate INPUT [OPTIONS]
@@ -61,7 +36,7 @@ INPUT OPTIONS
   --step N              Select OP2/PCH/Exodus step by zero-based index, or FRD step number
 
 VALIDATION OPTIONS
-  --strict              Fail on warnings or reported omissions
+  --strict              Fail when the source has reported omissions
 
 GENERAL OPTIONS
   --json                Write one JSON object (schema_version=1)
@@ -71,6 +46,7 @@ GENERAL OPTIONS
 EXAMPLES
   caexfer validate model.bdf
   caexfer validate model.bdf --strict --json
+  caexfer validate results.op2 --mesh model.bdf --subcase 1
 ";
 
 /// Explain conversion in the order users choose source, destination, and receipt.
@@ -110,7 +86,6 @@ EXAMPLES
 /// Return the help for the selected command; parsing ensures it is recognized.
 pub(super) fn for_command(command: &str) -> &'static str {
     match command {
-        "info" => INFO,
         "validate" => VALIDATE,
         "convert" => CONVERT,
         _ => OVERVIEW,

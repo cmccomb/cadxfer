@@ -93,12 +93,12 @@ def main() -> None:
                 if target_format == 'bdf':
                     assert run('validate', target)['passed']
                 else:
-                    info = run('info', target)
-                    assert (info['points'], info['cells']) == expected
+                    validation = run('validate', target)
+                    assert (validation['points'], validation['cells']) == expected
                     expected_fields = 2 if source_format == 'frd' else (1 if source_format in ('op2', 'pch') else 0)
                     if target_format == 'inp':
                         expected_fields = 0
-                    assert info['fields'] == expected_fields, (source_format, target_format, info)
+                    assert validation['fields'] == expected_fields, (source_format, target_format, validation)
                     if target_format == 'vtu' and source_format == 'frd':
                         piece = ET.parse(target).find('./UnstructuredGrid/Piece')
                         assert piece is not None
@@ -122,16 +122,16 @@ def main() -> None:
                          '--accept-projection', *extra)
             assert dialect.read_text().startswith('$MeshFormat\n2.2 0 8\n')
             assert (report['points'], report['cells']) == expected
-            assert run('info', dialect)['fields'] == (2 if source_format == 'frd' else
-                                                     1 if source_format in ('op2', 'pch') else 0)
+            assert run('validate', dialect)['fields'] == (2 if source_format == 'frd' else
+                                                         1 if source_format in ('op2', 'pch') else 0)
             routes += 1
             target = folder / f'{source_format}-to-frd.frd'
             report = run('convert', source, target, '--accept-projection', *extra)
             assert target.is_file() and report['points'] == expected[0]
-            info = run('info', target)
-            assert (info['points'], info['cells']) == expected
-            assert info['fields'] == (2 if source_format == 'frd' else
-                                      1 if source_format in ('op2', 'pch') else 0)
+            validation = run('validate', target)
+            assert (validation['points'], validation['cells']) == expected
+            assert validation['fields'] == (2 if source_format == 'frd' else
+                                            1 if source_format in ('op2', 'pch') else 0)
             routes += 1
 
             if source_format == 'frd':
@@ -200,7 +200,7 @@ def main() -> None:
                     if source_format == 'bdf':
                         rewritten = folder / 'synthetic-op2-rewritten.op2'
                         run('convert', target, rewritten, '--mesh', mesh, '--accept-projection')
-                        reread_report = run('info', rewritten, '--mesh', mesh)
+                        reread_report = run('validate', rewritten, '--mesh', mesh)
                         assert any('synthetic all-zero' in item for item in reread_report['omissions'])
                     routes += 1
         if options.op2_check:
@@ -214,7 +214,7 @@ def main() -> None:
                 10: [1., 2., 3., 4., 5., 6.],
                 20: [7., 8., 9., 10., 11., 12.],
             })
-            assert run('info', pch_op2, '--mesh', pch_mesh)['fields'] == 1
+            assert run('validate', pch_op2, '--mesh', pch_mesh)['fields'] == 1
             routes += 1
             op2_source = sources['op2']
             op2_mesh = ROOT / 'tests/fixtures/solid_bending.bdf'
@@ -263,7 +263,7 @@ def main() -> None:
                                 '--mesh-out', paired_vtu, '--zero-missing-rotations',
                                 '--accept-projection')
             assert paired_report['mesh_output']['format'] == 'vtu'
-            assert run('info', paired_vtu)['fields'] == 0
+            assert run('validate', paired_vtu)['fields'] == 0
             paired_readback = folder / 'paired-vtu-readback.msh'
             readback_report = run('convert', paired_op2, paired_readback,
                                   '--mesh', paired_vtu, '--assume-basic-frame',
@@ -280,7 +280,7 @@ def main() -> None:
                              '--zero-missing-rotations', '--accept-projection')
                 assert target.is_file()
                 assert any('typed float 0.0' in item['detail'] for item in report['omissions'])
-                assert run('info', target, '--mesh', mesh)['fields'] == 1
+                assert run('validate', target, '--mesh', mesh)['fields'] == 1
                 routes += 1
         print(json.dumps({'routes_checked': routes,
                           'sources': sorted(sources)}))

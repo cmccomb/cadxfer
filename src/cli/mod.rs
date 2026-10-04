@@ -110,7 +110,7 @@ fn parse_args(raw: &[OsString]) -> Result<Args> {
             }),
             Some(topic) if raw.len() == 2 => {
                 let topic = text(topic)?;
-                if !matches!(topic, "info" | "validate" | "convert") {
+                if !matches!(topic, "validate" | "convert") {
                     return Err(usage(format!("unknown help topic {topic:?}; use --help")));
                 }
                 Ok(Args {
@@ -128,27 +128,16 @@ fn parse_args(raw: &[OsString]) -> Result<Args> {
             ..Args::default()
         });
     }
-    let format_switch = |arg: &OsString| arg == "-f" || arg == "--formats";
-    if matches!(command.as_str(), "-f" | "--formats")
-        || (command == "--json" && raw.get(1).is_some_and(format_switch))
-    {
-        let mut args = Args {
+    if matches!(command.as_str(), "-f" | "--formats") {
+        if raw.len() != 1 {
+            return Err(usage("--formats takes no options or paths"));
+        }
+        return Ok(Args {
             command: "formats".into(),
             ..Args::default()
-        };
-        let mut seen_formats = false;
-        for arg in raw {
-            if format_switch(arg) {
-                set_flag(&mut seen_formats, "--formats")?;
-            } else if arg == "--json" {
-                set_flag(&mut args.json, "--json")?;
-            } else {
-                return Err(usage("--formats accepts only --json"));
-            }
-        }
-        return Ok(args);
+        });
     }
-    if !matches!(command.as_str(), "info" | "validate" | "convert") {
+    if !matches!(command.as_str(), "validate" | "convert") {
         return Err(usage(format!("unknown command {command:?}; use --help")));
     }
     let mut args = Args {
@@ -249,10 +238,7 @@ fn parse_args(raw: &[OsString]) -> Result<Args> {
 
     // Command arity and cross-option rules are checked after collection so
     // flags may appear before or after path arguments.
-    let expected = match args.command.as_str() {
-        "info" | "validate" => 1,
-        _ => 2,
-    };
+    let expected = if args.command == "validate" { 1 } else { 2 };
     if args.paths.len() != expected {
         return Err(usage(format!(
             "{} expects {expected} path argument(s)",
@@ -511,46 +497,24 @@ fn omissions_json(omissions: &[Omission]) -> String {
     }))
 }
 
-/// Inspect or validate a source through the shared format reader.
+/// Validate a source through the format reader and report projected counts.
 /// Strict validation fails when the supported projection reports omissions.
-fn run_info(args: &Args) -> Result<u8> {
+fn run_validate(args: &Args) -> Result<u8> {
     // Readers return projected datasets and explicit source losses.
     let read = conversion::read_path(&args.paths[0], &conversion_options(args)?)?;
     let format = read.format.name();
     let dataset = read.dataset;
     let omissions = read.omissions;
-    if args.command == "validate" {
-        // Strict mode treats any documented omission as a failed validation.
-        let passed = !args.strict || omissions.is_empty();
-        if args.json {
-            emit(&object([
-                ("schema_version", "1".into()),
-                ("format", quote(format)),
-                ("passed", passed.to_string()),
-                ("strict", args.strict.to_string()),
-                ("scope", quote("supported-mesh-and-fields-subset")),
-                (
-                    "omissions",
-                    array(omissions.iter().map(|item| quote(&item.detail))),
-                ),
-            ]))?;
-        } else {
-            emit(&format!(
-                "{} supported-subset checks {}: {} points, {} cells, {} fields, {} omission(s)",
-                format.to_uppercase(),
-                if passed { "passed" } else { "failed" },
-                dataset.mesh.points.len(),
-                dataset.mesh.cells.len(),
-                dataset.fields.len(),
-                omissions.len()
-            ))?;
-        }
-        return Ok(u8::from(!passed));
-    } else if args.json {
+    // Strict mode treats any documented omission as a failed validation.
+    let passed = !args.strict || omissions.is_empty();
+    if args.json {
         emit(&object([
             ("schema_version", "1".into()),
             ("format", quote(format)),
             ("path", path_json(&args.paths[0])),
+            ("passed", passed.to_string()),
+            ("strict", args.strict.to_string()),
+            ("scope", quote("supported-mesh-and-fields-subset")),
             ("points", dataset.mesh.points.len().to_string()),
             ("cells", dataset.mesh.cells.len().to_string()),
             ("fields", dataset.fields.len().to_string()),
@@ -561,14 +525,19 @@ fn run_info(args: &Args) -> Result<u8> {
         ]))?;
     } else {
         emit(&format!(
-            "{}: {} points, {} cells, {} fields",
+            "{} supported-subset checks {}: {} points, {} cells, {} fields, {} omission(s)",
             format.to_uppercase(),
+            if passed { "passed" } else { "failed" },
             dataset.mesh.points.len(),
             dataset.mesh.cells.len(),
-            dataset.fields.len()
+            dataset.fields.len(),
+            omissions.len()
         ))?;
+        for omission in omissions {
+            emit(&format!("Omission: {}", omission.detail))?;
+        }
     }
-    Ok(0)
+    Ok(u8::from(!passed))
 }
 
 /// Dispatch the parsed CLI command and return its process exit status.
@@ -590,89 +559,9 @@ fn dispatch(args: &Args) -> Result<u8> {
             return Ok(0);
         }
         "formats" => {
-            if args.json {
-                let rows = [
-                    (
-                        "bdf",
-                        "supported linear geometry and source omissions",
-                        "geometry-only mesh projection",
-                    ),
-                    (
-                        "vtu",
-                        "ASCII one-piece linear mesh + numeric fields",
-                        "ASCII one-piece linear mesh + numeric fields",
-                    ),
-                    (
-                        "vtk",
-                        "ASCII legacy unstructured grid + numeric fields",
-                        "ASCII legacy unstructured grid + numeric fields",
-                    ),
-                    (
-                        "msh",
-                        "ASCII MSH 4.1/2.2 linear mesh + complete numeric fields",
-                        "ASCII MSH 4.1 by default; 2.2 with --msh-version",
-                    ),
-                    (
-                        "inp",
-                        "flat global-node/element mesh",
-                        "flat geometry-only INP",
-                    ),
-                    (
-                        "frd",
-                        "ASCII linear mesh + nodal fields",
-                        "ASCII mesh + complete nodal fields",
-                    ),
-                    (
-                        "op2",
-                        "32-bit real OUGV1 displacement and matching mesh",
-                        "32-bit real OUGV1 displacement; optional companion mesh export; no embedded mesh",
-                    ),
-                    (
-                        "pch",
-                        "ASCII real SORT1 displacement and matching mesh",
-                        "read-only; no PCH writer",
-                    ),
-                    (
-                        "stl",
-                        "ASCII or binary triangle surface; facet-local generated IDs",
-                        "binary triangle surface; IDs and fields omitted",
-                    ),
-                    (
-                        "su2",
-                        "single-zone ASCII mesh with named boundary markers",
-                        "single-zone ASCII mesh with named boundary markers",
-                    ),
-                    (
-                        "unv",
-                        "ASCII 2411/2412 linear geometry; other datasets reported",
-                        "ASCII 2411/2412 linear geometry; pyramids unsupported",
-                    ),
-                    (
-                        "exodus",
-                        "NetCDF-3 classic mesh + complete scalar results",
-                        "NetCDF-3 classic mesh + complete scalar results",
-                    ),
-                ];
-                emit(&object([
-                    ("schema_version", "1".into()),
-                    (
-                        "formats",
-                        array(rows.iter().map(|(name, read, write)| {
-                            object([
-                                ("format", quote(name)),
-                                ("read", "true".into()),
-                                ("read_scope", quote(read)),
-                                ("writable", (name != &"pch").to_string()),
-                                ("write", quote(write)),
-                            ])
-                        })),
-                    ),
-                ]))?;
-            } else {
-                emit(
-                    "bdf  linear geometry subset, read/write\nvtu  ASCII XML mesh + numeric fields, read/write\nvtk  ASCII legacy unstructured grid + numeric fields, read/write\nmsh  ASCII 4.1/2.2 mesh + numeric fields, read/write (output defaults to 4.1)\ninp  flat mesh subset, read/geometry write\nfrd  ASCII mesh + nodal fields, read/write\nop2  32-bit real OUGV1 displacement, read/write; explicit synthetic-zero option; optional companion mesh\npch  ASCII real SORT1 displacement, read-only; matching mesh required\nstl  ASCII/binary triangle surface, binary write; no IDs or fields\nsu2  ASCII mesh and named boundary markers, read/write\nunv  ASCII 2411/2412 linear geometry, read/write; no pyramids\nexodus  NetCDF-3 classic mesh + complete scalar fields, read/write",
-                )?;
-            }
+            emit(
+                "bdf  linear geometry subset, read/write\nvtu  ASCII XML mesh + numeric fields, read/write\nvtk  ASCII legacy unstructured grid + numeric fields, read/write\nmsh  ASCII 4.1/2.2 mesh + numeric fields, read/write (output defaults to 4.1)\ninp  flat mesh subset, read/geometry write\nfrd  ASCII mesh + nodal fields, read/write\nop2  32-bit real OUGV1 displacement, read/write; explicit synthetic-zero option; optional companion mesh\npch  ASCII real SORT1 displacement, read-only; matching mesh required\nstl  ASCII/binary triangle surface, binary write; no IDs or fields\nsu2  ASCII mesh and named boundary markers, read/write\nunv  ASCII 2411/2412 linear geometry, read/write; no pyramids\nexodus  NetCDF-3 classic mesh + complete scalar fields, read/write",
+            )?;
             return Ok(0);
         }
         _ => {}
@@ -681,14 +570,17 @@ fn dispatch(args: &Args) -> Result<u8> {
     if args.command == "convert" {
         return run_convert(args);
     }
-    run_info(args)
+    run_validate(args)
 }
 
 /// Convert structured failures into human or JSON diagnostics and exit codes.
 pub(crate) fn run() {
     // Retain JSON error formatting even when argument parsing itself fails.
     let raw: Vec<OsString> = std::env::args_os().skip(1).collect();
-    let wants_json = raw.iter().any(|arg| arg == "--json");
+    let wants_json = raw
+        .first()
+        .is_some_and(|command| command == "validate" || command == "convert")
+        && raw.iter().any(|arg| arg == "--json");
     let status = match parse_args(&raw).and_then(|args| dispatch(&args)) {
         Ok(status) => status,
         Err(error) => {
@@ -750,13 +642,13 @@ mod tests {
     /// Reject repeated option flags so command intent is unambiguous.
     #[test]
     fn duplicate_option_rejected() {
-        assert!(args(&["info", "x.bdf", "--json", "--json"]).is_err());
+        assert!(args(&["validate", "x.bdf", "--json", "--json"]).is_err());
     }
 
     /// Reject options that do not apply to the selected command or format.
     #[test]
     fn irrelevant_flag_rejected() {
-        assert!(args(&["info", "x.bdf", "--strict"]).is_err());
+        assert!(args(&["convert", "x.bdf", "x.vtu", "--strict"]).is_err());
     }
 
     /// Apply the MSH version switch only when writing an MSH destination.
@@ -800,7 +692,7 @@ mod tests {
     #[test]
     fn double_dash_supports_dash_path() {
         assert_eq!(
-            args(&["info", "--", "-mesh.bdf"]).unwrap().paths[0],
+            args(&["validate", "--", "-mesh.bdf"]).unwrap().paths[0],
             PathBuf::from("-mesh.bdf")
         );
     }
@@ -817,12 +709,12 @@ mod tests {
         assert!(args(&["convert", "only.bdf", "--accept-projection"]).is_err());
     }
 
-    /// Accept only JSON formatting after the global formats switch.
+    /// The global formats switch takes no additional options or paths.
     #[test]
     fn format_report_is_a_global_switch() {
         assert_eq!(args(&["-f"]).unwrap().command, "formats");
-        assert!(args(&["--formats", "--json"]).unwrap().json);
-        assert!(args(&["--json", "-f"]).unwrap().json);
+        assert!(args(&["--formats", "--json"]).is_err());
+        assert!(args(&["--json", "-f"]).is_err());
         assert!(args(&["-f", "--formats"]).is_err());
         assert!(args(&["--formats", "x.bdf"]).is_err());
         assert!(args(&["formats"]).is_err());

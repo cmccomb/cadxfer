@@ -30,7 +30,7 @@ cd caexfer
 
 # Inspect supported formats and a source with nodal results.
 caexfer --formats
-caexfer info tests/fixtures/linear-results.frd
+caexfer validate tests/fixtures/linear-results.frd
 
 # Carry the supported mesh and fields through two output formats.
 caexfer convert tests/fixtures/linear-results.frd results.vtu --accept-projection
