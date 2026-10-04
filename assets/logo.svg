@@ -846,45 +846,45 @@
 
   <!-- The orbit of exchanged engineering documents. -->
   <g id="arrows" fill="none" stroke-linecap="round">
-    <path d="M345 390 Q313 339 284 334" stroke="#c95618" stroke-width="12"/>
-    <path d="M345 390 Q313 339 284 334" stroke="#ff9d27" stroke-width="7"/>
-    <path d="M256.0 322.0 288.7 323.0 279.3 345.0Z" fill="#ff9d27" stroke="#c95618" stroke-width="3" stroke-linejoin="round"/>
-    <path d="M257 219 Q270 185 284 180" stroke="#c95618" stroke-width="12"/>
-    <path d="M257 219 Q270 185 284 180" stroke="#ff9d27" stroke-width="7"/>
-    <path d="M308.0 174.0 286.9 191.6 281.1 168.4Z" fill="#ff9d27" stroke="#c95618" stroke-width="3" stroke-linejoin="round"/>
-    <path d="M450 125 Q482 89 502 102" stroke="#c95618" stroke-width="12"/>
-    <path d="M450 125 Q482 89 502 102" stroke="#ff9d27" stroke-width="7"/>
-    <path d="M527.0 109.0 498.8 113.6 505.2 90.4Z" fill="#ff9d27" stroke="#c95618" stroke-width="3" stroke-linejoin="round"/>
-    <path d="M669 109 Q704 90 728 102" stroke="#c95618" stroke-width="12"/>
-    <path d="M669 109 Q704 90 728 102" stroke="#ff9d27" stroke-width="7"/>
-    <path d="M753.0 109.0 724.8 113.6 731.2 90.4Z" fill="#ff9d27" stroke="#c95618" stroke-width="3" stroke-linejoin="round"/>
-    <path d="M888 174 Q917 177 928 196" stroke="#c95618" stroke-width="12"/>
-    <path d="M888 174 Q917 177 928 196" stroke="#ff9d27" stroke-width="7"/>
-    <path d="M945.0 220.0 918.2 202.9 937.8 189.1Z" fill="#ff9d27" stroke="#c95618" stroke-width="3" stroke-linejoin="round"/>
-    <path d="M1083 364 C1166 415 1202 527 1144 655" stroke="#c95618" stroke-width="12"/>
-    <path d="M1083 364 C1166 415 1202 527 1144 655" stroke="#ff9d27" stroke-width="7"/>
-    <path d="M1114.0 692.0 1134.7 647.4 1153.3 662.6Z" fill="#ff9d27" stroke="#c95618" stroke-width="3" stroke-linejoin="round"/>
+    <path d="M123 363 Q141 312 151 303" stroke="#c95618" stroke-width="12"/>
+    <path d="M123 363 Q141 312 151 303" stroke="#ff9d27" stroke-width="7"/>
+    <path d="M174.0 278.0 159.8 311.1 142.2 294.9Z" fill="#ff9d27" stroke="#c95618" stroke-width="3" stroke-linejoin="round"/>
+    <path d="M314 207 Q347 179 374 180" stroke="#c95618" stroke-width="12"/>
+    <path d="M314 207 Q347 179 374 180" stroke="#ff9d27" stroke-width="7"/>
+    <path d="M401.0 178.0 374.9 192.0 373.1 168.0Z" fill="#ff9d27" stroke="#c95618" stroke-width="3" stroke-linejoin="round"/>
+    <path d="M540 120 Q593 104 628 115" stroke="#c95618" stroke-width="12"/>
+    <path d="M540 120 Q593 104 628 115" stroke="#ff9d27" stroke-width="7"/>
+    <path d="M658.0 120.0 626.0 126.8 630.0 103.2Z" fill="#ff9d27" stroke="#c95618" stroke-width="3" stroke-linejoin="round"/>
+    <path d="M798 172 Q839 180 861 198" stroke="#c95618" stroke-width="12"/>
+    <path d="M798 172 Q839 180 861 198" stroke="#ff9d27" stroke-width="7"/>
+    <path d="M886.0 216.0 854.0 207.7 868.0 188.3Z" fill="#ff9d27" stroke="#c95618" stroke-width="3" stroke-linejoin="round"/>
+    <path d="M1020 318 Q1042 336 1056 361" stroke="#c95618" stroke-width="12"/>
+    <path d="M1020 318 Q1042 336 1056 361" stroke="#ff9d27" stroke-width="7"/>
+    <path d="M1065.0 386.0 1044.7 365.1 1067.3 356.9Z" fill="#ff9d27" stroke="#c95618" stroke-width="3" stroke-linejoin="round"/>
+    <path d="M1124 556 Q1148 606 1110 655" stroke="#c95618" stroke-width="12"/>
+    <path d="M1124 556 Q1148 606 1110 655" stroke="#ff9d27" stroke-width="7"/>
+    <path d="M1094.0 680.0 1099.9 648.5 1120.1 661.5Z" fill="#ff9d27" stroke="#c95618" stroke-width="3" stroke-linejoin="round"/>
   </g>
 
-  <g id="cube-card" transform="translate(185 285) rotate(-12) scale(.9) translate(-322 -215)">
+  <g id="cube-card" transform="translate(246 253) rotate(-12) scale(.9) translate(-322 -215)">
     <use xlink:href="#file" x="247" y="120" width="150" height="190"/>
     <path d="M325 160 278 188 325 216 372 188Z" fill="#e3e6ec" stroke="#465060" stroke-width="4.5" stroke-linejoin="round"/>
     <path d="M278 188 325 216 325 273 278 246Z" fill="#c6cbd4" stroke="#465060" stroke-width="4.5" stroke-linejoin="round"/>
     <path d="M325 216 372 188 372 246 325 273Z" fill="#9da6b4" stroke="#465060" stroke-width="4.5" stroke-linejoin="round"/>
   </g>
-  <g id="lattice-card" transform="translate(380 165) rotate(-6) scale(.9) translate(-635 -147)">
+  <g id="lattice-card" transform="translate(471 144) rotate(-6) scale(.9) translate(-635 -147)">
     <use xlink:href="#file" x="560" y="52" width="150" height="190"/>
     <path d="M635 106 585 192 685 192Z" fill="#e5e7e9"/>
     <path d="M622.5 127.5 647.5 127.5 M647.5 127.5 610.0 192.0 M622.5 127.5 660.0 192.0 M610.0 149.0 660.0 149.0 M660.0 149.0 635.0 192.0 M610.0 149.0 635.0 192.0 M597.5 170.5 672.5 170.5 M672.5 170.5 660.0 192.0 M597.5 170.5 610.0 192.0" fill="none" stroke="#89919f" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
     <path d="M635 106 585 192 685 192Z" fill="none" stroke="#505867" stroke-width="5" stroke-linejoin="round"/>
   </g>
-  <g id="gear-card" transform="translate(600 118) scale(.9) translate(-939 -223)">
+  <g id="gear-card" transform="translate(729 144) scale(.9) translate(-939 -223)">
     <use xlink:href="#file" x="864" y="128" width="150" height="190"/>
     <path d="M939 185 945 176 959 180 960 191 964 193 974 190 983 201 978 210 979 214 989 217 990 232 980 236 979 240 985 249 977 261 967 259 964 261 964 272 950 277 943 269 939 269 933 278 919 274 918 263 914 261 904 264 895 253 901 244 899 240 889 237 888 222 898 218 899 214 893 205 901 193 911 196 914 193 914 182 928 177 935 185Z" fill="#aeb1b8" stroke="#505665" stroke-width="5" stroke-linejoin="round"/>
     <circle cx="939" cy="227" r="31" fill="#c3c5ca" stroke="#767b86" stroke-width="3"/>
     <circle cx="939" cy="227" r="18" fill="url(#page)" stroke="#515461" stroke-width="4"/>
   </g>
-  <g id="part-card" transform="translate(820 165) rotate(6) scale(.9) translate(-1078 -430)">
+  <g id="part-card" transform="translate(954 253) rotate(6) scale(.9) translate(-1078 -430)">
     <use xlink:href="#file" x="1003" y="335" width="150" height="190"/>
     <path d="m1036 431 49-27 45 23-47 29Z" fill="#c7cbd1" stroke="#555c69" stroke-width="4" stroke-linejoin="round"/>
     <path d="m1036 431 47 25v44l-47-25Z" fill="#a9aeb8" stroke="#555c69" stroke-width="4" stroke-linejoin="round"/>
@@ -894,14 +894,14 @@
     <ellipse cx="1058" cy="462" rx="8" ry="11" transform="rotate(-27 1058 462)" fill="#58616f" stroke="#444b59" stroke-width="3"/>
     <ellipse cx="1106" cy="460" rx="8" ry="11" transform="rotate(27 1106 460)" fill="#58616f" stroke="#444b59" stroke-width="3"/>
   </g>
-  <g id="graph-card" transform="translate(1015 285) rotate(12) scale(.9) translate(-1080 -643)">
+  <g id="graph-card" transform="translate(1092 477) rotate(12) scale(.9) translate(-1080 -643)">
     <use xlink:href="#file" x="1005" y="548" width="150" height="190"/>
     <path d="M1037 681h100m-91-1v-91" fill="none" stroke="#505868" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
     <path d="M1047 665q23 2 39-21 17-25 28-28 16-4 19 32 2 15 11 17" fill="none" stroke="#505868" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
   </g>
 
   <!-- Happy Ferris from rustacean.net; source and CC0 notice: assets/FERRIS.md. -->
-  <g id="ferris" transform="rotate(5 600 540) translate(220 285) scale(0.63)" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linejoin:round">
+  <g id="ferris" transform="translate(20 16) rotate(5 600 540) translate(220 285) scale(0.63)" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linejoin:round">
         <g transform="matrix(1,0,0,1,1009.4,506.362)">
             <path d="M0,-7.203L-12.072,-32.209C-12.009,-33.156 -11.961,-34.107 -11.961,-35.062C-11.961,-63.408 -41.439,-89.533 -91.03,-110.451L-91.03,-93.058C-95.866,-94.977 -100.901,-96.845 -106.147,-98.651L-106.147,-106.759C-177.021,-132.319 -282.53,-148.537 -400.388,-148.537C-503.361,-148.537 -596.917,-136.157 -666.179,-115.983L-666.179,-87.737L-666.181,-87.737L-666.181,-121.925C-737.141,-99.375 -781.135,-68.048 -781.135,-33.41C-781.135,-27.95 -780.034,-22.572 -777.918,-17.297L-785.146,-4.43C-785.146,-4.43 -790.938,3.082 -780.74,18.932C-771.746,32.909 -726.692,87.617 -702.913,116.267C-692.699,130.954 -685.772,140.001 -685.167,139.126C-684.212,137.74 -691.518,110.165 -711.802,78.703C-721.268,61.808 -732.57,39.42 -739.356,22.884C-720.414,34.874 -609.126,90.913 -382.124,90.685C-150.13,90.453 -47.009,17.834 -35.691,7.948C-39.646,23.837 -53.159,55.981 -63.936,78.586C-81.642,110.917 -88.056,139.064 -87.232,140.456C-86.708,141.334 -80.667,132.015 -71.756,116.913C-51.025,87.37 -11.739,30.974 -3.889,16.608C5.007,0.323 0,-7.203 0,-7.203" style="fill:rgb(165,43,0);fill-rule:nonzero;"/>
         </g>
