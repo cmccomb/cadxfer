@@ -33,11 +33,11 @@ percentage should not be interpreted as branch coverage or solver validation.
 
 | Rust module | Line coverage | Next useful checks |
 | --- | ---: | --- |
-| `src/bdf/mesh.rs` | 81.0% | Geometry writer edge cases and write failures. |
+| `src/formats/solver_inputs/bdf/mesh.rs` | 81.0% | Geometry writer edge cases and write failures. |
 | `src/cli/output.rs` | 84.6% | Staged output failures and cleanup paths. |
-| `src/mesh_formats/inp.rs` | 85.0% | More malformed section and generated mesh records. |
-| `src/nastran_results/op2_binary.rs` | 88.3% | More malformed or unsupported OP2 records. |
-| `src/mesh_formats/frd.rs` | 89.1% | More fixed-width and result-record errors. |
+| `src/formats/solver_inputs/inp.rs` | 85.0% | More malformed section and generated mesh records. |
+| `src/formats/companion_results/op2/binary.rs` | 88.3% | More malformed or unsupported OP2 records. |
+| `src/formats/mesh_datasets/frd.rs` | 89.1% | More fixed-width and result-record errors. |
 
 These gaps are priorities for future tests; the current suite already exercises the
 advertised conversion routes through the CLI. Its fixtures are small, so they

@@ -687,7 +687,7 @@ mod tests {
 
     #[test]
     fn all_linear_cells_ids_and_fields_roundtrip() {
-        let mesh = Document::parse(include_bytes!("../../tests/fixtures/mixed-linear.bdf"))
+        let mesh = Document::parse(include_bytes!("../../../tests/fixtures/mixed-linear.bdf"))
             .unwrap()
             .geometry()
             .unwrap()
@@ -733,7 +733,7 @@ mod tests {
 
     #[test]
     fn vtk_written_offsets_fixture_preserves_ids_and_topology() {
-        let dataset = read(include_str!("../../tests/fixtures/vtk-5.1-mixed.vtk")).unwrap();
+        let dataset = read(include_str!("../../../tests/fixtures/vtk-5.1-mixed.vtk")).unwrap();
         assert_eq!(dataset.mesh.points.len(), 9);
         assert_eq!(dataset.mesh.cells.len(), 7);
         assert_eq!(dataset.mesh.cells[0].id, 101);

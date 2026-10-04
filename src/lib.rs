@@ -28,32 +28,35 @@
 //! after an I/O failure. The CLI provides staged, no-clobber file output.
 #![warn(missing_docs)]
 
+#[path = "formats/solver_inputs/bdf/mod.rs"]
 pub mod bdf;
 pub mod conversion;
 pub mod core;
-#[path = "mesh_formats/exodus.rs"]
-pub mod exodus;
-#[path = "mesh_formats/frd.rs"]
-pub mod frd;
-#[path = "mesh_formats/inp.rs"]
+
+#[path = "formats/solver_inputs/inp.rs"]
 pub mod inp;
-#[path = "mesh_formats/msh.rs"]
-pub mod msh;
-#[path = "nastran_results/nastran_result.rs"]
-mod nastran_result;
-#[path = "nastran_results/op2.rs"]
-pub mod op2;
-#[path = "nastran_results/op2_binary.rs"]
-mod op2_binary;
-#[path = "nastran_results/pch.rs"]
-pub mod pch;
-#[path = "mesh_formats/stl.rs"]
+
+#[path = "formats/geometry_only/stl.rs"]
 pub mod stl;
-#[path = "mesh_formats/su2.rs"]
+#[path = "formats/geometry_only/su2.rs"]
 pub mod su2;
-#[path = "mesh_formats/unv.rs"]
+#[path = "formats/geometry_only/unv.rs"]
 pub mod unv;
-#[path = "mesh_formats/vtk.rs"]
+
+#[path = "formats/mesh_datasets/exodus.rs"]
+pub mod exodus;
+#[path = "formats/mesh_datasets/frd.rs"]
+pub mod frd;
+#[path = "formats/mesh_datasets/msh.rs"]
+pub mod msh;
+#[path = "formats/mesh_datasets/vtk.rs"]
 pub mod vtk;
-#[path = "mesh_formats/vtu.rs"]
+#[path = "formats/mesh_datasets/vtu.rs"]
 pub mod vtu;
+
+#[path = "formats/companion_results/nastran_result.rs"]
+mod nastran_result;
+#[path = "formats/companion_results/op2/mod.rs"]
+pub mod op2;
+#[path = "formats/companion_results/pch.rs"]
+pub mod pch;

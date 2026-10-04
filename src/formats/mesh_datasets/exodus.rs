@@ -918,7 +918,7 @@ mod tests {
     use super::{read_projection, write_data};
     use crate::core::{Cell, CellKind, Dataset, FieldLocation, Mesh, Point};
 
-    const SOURCE: &[u8] = include_bytes!("../../tests/fixtures/exodus-two-blocks.exo");
+    const SOURCE: &[u8] = include_bytes!("../../../tests/fixtures/exodus-two-blocks.exo");
 
     #[test]
     fn independent_classic_fixture_preserves_ids_and_values() {
@@ -975,7 +975,7 @@ mod tests {
 
     #[test]
     fn partial_and_unsupported_inputs_fail() {
-        let partial = include_bytes!("../../tests/fixtures/exodus-partial.exo");
+        let partial = include_bytes!("../../../tests/fixtures/exodus-partial.exo");
         assert!(
             read_projection(partial, None)
                 .unwrap_err()
@@ -1009,7 +1009,7 @@ mod tests {
 
     #[test]
     fn legacy_coordinates_and_missing_maps_are_explicit() {
-        let source = include_bytes!("../../tests/fixtures/exodus-legacy.exo");
+        let source = include_bytes!("../../../tests/fixtures/exodus-legacy.exo");
         let projection = read_projection(source, None).unwrap();
         for (point, expected) in projection.dataset.mesh.points[1..].iter().zip([
             [1.0, 0.0, 0.0],

@@ -309,7 +309,7 @@ mod tests {
 
     #[test]
     fn gmsh_six_kind_fixture_round_trips() {
-        let source = include_str!("../../tests/fixtures/gmsh-six-kind.unv");
+        let source = include_str!("../../../tests/fixtures/gmsh-six-kind.unv");
         let read = read_projection(source).unwrap();
         assert_eq!(read.dataset.mesh.points.len(), 9);
         assert_eq!(read.dataset.mesh.cells.len(), 6);
@@ -324,7 +324,7 @@ mod tests {
     #[test]
     fn rejects_malformed_and_unsupported_records() {
         assert!(read_projection("    -1\n  2411\n1 1 1 11\n0 0 0\n").is_err());
-        let source = include_str!("../../tests/fixtures/gmsh-six-kind.unv");
+        let source = include_str!("../../../tests/fixtures/gmsh-six-kind.unv");
         assert!(read_projection(&source.replace("       111", "       999")).is_err());
         let missing_node = source.replacen("         1         2", "         1       999", 1);
         assert_ne!(missing_node, source);

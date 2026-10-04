@@ -197,7 +197,7 @@ enforces the same BDF frame check as OP2. PCH has no writer.
 
 All `read` functions report `core::Error` with a stable `code` and optional
 one-based source `line`. Human-readable `message` wording is not a stable
-interface. BDF reads have configurable [`ParseOptions`](../src/bdf/syntax.rs)
+interface. BDF reads have configurable [`ParseOptions`](../src/formats/solver_inputs/bdf/syntax.rs)
 limits. Other format readers accept source text or bytes supplied by the caller;
 bound file reads yourself. Library writers use caller-owned streams and can
 leave partial output after an I/O error. Use a temporary file and rename or

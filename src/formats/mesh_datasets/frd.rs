@@ -686,7 +686,8 @@ mod tests {
 
     #[test]
     fn ascii_writer_preserves_mesh_and_nodal_values_with_continuation() {
-        let mut dataset = read(include_bytes!("../../tests/fixtures/linear-results.frd")).unwrap();
+        let mut dataset =
+            read(include_bytes!("../../../tests/fixtures/linear-results.frd")).unwrap();
         dataset.fields.push(Field {
             name: "EXTRA".into(),
             location: FieldLocation::Point,
@@ -714,7 +715,7 @@ mod tests {
     #[test]
     fn all_supported_linear_topologies_roundtrip_in_one_file() {
         let mut mesh =
-            crate::bdf::Document::parse(include_bytes!("../../tests/fixtures/mixed-linear.bdf"))
+            crate::bdf::Document::parse(include_bytes!("../../../tests/fixtures/mixed-linear.bdf"))
                 .unwrap()
                 .geometry()
                 .unwrap()
@@ -748,7 +749,7 @@ mod tests {
 
     #[test]
     fn malformed_result_and_connectivity_records_fail_explicitly() {
-        let source = include_str!("../../tests/fixtures/linear-results.frd");
+        let source = include_str!("../../../tests/fixtures/linear-results.frd");
         for (old, new) in [
             ("-2 1 2 3", "-2 1 2 99"),
             ("-2 1 2 3", "-2 1 2"),
@@ -766,7 +767,7 @@ mod tests {
 
     #[test]
     fn writer_preflights_fixed_width_limits_before_writing() {
-        let baseline = read(include_bytes!("../../tests/fixtures/linear-results.frd")).unwrap();
+        let baseline = read(include_bytes!("../../../tests/fixtures/linear-results.frd")).unwrap();
         let mut cases = Vec::new();
         let mut oversized_id = baseline.clone();
         oversized_id.mesh.cells[0].id = 10_000_000_000;

@@ -1,9 +1,10 @@
 //! Native 32-bit OP2 real displacement adapter.
 //! A matching mesh with original node IDs is required. Coordinates and
 //! displacements must be in the basic frame; unsupported tables fail explicitly.
+mod binary;
+
 use crate::core::{Dataset, Error, Field, FieldLocation, Mesh, Result};
 use crate::nastran_result;
-use crate::op2_binary;
 
 /// Decode one real six-component OUGV1 displacement table from OP2 bytes.
 /// `step` is a zero-based index within the subcase.
@@ -25,7 +26,7 @@ pub fn read_displacements(
     subcase: Option<i64>,
     step: Option<usize>,
 ) -> Result<(Dataset, bool)> {
-    let selected = op2_binary::decode(bytes, subcase, step)?;
+    let selected = binary::decode(bytes, subcase, step)?;
     let dataset = nastran_result::displacement_dataset(
         mesh,
         &selected.rows,
@@ -175,7 +176,7 @@ pub fn write_displacements(
         rows.push((point.id, values));
     }
     // Encode only after all rows have passed the range and completeness checks.
-    op2_binary::encode(
+    binary::encode(
         &rows,
         i32::try_from(subcase).map_err(|_| Error::new("E_OP2", "subcase exceeds 32-bit range"))?,
         field.time.map(|value| value as f32),

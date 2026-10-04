@@ -1023,7 +1023,7 @@ mod tests {
 
     #[test]
     fn msh41_physical_names_select_overlapping_boundary_cells() {
-        let source = include_str!("../../tests/fixtures/named-boundary.msh");
+        let source = include_str!("../../../tests/fixtures/named-boundary.msh");
         let dataset = read(source).unwrap();
         assert_eq!(dataset.mesh.cell_sets.len(), 3);
         assert_eq!(dataset.mesh.cell_sets[0].name, "inlet");
@@ -1057,7 +1057,7 @@ mod tests {
     #[test]
     fn gmsh_written_msh22_fixture_preserves_all_topologies() {
         let projection =
-            read_projection(include_str!("../../tests/fixtures/gmsh-2.2-mixed.msh")).unwrap();
+            read_projection(include_str!("../../../tests/fixtures/gmsh-2.2-mixed.msh")).unwrap();
         assert_eq!(projection.tagged_elements, 0);
         let dataset = projection.dataset;
         assert_eq!(dataset.mesh.points.len(), 9);

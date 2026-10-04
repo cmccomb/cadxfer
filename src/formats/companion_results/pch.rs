@@ -355,7 +355,7 @@ mod tests {
 
     #[test]
     fn published_msc_displacement_excerpt_decodes() {
-        let source = include_str!("../../tests/fixtures/msc-reference-displacement.pch");
+        let source = include_str!("../../../tests/fixtures/msc-reference-displacement.pch");
         let result = read(source, &mesh(&[101]), None, None).unwrap();
         assert_eq!(result.dataset.fields[0].components.len(), 6);
         assert!((result.dataset.fields[0].values[1] - 0.000_999_407_5).abs() < 1e-12);
@@ -364,7 +364,7 @@ mod tests {
 
     #[test]
     fn subcase_and_time_step_selection_are_explicit() {
-        let source = include_str!("../../tests/fixtures/pch-multiple.pch");
+        let source = include_str!("../../../tests/fixtures/pch-multiple.pch");
         assert!(
             read(source, &mesh(&[10, 20]), None, None)
                 .unwrap_err()
@@ -388,7 +388,7 @@ mod tests {
 
     #[test]
     fn unsupported_and_incomplete_displacements_fail() {
-        let source = include_str!("../../tests/fixtures/msc-reference-displacement.pch");
+        let source = include_str!("../../../tests/fixtures/msc-reference-displacement.pch");
         assert!(
             read(
                 &source.replace("$REAL OUTPUT", "$COMPLEX OUTPUT"),
@@ -424,7 +424,7 @@ mod tests {
     fn unrelated_result_block_is_reported() {
         let source = format!(
             "$STRESSES\n101 0.5\n{}",
-            include_str!("../../tests/fixtures/msc-reference-displacement.pch")
+            include_str!("../../../tests/fixtures/msc-reference-displacement.pch")
         );
         let projection = read(&source, &mesh(&[101]), None, None).unwrap();
         assert_eq!(projection.skipped_blocks, 1);
@@ -432,7 +432,7 @@ mod tests {
 
     #[test]
     fn invalid_headers_and_grid_records_are_rejected() {
-        let source = include_str!("../../tests/fixtures/msc-reference-displacement.pch");
+        let source = include_str!("../../../tests/fixtures/msc-reference-displacement.pch");
         for (old, new) in [
             ("$REAL OUTPUT", "$SORT2"),
             ("$REAL OUTPUT", "$FREQUENCY = 1.0"),
@@ -471,7 +471,7 @@ mod tests {
 
     #[test]
     fn incomplete_transient_steps_do_not_mix_grid_values() {
-        let source = include_str!("../../tests/fixtures/pch-multiple.pch");
+        let source = include_str!("../../../tests/fixtures/pch-multiple.pch");
         let mixed_width = source.replacen("-CONT- 4.0 5.0 6.0\n", "", 1);
         assert_eq!(
             read(&mixed_width, &mesh(&[10, 20]), Some(1), None)
