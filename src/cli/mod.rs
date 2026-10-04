@@ -1,5 +1,6 @@
 //! Parse CLI commands, dispatch format conversions, and report outcomes.
 
+mod help;
 mod json;
 mod output;
 
@@ -13,48 +14,12 @@ use caexfer::core::{Error, Field, FieldLocation, Result};
 use caexfer::formats::{bdf, msh};
 use json::{array, object, quote};
 
-/// The help text
-const HELP: &str = "caexfer: exchange finite-element meshes and results across formats
-
-USAGE
-  caexfer formats [--json]
-  caexfer info INPUT [--json]
-  caexfer validate INPUT [--strict] [--json]
-  caexfer convert INPUT OUTPUT --accept-projection [--json]
-
-OPTIONS
-  --from FORMAT               bdf, vtu, vtk, msh, inp, frd, op2, pch, stl, su2, unv, exodus
-  --strict                    Fail validation on warnings or omissions
-  --accept-projection         Required for conversion into the supported subset
-  --step N                    Zero-based OP2/PCH/Exodus result step or FRD step number
-  --max-bytes N               Input byte limit (default: 268435456)
-  --msh-version 2.2|4.1        MSH output dialect (default: 4.1)
-  --json                      Machine-readable output (schema_version=1)
-  --                          Treat remaining arguments as file paths
-  -h, --help                  Show this help
-  -V, --version               Show version
-
-NASTRAN RESULT OPTIONS
-  --mesh FILE                 Companion mesh with original node IDs for OP2/PCH input
-  --assume-basic-frame        Assert basic frame for non-BDF mesh and result
-  --subcase N                 Select a displacement subcase when reading
-
-OP2 OUTPUT OPTIONS
-  --mesh-out FILE             Also write a separate mesh with OP2 output
-  --zero-missing-rotations    Assert absent R1/R2/R3 are zero when writing
-  --assume-zero-displacement  Synthesize zero OP2 from BDF/INP (no solver)
-
-EXAMPLES
-  caexfer info model.bdf
-  caexfer convert model.bdf model.vtu --accept-projection
-  caexfer convert results.op2 results.vtu --mesh model.bdf --accept-projection
-";
-
 /// Parsed CLI command, paths, and explicitly supplied option flags.
 #[derive(Debug, Default)]
 #[allow(clippy::struct_excessive_bools)] // CLI switches are independent user flags.
 struct Args {
     command: String,
+    help_requested: bool,
     paths: Vec<PathBuf>,
     json: bool,
     strict: bool,
@@ -131,11 +96,31 @@ fn parse_args(raw: &[OsString]) -> Result<Args> {
         });
     }
     let command = text(&raw[0])?.to_string();
-    if matches!(command.as_str(), "-h" | "--help" | "help") {
+    if matches!(command.as_str(), "-h" | "--help") {
         return Ok(Args {
             command: "help".into(),
             ..Args::default()
         });
+    }
+    if command == "help" {
+        return match raw.get(1) {
+            None => Ok(Args {
+                command,
+                ..Args::default()
+            }),
+            Some(topic) if raw.len() == 2 => {
+                let topic = text(topic)?;
+                if !matches!(topic, "formats" | "info" | "validate" | "convert") {
+                    return Err(usage(format!("unknown help topic {topic:?}; use --help")));
+                }
+                Ok(Args {
+                    command: topic.into(),
+                    help_requested: true,
+                    ..Args::default()
+                })
+            }
+            Some(_) => Err(usage("help expects one command name")),
+        };
     }
     if matches!(command.as_str(), "-V" | "--version") {
         return Ok(Args {
@@ -165,10 +150,8 @@ fn parse_args(raw: &[OsString]) -> Result<Args> {
             continue;
         }
         if options && (arg == "--help" || arg == "-h") {
-            return Ok(Args {
-                command: "help".into(),
-                ..args
-            });
+            args.help_requested = true;
+            return Ok(args);
         }
         let value = |offset: usize| -> Result<&str> {
             raw.get(index + offset)
@@ -587,10 +570,14 @@ fn run_info(args: &Args) -> Result<u8> {
 /// Every format uses the same projected-dataset inspection path.
 #[allow(clippy::too_many_lines)] // Command branches keep exit codes and output together.
 fn dispatch(args: &Args) -> Result<u8> {
+    if args.help_requested {
+        emit(help::for_command(&args.command))?;
+        return Ok(0);
+    }
     // Commands without input return before any format or file selection.
     match args.command.as_str() {
         "help" => {
-            emit(HELP)?;
+            emit(help::OVERVIEW)?;
             return Ok(0);
         }
         "version" => {

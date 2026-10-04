@@ -40,11 +40,33 @@ impl Drop for Scratch {
     }
 }
 
-/// Keep the published help and version entry points usable.
+/// Show an overview and command-specific help without requiring path arguments.
 #[test]
 fn help_and_version_work() {
     let s = Scratch::new();
-    assert!(s.run(&["--help"]).status.success());
+    let overview = s.run(&["--help"]);
+    assert!(overview.status.success());
+    let overview = String::from_utf8(overview.stdout).unwrap();
+    assert!(overview.contains("caexfer COMMAND [OPTIONS]"));
+    assert!(overview.contains("caexfer COMMAND --help"));
+
+    let convert = s.run(&["convert", "--help"]);
+    assert!(convert.status.success());
+    let convert = String::from_utf8(convert.stdout).unwrap();
+    assert!(convert.contains("convert INPUT OUTPUT --accept-projection"));
+    assert!(convert.contains("--mesh-out FILE"));
+    assert!(!convert.contains("caexfer formats [--json]"));
+    assert_eq!(
+        convert,
+        String::from_utf8(s.run(&["help", "convert"]).stdout).unwrap()
+    );
+
+    let validate = s.run(&["validate", "--help"]);
+    assert!(validate.status.success());
+    let validate = String::from_utf8(validate.stdout).unwrap();
+    assert!(validate.contains("--strict"));
+    assert!(!validate.contains("--mesh-out FILE"));
+
     assert_eq!(
         String::from_utf8(s.run(&["--version"]).stdout)
             .unwrap()

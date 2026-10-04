@@ -37,9 +37,12 @@ caexfer convert results.exo results.vtu --step 0 --accept-projection
 These commands use example input names. The [format limits](SUPPORT.md) describe
 which cells, sets, fields, and time data each route can retain.
 
-`caexfer --help` lists all commands. Paths can occur before or after options; use
-`--` for paths beginning with a hyphen. Filenames use OS-native strings internally;
-JSON/human display of non-UTF-8 paths is lossy, not an exact path serialization.
+`caexfer --help` lists the commands. Use `caexfer convert --help` (or
+`caexfer help convert`) for that command's options and examples. The other
+commands have their own help in the same form. Paths can occur before or after
+options; use `--` for paths beginning with a hyphen. Filenames use OS-native
+strings internally; JSON/human display of non-UTF-8 paths is lossy, not an exact
+path serialization.
 
 | Command | Result |
 | --- | --- |
