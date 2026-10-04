@@ -1,15 +1,20 @@
 <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1200 1200" role="img" aria-labelledby="title desc">
   <title id="title">caexfer</title>
-  <desc id="desc">An expressive flame works at a laptop while engineering files move between formats.</desc>
+  <desc id="desc">Ferrous, a stressed orange crab, holds papers behind a laptop as engineering files move between formats.</desc>
   <defs>
-    <linearGradient id="fire" x1="0" y1="1" x2="0" y2="0">
-      <stop stop-color="#ff9f23"/>
-      <stop offset=".55" stop-color="#ff6d1b"/>
-      <stop offset="1" stop-color="#ed4319"/>
+    <linearGradient id="shell" x1="0" y1="0" x2="0" y2="1">
+      <stop stop-color="#ff9842"/>
+      <stop offset=".55" stop-color="#f36329"/>
+      <stop offset="1" stop-color="#d94325"/>
     </linearGradient>
-    <linearGradient id="heart" x1="0" y1="1" x2="0" y2="0">
-      <stop stop-color="#ffd75c"/>
-      <stop offset="1" stop-color="#ff9d29"/>
+    <linearGradient id="claw" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#ffad51"/>
+      <stop offset="1" stop-color="#e64b26"/>
+    </linearGradient>
+    <linearGradient id="mug-shade" x1="0" y1="0" x2="1" y2="0">
+      <stop stop-color="#17171b"/>
+      <stop offset=".58" stop-color="#323036"/>
+      <stop offset="1" stop-color="#17171b"/>
     </linearGradient>
     <linearGradient id="page" x1="0" y1="0" x2="1" y2="1">
       <stop stop-color="#fff8e7"/>
@@ -30,42 +35,55 @@
     <symbol id="arrow" viewBox="0 0 155 80">
       <path d="M7 65Q53 10 111 34L104 11 147 37 110 72 114 50Q67 30 7 65Z" fill="#ffab36" stroke="#d95214" stroke-width="5" stroke-linejoin="round"/>
     </symbol>
+    <pattern id="tri-mesh" width="20" height="18" patternUnits="userSpaceOnUse">
+      <path d="M0 18 10 0 20 18M0 18h20" fill="none" stroke="#8d929d" stroke-width="2"/>
+    </pattern>
   </defs>
 
   <!-- The orbit of exchanged engineering documents. -->
+  <g id="arrows">
   <use xlink:href="#arrow" x="145" y="240" width="105" height="75" transform="rotate(-42 197 277)"/>
   <use xlink:href="#arrow" x="408" y="105" width="155" height="80"/>
   <use xlink:href="#arrow" x="735" y="95" width="150" height="80" transform="rotate(16 810 135)"/>
   <use xlink:href="#arrow" x="1030" y="225" width="125" height="85" transform="rotate(55 1092 267)"/>
-
-  <g transform="rotate(-12 320 228)">
-    <use xlink:href="#file" x="247" y="120" width="150" height="190"/>
-    <path d="m276 207 40-49 50 50-39 52-51-53Zm40-49 11 102m39-52-90-1" fill="none" stroke="#4b5260" stroke-width="4" stroke-linejoin="round"/>
   </g>
-  <use xlink:href="#file" x="560" y="52" width="150" height="190"/>
-  <path d="m588 192 55-87 43 87Z" fill="#dddfe0" stroke="#4b5260" stroke-width="4" stroke-linejoin="round"/>
-  <path d="m597 178 63-42m-49 58 51-58m-35 58 44-42m-67-20 61 62m-45-81 43 79" fill="none" stroke="#8b929c" stroke-width="2"/>
-  <g transform="rotate(11 942 225)">
+
+  <g id="mesh-card" transform="rotate(-12 320 228)">
+    <use xlink:href="#file" x="247" y="120" width="150" height="190"/>
+    <path d="M278 206 316 163 365 180 373 235 334 270 282 251Z" fill="#e7e2da" stroke="#465060" stroke-width="5" stroke-linejoin="round"/>
+    <path d="M278 206 328 219 316 163m12 56 37-39m-37 39 45 16m-45-16 6 51m-6-51-46 32m46-32-50-13" fill="none" stroke="#465060" stroke-width="4.5" stroke-linejoin="round" stroke-linecap="round"/>
+    <circle cx="328" cy="219" r="4" fill="#465060"/>
+  </g>
+  <g id="triangle-card">
+    <use xlink:href="#file" x="560" y="52" width="150" height="190"/>
+    <path d="M589 193Q620 123 639 107q5-5 10 2 20 35 38 84Z" fill="#e3e3e1"/>
+    <path d="M589 193Q620 123 639 107q5-5 10 2 20 35 38 84Z" fill="url(#tri-mesh)"/>
+    <path d="M589 193Q620 123 639 107q5-5 10 2 20 35 38 84Z" fill="none" stroke="#505867" stroke-width="5" stroke-linejoin="round"/>
+  </g>
+  <g id="gear-card" transform="rotate(11 942 225)">
     <use xlink:href="#file" x="864" y="128" width="150" height="190"/>
-    <path d="M939 177v14m0 72v14m-50-50h14m72 0h14m-84-35-10-10m88 88-10-10m0-68 10-10m-88 88 10-10" stroke="#515461" stroke-width="15" stroke-linecap="round"/>
-    <circle cx="939" cy="227" r="43" fill="#a6a8ae" stroke="#515461" stroke-width="5"/>
+    <path d="M939 185 945 176 959 180 960 191 964 193 974 190 983 201 978 210 979 214 989 217 990 232 980 236 979 240 985 249 977 261 967 259 964 261 964 272 950 277 943 269 939 269 933 278 919 274 918 263 914 261 904 264 895 253 901 244 899 240 889 237 888 222 898 218 899 214 893 205 901 193 911 196 914 193 914 182 928 177 935 185Z" fill="#aeb1b8" stroke="#505665" stroke-width="5" stroke-linejoin="round"/>
+    <circle cx="939" cy="227" r="31" fill="#c3c5ca" stroke="#767b86" stroke-width="3"/>
     <circle cx="939" cy="227" r="18" fill="url(#page)" stroke="#515461" stroke-width="4"/>
   </g>
-  <g transform="rotate(12 1080 430)">
+  <g id="cad-card" transform="rotate(12 1080 430)">
     <use xlink:href="#file" x="1003" y="335" width="150" height="190"/>
-    <path d="m1033 435 50-27 42 22-48 30Z" fill="#bcc0c8" stroke="#545a67" stroke-width="4"/>
-    <path d="m1033 435 44 25v39l-44-25Zm44 25 48-30v43l-48 26Z" fill="#999da7" stroke="#545a67" stroke-width="4"/>
-    <path d="M1070 430v-30q0-13 13-13t13 13v29" fill="#b4b7be" stroke="#545a67" stroke-width="4"/>
-    <ellipse cx="1083" cy="400" rx="13" ry="6" fill="#dddfe2" stroke="#545a67" stroke-width="3"/>
-    <circle cx="1053" cy="467" r="7" fill="#505665"/>
-    <circle cx="1103" cy="465" r="7" fill="#505665"/>
+    <path d="m1036 431 49-27 45 23-47 29Z" fill="#c7cbd1" stroke="#555c69" stroke-width="4" stroke-linejoin="round"/>
+    <path d="m1036 431 47 25v44l-47-25Z" fill="#a9aeb8" stroke="#555c69" stroke-width="4" stroke-linejoin="round"/>
+    <path d="m1083 456 47-29v45l-47 28Z" fill="#8e95a2" stroke="#555c69" stroke-width="4" stroke-linejoin="round"/>
+    <path d="M1071 431v-30q0-12 14-12t14 12v31l-14 9Z" fill="#a3aab5" stroke="#535b68" stroke-width="4"/>
+    <ellipse cx="1085" cy="401" rx="14" ry="7" fill="#dce0e3" stroke="#535b68" stroke-width="4"/>
+    <ellipse cx="1058" cy="462" rx="8" ry="11" transform="rotate(-27 1058 462)" fill="#58616f" stroke="#444b59" stroke-width="3"/>
+    <ellipse cx="1106" cy="460" rx="8" ry="11" transform="rotate(27 1106 460)" fill="#58616f" stroke="#444b59" stroke-width="3"/>
   </g>
-  <g transform="rotate(12 1081 641)">
+  <g id="plot-card" transform="rotate(12 1081 641)">
     <use xlink:href="#file" x="1005" y="548" width="150" height="190"/>
-    <path d="M1034 686h99m-86-9v-90m0 74q26 0 37-34 22-55 38 3 6 28 19 29" fill="none" stroke="#545a67" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M1037 681h100m-91-1v-91" fill="none" stroke="#505868" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M1047 665q23 2 39-21 17-25 28-28 16-4 19 32 2 15 11 17" fill="none" stroke="#505868" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
   </g>
 
   <!-- Papers give the mascot the same busy silhouette as the source mark. -->
+  <g id="paper-stacks">
   <ellipse cx="600" cy="899" rx="550" ry="38" fill="#d9c5b5" opacity=".62"/>
   <g stroke="#51474a" stroke-width="4" stroke-linejoin="round">
     <path d="M68 819 365 804 382 835 70 847ZM76 777 344 764 361 800 73 810ZM83 735 344 724 356 762 71 768ZM89 695 346 684 356 721 84 725ZM94 653 342 645 351 681 90 685ZM98 609 340 602 350 642 96 645ZM101 565 335 563 345 598 98 603ZM101 522 334 526 340 558 96 559ZM105 481 333 487 339 521 99 517ZM112 443 328 445 337 484 104 475ZM112 409 320 400 332 440 105 438ZM116 370 310 355 327 398 108 404Z" fill="#b8a9a6"/>
@@ -73,55 +91,105 @@
     <path d="m853 778 302-10 19 39-302 13Zm-5 38 316-7 10 33-311 13Zm-8 37 326-9 7 31-308 22" fill="#a79e9c"/>
     <path d="m870 764 270-36 37 37-309 36Zm-9 49 279-20 28 19-313 27Zm-10 40 287-14 27 9-308 31" fill="#efddc2"/>
   </g>
-  <g opacity=".96">
+  <g fill="url(#page)" stroke="#51474a" stroke-width="4" stroke-linejoin="round">
+    <path d="M108 370 282 345l62 29 9 16-243 10Z"/>
+    <path d="M82 530 263 504l89 23-8 20-260 6Z"/>
+    <path d="M72 685 236 661l112 27-8 18-264 4Z"/>
+    <path d="M868 756 1124 727l51 25-7 18-301 24Z"/>
+  </g>
+  <path d="m136 380 118-18m-130 178 119-18m-142 168 125-15m681 80 186-20" fill="none" stroke="#c4a78f" stroke-width="4" stroke-linecap="round"/>
+  </g>
+  <g id="loose-papers" opacity=".96">
     <use xlink:href="#sheet" x="413" y="250" width="106" height="109" transform="rotate(21 466 304)"/>
     <use xlink:href="#sheet" x="844" y="386" width="107" height="110" transform="rotate(-21 898 441)"/>
     <use xlink:href="#sheet" x="941" y="680" width="125" height="107" transform="rotate(21 1003 733)"/>
     <use xlink:href="#sheet" x="177" y="586" width="120" height="125" transform="rotate(-14 237 649)"/>
   </g>
 
-  <!-- One clean outer flame with broad internal color shapes. -->
-  <path d="M398 777Q330 737 342 679q-51-56-16-111 3 43 34 51-29-80 25-141-4 50 29 68-16-100 47-160-6 57 34 80-26-81 29-132-13 68 39 93-8-68 47-133 34-43 22-105 71 72 44 145 66-44 30-124 76 46 60 122 55-41 36-97 65 65 27 135 63-22 35-93 59 54 48 111-47 77-17 111 37-57 78-64-44 67-24 118 44 67-8 145-60 88-180 107Z" fill="url(#fire)" stroke="#d84a17" stroke-width="8" stroke-linejoin="round"/>
-  <path d="M383 646q-48-78 2-151-10 79 47 106-20 56-49 45Zm104-166q-29-61 22-121-18 67 29 100-12 37-51 21Zm187-101q-38-58-9-129 48 84 10 149Zm107 83q-17-62 33-115-14 79 11 121-29 32-44-6Zm74 173q-18-77 42-130-25 87 13 126-22 41-55 4Z" fill="#e94a1b" opacity=".66"/>
-  <path d="M438 562q-56-61-11-139-12 64 45 80-20-77 28-139-8 61 36 81-6 55-41 103Z" fill="#ff8a24" opacity=".88"/>
-  <path d="M640 411q44-61 14-128 70 76 33 142-17 31-19 71-36-34-28-85Z" fill="#ff8a24"/>
-  <path d="M742 468q62-48 48-119 50 62 18 125-22 44-55 65-33-19-11-71Z" fill="#ff9a24" opacity=".93"/>
-  <path d="M831 572q56-47 42-104 57 73 8 135-13 18-38 34-24-19-12-65Z" fill="#ff8a24"/>
-  <path d="M419 759q-69-92 12-167-16 77 28 89-24-95 26-157-2 77 36 80-11-91 61-149-17 87 34 98 32-49 12-106 83 72 61 145 50-5 70-74 23 89-18 147 41-13 74-52 12 107-74 150Z" fill="url(#heart)"/>
-  <path d="M454 748q-27-62 15-114 2 64 37 61-4-78 48-119-1 86 47 85 43-51 22-99 65 58 49 122 38-5 58-38 5 61-38 99Z" fill="#ffd45e" opacity=".82"/>
-  <path d="M500 658q-27-31-12-74 16 23 10 46 22-30 18-66 34 47 10 86Zm87-44q31-53 16-91 48 47 25 90-11 20-25 27Zm104 32q38-43 34-81 21 55-10 93Z" fill="#ffe07a" opacity=".8"/>
-  <path d="M546 352q-21-22-4-53 2 24 21 31 5 21-17 22Zm279 0q-18-28 5-61-5 30 12 42-2 19-17 19Zm-417 48q-16-19-2-43 2 18 16 26 2 13-14 17Z" fill="#ff731e" stroke="#d94c17" stroke-width="4" stroke-linejoin="round"/>
-
-  <!-- Hands, sweat, and the startled face. -->
-  <path d="M405 681q-70-8-83-74-25-3-26-30-1-29 17-42-4-31 19-39 20-8 37 12 15-11 29 0 19 15 7 40 22 12 12 35-5 15-20 22 29 29 38 52Z" fill="#ff7628" stroke="#d44818" stroke-width="7" stroke-linejoin="round"/>
-  <path d="M809 709q61-17 88-76-5-24 14-37 16-12 34-2 17-19 34-11 19 8 19 29 24 5 25 26 0 17-20 30-6 54-69 90Z" fill="#ff7628" stroke="#d44818" stroke-width="7" stroke-linejoin="round"/>
-  <g transform="rotate(-14 375 535)"><use xlink:href="#sheet" x="327" y="444" width="116" height="175"/></g>
-  <g transform="rotate(28 901 591)"><use xlink:href="#sheet" x="846" y="509" width="115" height="164"/></g>
-  <path d="M335 547q22 0 41 24m-39-45q34 3 51 33m530 63q32-12 56 4m-38-27q30-12 47 7" fill="none" stroke="#d84a17" stroke-width="6" stroke-linecap="round"/>
-  <g transform="translate(0 -31)">
-  <path d="M483 559q22-47 68-22 20 15 17 50-3 44-39 54-36 6-48-27-11-29 2-55Zm135 8q17-46 61-41 36 3 47 43 10 41-24 60-30 15-59-7-24-18-25-55Z" fill="#fff8e8" stroke="#8d2414" stroke-width="5"/>
-  <ellipse cx="526" cy="592" rx="13" ry="19" fill="#1f2024" transform="rotate(13 526 592)"/>
-  <ellipse cx="663" cy="587" rx="13" ry="19" fill="#1f2024" transform="rotate(11 663 587)"/>
-  <circle cx="521" cy="583" r="4" fill="white"/><circle cx="658" cy="578" r="4" fill="white"/>
-  <path d="m487 526 36-16 35 13m82 3 31-20 37 13" fill="none" stroke="#832513" stroke-width="7" stroke-linecap="round"/>
-  <path d="M522 641q34-17 80-5 54-16 94 8 21 12 11 40-11 28-39 22-29-7-52-13-38-10-68 8-33 2-34-31-2-19 8-29Z" fill="#922118" stroke="#831b15" stroke-width="4"/>
-  <path d="M562 684q49-25 104 6-43-8-72 11-19-15-32-17Z" fill="#ce472a"/>
-  <path d="M510 493q-23 34-19 47 7 17 21 8 19-15-2-55Zm245 69q-20 35-16 50 7 17 20 8 17-14-4-58Zm-19 105q-16 29-12 41 6 12 17 6 13-10-5-47Z" fill="white" stroke="#ff8b45" stroke-width="3"/>
+  <!-- Ferrous keeps the paper-handling pose, now as a stressed little crab. -->
+  <g id="crab">
+    <g id="crab-legs" fill="#ed6331" stroke="#b93622" stroke-width="7" stroke-linejoin="round">
+      <path d="M449 611q-59-19-91 15l-38 10q31 31 70 25l64-20Z"/>
+      <path d="M438 670q-58-4-89 31l-37 10q26 30 64 21l76-31Z"/>
+      <path d="M449 718q-56 18-79 47l-36 10q27 24 60 11l66-37Z"/>
+      <g transform="translate(1200 0) scale(-1 1)">
+        <path d="M449 611q-59-19-91 15l-38 10q31 31 70 25l64-20Z"/>
+        <path d="M438 670q-58-4-89 31l-37 10q26 30 64 21l76-31Z"/>
+        <path d="M449 718q-56 18-79 47l-36 10q27 24 60 11l66-37Z"/>
+      </g>
+    </g>
+    <g id="crab-arms" fill="url(#claw)" stroke="#bd3b23" stroke-width="8" stroke-linejoin="round">
+      <path d="M472 551q-53-31-97-7l-40 32q8 39 49 35l92 12Z"/>
+      <path d="M728 551q53-31 97-7l40 32q-8 39-49 35l-92 12Z"/>
+    </g>
+    <g id="crab-shell">
+      <path d="M405 625q-6-89 64-129 52-33 132-24 90-12 156 27 67 40 64 126l-13 95q-30 70-205 76-172-4-193-76Z" fill="url(#shell)" stroke="#a83222" stroke-width="9" stroke-linejoin="round"/>
+      <path d="M438 580q25-71 126-87 92-18 165 24-61-7-129 18-103-13-147 72Z" fill="#ffae66" opacity=".45"/>
+      <path d="M446 673q22 61 60 81m248-80q-22 61-60 81" fill="none" stroke="#c4472b" stroke-width="8" stroke-linecap="round" opacity=".75"/>
+      <path d="M419 622q-33-7-46-24l-4 32q18 25 54 31Zm381 0q33-7 46-24l4 32q-18 25-54 31Z" fill="#ee6430" stroke="#ad3222" stroke-width="7" stroke-linejoin="round"/>
+    </g>
+    <g id="crab-face">
+      <path d="M500 510q-23-58-15-109l43 3q7 57 10 105Zm169-1q3-51 10-105l43-3q8 51-15 109Z" fill="#e95b2b" stroke="#a83222" stroke-width="7" stroke-linejoin="round"/>
+      <ellipse cx="512" cy="394" rx="46" ry="54" fill="#fff9eb" stroke="#963020" stroke-width="7"/>
+      <ellipse cx="696" cy="394" rx="46" ry="54" fill="#fff9eb" stroke="#963020" stroke-width="7"/>
+      <ellipse cx="536" cy="416" rx="14" ry="20" fill="#1e2226"/>
+      <ellipse cx="674" cy="416" rx="14" ry="20" fill="#1e2226"/>
+      <circle cx="531" cy="408" r="5" fill="#fff"/>
+      <circle cx="669" cy="408" r="5" fill="#fff"/>
+      <path d="m471 340 37-16 37 20m114 0 37-20 37 16" fill="none" stroke="#8e281c" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M553 576q49-24 100 1 19 14 8 43-17 30-60 30-46-1-61-31-7-25 13-43Z" fill="#8a1e1a" stroke="#8e271d" stroke-width="5"/>
+      <path d="M564 583q36-13 73 0" fill="none" stroke="#ffdfab" stroke-width="9" stroke-linecap="round"/>
+      <path d="M570 633q31-19 63 0-29-5-49 10Z" fill="#dc6748"/>
+      <path d="M473 448q-24 33-16 49 9 17 23 4 14-14-7-53Zm279 23q-21 30-14 47 7 16 21 5 16-12-7-52Zm-11 118q-16 23-12 35 6 14 18 8 14-8-6-43Z" fill="#fff" stroke="#ee8d68" stroke-width="4"/>
+    </g>
+    <g id="crab-papers">
+      <use xlink:href="#sheet" x="327" y="466" width="130" height="175" transform="rotate(-13 392 553)"/>
+      <use xlink:href="#sheet" x="834" y="477" width="140" height="170" transform="rotate(25 904 562)"/>
+    </g>
+    <g id="crab-claws" fill="url(#claw)" stroke="#b93622" stroke-width="7" stroke-linejoin="round">
+      <path d="M399 603q-24 40-55 42-29-3-40-28-12-25 2-48 6 25 26 25 16 0 32-20Z"/>
+      <path d="M347 564q-8-33-30-32-26 1-27 25 17-11 29 2l13 22Z"/>
+      <g transform="translate(1200 0) scale(-1 1)">
+        <path d="M399 603q-24 40-55 42-29-3-40-28-12-25 2-48 6 25 26 25 16 0 32-20Z"/>
+        <path d="M347 564q-8-33-30-32-26 1-27 25 17-11 29 2l13 22Z"/>
+      </g>
+    </g>
   </g>
 
-  <!-- The laptop remains a single clear shape at small sizes. -->
-  <path d="M449 671 849 676q17 1 13 19l-45 174H405l27-181q2-18 17-17Z" fill="url(#screen)" stroke="#17191e" stroke-width="8" stroke-linejoin="round"/>
-  <path d="M457 685q-9 0-11 13l-16 91 52-103Z" fill="#77717a" opacity=".15"/>
-  <path d="M400 866h431l42 27H357Z" fill="#35353b" stroke="#1c1c20" stroke-width="7" stroke-linejoin="round"/>
-  <path d="M612 750q-6 37 23 50-2-30 20-51 4 34 21 45 8 27-14 51-11 12-28 13 13-19 1-40-6 17-19 28-33-18-21-50 8-17 17-46Z" fill="#bbb2b2" opacity=".92"/>
-  <path d="M168 760h119q18 0 18 16v99q0 18-18 18H172q-20 0-20-18V780q0-20 16-20Z" fill="#272529" stroke="#151519" stroke-width="6"/>
-  <path d="M155 786q-48-18-54 29-3 49 51 45" fill="none" stroke="#242126" stroke-width="17"/>
-  <path d="M166 771q57-18 119 0" fill="none" stroke="#6b5548" stroke-width="5" opacity=".8"/>
-  <use xlink:href="#sheet" x="254" y="821" width="167" height="92" transform="rotate(-16 337 867)"/>
-  <use xlink:href="#sheet" x="811" y="816" width="183" height="96" transform="rotate(13 902 864)"/>
+  <!-- The lid faces the viewer; a hinge and broad deck make it read as a laptop. -->
+  <g id="laptop" stroke-linejoin="round">
+    <path d="M437 669 847 677q18 1 15 20l-38 169q-2 11-13 11H407q-15 0-12-17l27-174q2-17 15-17Z" fill="url(#screen)" stroke="#17191e" stroke-width="9"/>
+    <path d="M445 683 843 691l-35 162H413l25-159q1-11 7-11Z" fill="none" stroke="#77717a" stroke-width="3" opacity=".55"/>
+    <path d="M448 689 487 690 424 804Z" fill="#918990" opacity=".11"/>
+    <g fill="none" stroke="#b9b2b6" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" opacity=".9">
+      <path d="M570 777h77l-15-14m15 14-15 14"/>
+      <path d="M673 819h-77l15-14m-15 14 15 14"/>
+    </g>
+    <path d="M402 858h425l3 18H397Z" fill="#1d1d22" stroke="#151519" stroke-width="5"/>
+    <path d="M397 872h432l62 26H347Z" fill="#4b484f" stroke="#1a1a1e" stroke-width="7"/>
+    <path d="M397 874h429l27 11H374Z" fill="#68636a" opacity=".78"/>
+    <path d="M348 898h545q-12 10-31 10H377q-20 0-29-10Z" fill="#29292f"/>
+    <path d="M548 896h143" stroke="#929096" stroke-width="3" stroke-linecap="round" opacity=".55"/>
+  </g>
+
+  <!-- A visible rim, inner opening, curved handle, and cylindrical body. -->
+  <g id="mug">
+    <path d="M168 789q-51-20-62 23-14 58 47 64l22-17" fill="none" stroke="#151519" stroke-width="25" stroke-linecap="round"/>
+    <path d="M168 789q-47-17-57 23-11 50 42 58" fill="none" stroke="#51474a" stroke-width="5" stroke-linecap="round" opacity=".75"/>
+    <path d="M167 768q5-18 64-20 59-1 70 19v105q-3 24-67 27-63 0-68-25Z" fill="url(#mug-shade)" stroke="#121216" stroke-width="7"/>
+    <ellipse cx="233" cy="769" rx="66" ry="17" fill="#0e0e12" stroke="#242126" stroke-width="6"/>
+    <path d="M184 764q47-20 99 0" fill="none" stroke="#9a6b35" stroke-width="4" stroke-linecap="round"/>
+    <path d="M177 785v83q2 14 14 18" fill="none" stroke="#666167" stroke-width="5" opacity=".35"/>
+    <path d="M287 789v82" fill="none" stroke="#926a43" stroke-width="4" opacity=".55"/>
+    <path d="M190 883q42 15 84 0" fill="none" stroke="#484046" stroke-width="3" opacity=".45"/>
+  </g>
+  <g id="foreground-papers">
+    <use xlink:href="#sheet" x="254" y="821" width="167" height="92" transform="rotate(-16 337 867)"/>
+    <use xlink:href="#sheet" x="811" y="816" width="183" height="96" transform="rotate(13 902 864)"/>
+  </g>
 
   <!-- Heavy lettering follows the proportions of the original wordmark. -->
-  <g fill="#2c2c31" transform="translate(-120 0) scale(1.2 1)">
+  <g id="wordmark" fill="#2c2c31" stroke="#f6f0e8" stroke-width="8" stroke-linejoin="round" paint-order="stroke fill" transform="translate(-120 0) scale(1.2 1)">
   <path d="M299.40234375 1065.373046875 329.642578125 1074.513671875Q326.595703125 1087.234375 320.044921875 1095.765625Q313.494140625 1104.296875 303.7822265625 1108.638671875Q294.0703125 1112.98046875 279.064453125 1112.98046875Q260.859375 1112.98046875 249.3193359375 1107.6865234375Q237.779296875 1102.392578125 229.400390625 1089.0625Q221.021484375 1075.732421875 221.021484375 1054.9375Q221.021484375 1027.2109375 235.7607421875 1012.3193359375Q250.5 997.427734375 277.46484375 997.427734375Q298.564453125 997.427734375 310.6376953125 1005.958984375Q322.7109375 1014.490234375 328.576171875 1032.162109375L298.107421875 1038.94140625Q296.5078125 1033.837890625 294.755859375 1031.4765625Q291.861328125 1027.515625 287.671875 1025.3828125Q283.482421875 1023.25 278.302734375 1023.25Q266.572265625 1023.25 260.326171875 1032.6953125Q255.603515625 1039.703125 255.603515625 1054.708984375Q255.603515625 1073.294921875 261.240234375 1080.1884765625Q266.876953125 1087.08203125 277.083984375 1087.08203125Q286.986328125 1087.08203125 292.0517578125 1081.521484375Q297.1171875 1075.9609375 299.40234375 1065.373046875Z"/>
   <path d="M408.107421875 1092.56640625H368.802734375L363.39453125 1111.0H328.126953125L370.09765625 999.33203125H407.7265625L449.697265625 1111.0H413.591796875ZM400.87109375 1068.419921875 388.53125 1028.27734375 376.267578125 1068.419921875Z"/>
   <path d="M453.666015625 999.33203125H546.138671875V1023.173828125H488.248046875V1040.921875H541.94921875V1063.697265625H488.248046875V1085.7109375H547.814453125V1111.0H453.666015625Z"/>
