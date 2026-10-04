@@ -43,6 +43,6 @@ Review it at full size and at the README's typical displayed width.
 `rustacean-flat-happy.svg` is the unmodified Happy Ferris SVG from
 [rustacean.net](https://rustacean.net/assets/rustacean-flat-happy.svg), retrieved
 October 4, 2026. The site identifies Karen Rustad Tölva as the creator and
-publishes Ferris under CC0. `logo.svg` embeds the Ferris vector paths in the
-caexfer composition. Keep the upstream file for provenance; edit the composed
-paths in `logo.svg`.
+publishes Ferris under CC0. `logo.svg` and `conversion-flow.svg` embed Ferris
+vector paths. Keep the upstream file for provenance; edit the composed paths
+in the relevant SVG.

@@ -107,7 +107,7 @@ the installed `caexfer` command.
 
 ## Conversion routes
 
-[![Flowchart of solver inputs, geometry formats, mesh datasets, and companion results connecting through caexfer](https://raw.githubusercontent.com/cmccomb/caexfer/main/assets/conversion-flow.svg)](https://github.com/cmccomb/caexfer/blob/main/assets/conversion-flow.svg)
+[![Flowchart of solver inputs, geometry formats, mesh datasets, and companion results connecting through caexfer](https://raw.githubusercontent.com/cmccomb/caexfer/main/assets/conversion-flow.svg?v=ferris-center-20261004)](https://github.com/cmccomb/caexfer/blob/main/assets/conversion-flow.svg)
 
 `caexfer --formats` lists the current readers and writers. Mesh sources can be
 converted when the destination supports their cell types and data. VTU, legacy
