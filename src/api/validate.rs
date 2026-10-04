@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use crate::conversion::{self, Format, Omission, Options};
 use crate::core::Result;
 
-/// Supported-subset validation counts and source omissions.
+/// Supported-subset validation counts, omissions, and assumptions.
 /// A passing report does not establish solver-model correctness.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ValidationReport {
@@ -23,22 +23,35 @@ pub struct ValidationReport {
     pub cells: usize,
     /// Projected numeric field count.
     pub fields: usize,
-    /// Information omitted while reading the source.
+    /// Information omitted or assumed while reading the source.
     pub omissions: Vec<Omission>,
 }
 
 /// Validate one file against caexfer's supported mesh-and-fields subset.
 ///
-/// Like `caexfer validate`, ordinary mode reports source omissions and strict
-/// mode marks the report as failed when any omission is present. Parse and
-/// projection errors return [`crate::Error`] instead of a report.
+/// Like `caexfer validate`, ordinary mode reports source omissions and
+/// unverified assumptions. Strict mode marks the report as failed when any
+/// notice is present. A non-BDF OP2/PCH companion is read under a reported
+/// basic-frame assumption; validation does not accept it for conversion.
+/// Parse and projection errors return [`crate::Error`] instead of a report.
 ///
 /// # Errors
 ///
 /// Returns a source format, I/O, size-limit, or projection error.
 pub fn validate(path: impl AsRef<Path>, options: &Options) -> Result<ValidationReport> {
     let path = path.as_ref();
-    let read = conversion::read_path(path, options)?;
+    let format = options
+        .input_format
+        .map_or_else(|| Format::from_input_path(path), Ok)?;
+    let mut read_options = options.clone();
+    if matches!(format, Format::Op2 | Format::Pch)
+        && options.mesh.as_ref().is_some_and(|mesh| {
+            Format::from_input_path(mesh).is_ok_and(|mesh_format| mesh_format != Format::Bdf)
+        })
+    {
+        read_options.assume_basic_frame = true;
+    }
+    let read = conversion::read_path(path, &read_options)?;
     let passed = !options.strict || read.omissions.is_empty();
     Ok(ValidationReport {
         path: path.to_path_buf(),

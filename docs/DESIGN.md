@@ -14,9 +14,29 @@ exposes only those operations plus supporting options and reports. `src/file_out
 owns staged file installation. `src/cli/` parses flags, calls the two library operations,
 renders receipts, and holds converted files privately until interactive approval.
 `src/main.rs` starts the CLI without compiling another copy of the engine.
-Each `mod.rs` is a module map; implementation and tests live in the files it
-declares. CLI arguments, conversion, validation, and dispatch have separate
-files, as do OP2 binary records and displacement handling.
+Each `mod.rs` is a module map. CLI arguments, conversion, validation, and
+dispatch have separate files, as do OP2 binary records and displacement
+handling.
+
+## Test placement
+
+Place a test at the boundary it checks:
+
+| Test | Location | Use it for |
+| --- | --- | --- |
+| Doctest | Rustdoc on the public function or type | A short, compilable example of the supported library API. Do not use ignored examples. |
+| Module test | `#[cfg(test)]` beside implementation in `src/` | Private parsing, acceptance, error, and file-installation behavior. Keep tests inline for one implementation file; use a child `tests.rs` when they share substantial setup or span several implementation files. |
+| Integration test | `tests/*.rs` | Black-box behavior through exported `caexfer` items or the built CLI. These tests must not require private module access. |
+| Independent tool check | `scripts/check_*.py` | Interoperability with another parser, writer, or solver through the CLI. |
+
+For example, `src/api/convert.rs` tests its private proposal and acceptance
+helpers inline. `src/cli/output/tests.rs` exercises private staging and race
+paths beside `output.rs`. `tests/api.rs` checks the exported file operations,
+and `tests/cli.rs` checks the installed command's output and exit status.
+The Gmsh tests in `src/formats/mesh_datasets/msh/interop_tests.rs` use private
+adapters, so they remain module tests despite invoking an external tool.
+Shared input fixtures live under `tests/fixtures/`. When a behavior needs tests
+at more than one boundary, each test should establish a distinct claim.
 
 ## Project deliberately
 
@@ -39,10 +59,11 @@ SORT1 OUGV1 displacement subset in Rust, validating record framing and table
 metadata before interpreting values. CI uses pyNastran as an independent reader.
 Reading OP2 requires a matching mesh and checks node identity. A BDF also
 supplies GRID CD, so the reader can reject nonbasic displacement frames.
-Other supported mesh formats require an explicit basic-frame assertion because
-they do not encode CD. Writing OP2 emits no geometry; the CLI can optionally
-write a separate companion mesh. A recognized three-component displacement has
-unknown rotations. The library writer requires an explicit assertion to set
+Other supported mesh formats do not encode CD. Validation reports the
+unverified basic-frame assumption; conversion requires explicit acceptance.
+Writing OP2 emits no geometry; the CLI can optionally write a separate
+companion mesh. A recognized three-component displacement has unknown
+rotations. The library writer requires an explicit assertion to set
 them to float zero. The CLI proposes that fill and asks for confirmation.
 Format modules are part of one Rust
 package; the CLI has no Python runtime dependency. PCH projects a bounded
@@ -77,8 +98,9 @@ nothing about solver-model correctness. Opaque solver cards appear as omissions.
 Input reads are bounded. INCLUDE is an inert native record, not permission to
 traverse the filesystem. Format adapters do not spawn tools.
 Both the CLI and public library stage writes and refuse an existing path by
-default. For single-file conversions, the CLI can replace an existing regular
-file with `--overwrite` after conversion and acceptance. The library remains
+default. The CLI can replace existing regular output files with `--overwrite`
+after conversion and acceptance, including paired OP2 and mesh output. A
+second install failure can leave the first file replaced. The library remains
 no-clobber. The internal stream writers may leave partial output in their
 caller-owned streams after an I/O failure.
 

@@ -181,9 +181,9 @@ pub(super) fn parse_args(raw: &[OsString]) -> Result<Args> {
 
         // Valued options advance past their following token; all other
         // non-options are collected as OS-native paths.
-        if options && arg == "--json" {
+        if options && (arg == "--json" || arg == "-j") {
             set_flag(&mut args.json, "--json")?;
-        } else if options && arg == "--strict" {
+        } else if options && (arg == "--strict" || arg == "-s") {
             set_flag(&mut args.strict, "--strict")?;
         } else if options && arg == "--overwrite" {
             set_flag(&mut args.overwrite, "--overwrite")?;
@@ -266,10 +266,8 @@ pub(super) fn parse_args(raw: &[OsString]) -> Result<Args> {
     if args.overwrite && args.command != "convert" {
         return Err(usage("--overwrite is only for convert"));
     }
-    if args.overwrite && args.mesh_out.is_some() {
-        return Err(usage("--overwrite cannot be used with --mesh-out"));
-    }
     if (args.accept_omissions
+        || args.accept_basic_frame
         || args.accept_zero_rotations
         || args.accept_synthetic_zero
         || args.accept_all)
@@ -332,12 +330,34 @@ mod tests {
     #[test]
     fn duplicate_option_rejected() {
         assert!(args(&["validate", "x.bdf", "--json", "--json"]).is_err());
+        assert!(args(&["validate", "x.bdf", "--json", "-j"]).is_err());
+        assert!(args(&["validate", "x.bdf", "--strict", "-s"]).is_err());
     }
 
     /// Reject options that do not apply to the selected command or format.
     #[test]
     fn irrelevant_flag_rejected() {
         assert!(args(&["convert", "x.bdf", "x.vtu", "--strict"]).is_err());
+        assert!(args(&["convert", "x.bdf", "x.vtu", "-s"]).is_err());
+        assert!(
+            args(&[
+                "validate",
+                "x.op2",
+                "--mesh",
+                "x.vtu",
+                "--accept-basic-frame"
+            ])
+            .is_err()
+        );
+    }
+
+    /// Short spellings follow the same command scopes as their long forms.
+    #[test]
+    fn short_json_and_strict_options() {
+        let validate = args(&["validate", "x.bdf", "-j", "-s"]).unwrap();
+        assert!(validate.json && validate.strict);
+        let convert = args(&["convert", "x.bdf", "x.vtu", "-j"]).unwrap();
+        assert!(convert.json);
     }
 
     /// Accept the short catchall spelling and reject the retired long spelling.

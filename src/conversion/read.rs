@@ -134,7 +134,7 @@ fn read_result_mesh(
             }
             omissions.push(Omission::assumed(
                 AssumptionKind::BasicFrame,
-                format!("companion {} has no GRID CD; basic-frame coordinates and {} displacements asserted by caller", format.name(), result.name().to_ascii_uppercase()),
+                format!("companion {} has no GRID CD; basic-frame coordinates and {} displacements are assumed for this projection", format.name(), result.name().to_ascii_uppercase()),
             ));
             Ok((read.dataset.mesh, omissions))
         }

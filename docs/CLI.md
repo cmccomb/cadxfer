@@ -9,6 +9,7 @@ run without Python.
 ```sh
 caexfer --formats
 caexfer validate model.bdf --json
+caexfer validate results.op2 --mesh model.vtu -j
 caexfer convert model.bdf model.vtu
 caexfer convert model.bdf model.msh --msh-version 2.2
 caexfer convert results.op2 results.vtu --mesh model.bdf
@@ -19,12 +20,14 @@ caexfer convert results.frd results.op2 --accept-zero-rotations \
   --mesh-out results-mesh.bdf
 ```
 
-Use a fresh output filename by default. For a single-file conversion, pass
-`--overwrite` to replace an existing regular file after conversion and
-acceptance. For example:
+Use fresh output filenames by default. Pass `--overwrite` to replace existing
+regular output files after conversion and acceptance. With `--mesh-out`, it
+applies to both destinations. For example:
 
 ```sh
 caexfer convert model.bdf model.vtu --overwrite --accept-omissions
+caexfer convert model.bdf results.op2 --mesh-out results-mesh.bdf \
+  --overwrite --accept-all
 ```
 
 STL reads triangle surfaces and writes binary STL. SU2 carries named boundary
@@ -51,6 +54,9 @@ before or after options; use `--` for paths beginning with a hyphen. Filenames
 use OS-native strings internally; JSON/human display of non-UTF-8 paths is
 lossy, not an exact path serialization.
 
+`-j` abbreviates `--json` for both commands; `-s` abbreviates `--strict` for
+validation.
+
 | Command or option | Result |
 | --- | --- |
 | `-f`, `--formats` | Actual read/write capabilities, not a roadmap |
@@ -67,9 +73,9 @@ MSH input version is detected from `$MeshFormat`; `--msh-version 2.2` selects
 companion written through `--mesh-out`.
 `--mesh FILE` supplies geometry when reading OP2 or PCH. The companion must
 carry original node IDs that match the displacement table; generated one-based
-IDs are rejected. BDF input
-verifies `GRID CD=0`. The other formats do not carry that check, so
-the CLI lists a basic-frame assumption. Confirm it interactively or pass
+IDs are rejected. BDF input verifies `GRID CD=0`. Other formats do not carry
+that check. Validation reports the basic-frame assumption without accepting
+it; `--strict` fails on that notice. Conversion requires confirmation or
 `--accept-basic-frame` to assert that mesh coordinates and result displacements
 use the basic frame. Any fields in the companion file are ignored.
 OP2 output carries one displacement table and needs a separately retained
@@ -113,22 +119,23 @@ output also goes to stdout. Schema version 1 is intentionally small; consumers
 should tolerate new keys.
 
 Exit 0 means the requested scoped operation succeeded. `validate` reports
-projected counts and omissions; without `--strict`, omissions do not fail it.
-Exit 1 means I/O, parsing, projection, or validation failed.
-`validate --strict` also exits 1 on a source omission. Exit 2 means invalid CLI usage,
-including an unattended conversion that needs acceptance. Use stable diagnostic
-`code` values rather than parsing human descriptions. The version's code list
-can grow.
+projected counts, omissions, and assumptions; without `--strict`, notices do
+not fail it. Exit 1 means I/O, parsing, projection, or validation failed.
+`validate --strict` also exits 1 on an omission or assumption. Exit 2 means
+invalid CLI usage, including an unattended conversion that needs acceptance.
+Use stable diagnostic `code` values rather than parsing human descriptions.
+The version's code list can grow.
 
 The CLI refuses an existing output path unless `convert --overwrite` is given.
-That flag applies only to a single output file; it cannot be combined with
-`--mesh-out`. It does not accept omissions or assumptions. The CLI stages and
-checks the converted file, obtains any required acceptance, then replaces the
-destination with a same-filesystem rename. It refuses symbolic links,
-nonregular destinations, and output paths that refer to the input file
-(including hard links on Unix). The public `caexfer::convert` operation retains
+With `--mesh-out`, the flag applies to both output paths. It does not accept
+omissions or assumptions. The CLI stages and checks both files, obtains any
+required acceptance, then replaces destinations with same-filesystem renames.
+It refuses symbolic links, nonregular destinations, and output paths that
+refer to the input file (including hard links on Unix). The public
+`caexfer::convert` operation retains
 its staged, no-clobber installation policy. CLI staging requires a filesystem
 supporting hard links, including when `--overwrite` is used.
-For paired output, the CLI stages both files before installing either. Two
-different filenames cannot be committed atomically: if installing the second
-fails after the OP2 is installed, the error names the OP2 file that remains.
+For paired output, the CLI stages both files and rechecks both destinations
+before installing either. Two different filenames cannot be committed
+atomically: if installing the second fails after the OP2 is installed, the
+error names the OP2 file that remains or was replaced.

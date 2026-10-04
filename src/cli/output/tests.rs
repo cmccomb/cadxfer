@@ -62,7 +62,7 @@ fn failed_replacement_preserves_existing_bytes() {
 }
 
 #[test]
-fn paired_install_names_the_file_left_after_a_race() {
+fn paired_install_checks_both_destinations_before_install() {
     let scratch = Scratch::new();
     let source = scratch.path("source.bdf");
     let first_path = scratch.path("results.op2");
@@ -76,9 +76,48 @@ fn paired_install_names_the_file_left_after_a_race() {
 
     let error = install_pair(&first, &second).unwrap_err();
     assert_eq!(error.code, "E_EXISTS");
-    assert!(error.message.contains(&first_path.display().to_string()));
-    assert_eq!(fs::read(&first_path).unwrap(), b"results");
+    assert!(!first_path.exists());
     assert_eq!(fs::read(&second_path).unwrap(), b"another writer");
+}
+
+#[test]
+fn paired_replacement_updates_both_outputs() {
+    let scratch = Scratch::new();
+    let source = scratch.path("source.bdf");
+    let first_path = scratch.path("results.op2");
+    let second_path = scratch.path("mesh.bdf");
+    fs::write(&source, b"source").unwrap();
+    fs::write(&first_path, b"old results").unwrap();
+    fs::write(&second_path, b"old mesh").unwrap();
+    let first = PendingOutput::new(&first_path, &source, true).unwrap();
+    let second = PendingOutput::new(&second_path, &source, true).unwrap();
+    fs::write(first.temporary(), b"new results").unwrap();
+    fs::write(second.temporary(), b"new mesh").unwrap();
+
+    install_pair(&first, &second).unwrap();
+    assert_eq!(fs::read(&first_path).unwrap(), b"new results");
+    assert_eq!(fs::read(&second_path).unwrap(), b"new mesh");
+}
+
+#[test]
+fn paired_replacement_rechecks_both_before_changing_either() {
+    let scratch = Scratch::new();
+    let source = scratch.path("source.bdf");
+    let first_path = scratch.path("results.op2");
+    let second_path = scratch.path("mesh.bdf");
+    fs::write(&source, b"source").unwrap();
+    fs::write(&first_path, b"old results").unwrap();
+    fs::write(&second_path, b"old mesh").unwrap();
+    let first = PendingOutput::new(&first_path, &source, true).unwrap();
+    let second = PendingOutput::new(&second_path, &source, true).unwrap();
+    fs::write(first.temporary(), b"new results").unwrap();
+    fs::write(second.temporary(), b"new mesh").unwrap();
+    fs::remove_file(&second_path).unwrap();
+    fs::create_dir(&second_path).unwrap();
+
+    assert_eq!(install_pair(&first, &second).unwrap_err().code, "E_USAGE");
+    assert_eq!(fs::read(&first_path).unwrap(), b"old results");
+    assert!(second_path.is_dir());
 }
 
 #[test]

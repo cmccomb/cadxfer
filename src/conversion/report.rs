@@ -13,7 +13,7 @@ pub enum Stage {
     /// Information not representable by the destination.
     Destination,
 
-    /// A value supplied by an explicit caller assumption.
+    /// A value or frame assumed by the projection.
     Assumption,
 }
 
@@ -65,7 +65,7 @@ impl Omission {
         }
     }
 
-    /// Record one specifically identified caller assumption.
+    /// Record one specifically identified projection assumption.
     pub fn assumed(kind: AssumptionKind, detail: impl Into<String>) -> Self {
         Self {
             stage: Stage::Assumption,
@@ -75,9 +75,10 @@ impl Omission {
     }
 }
 
-/// Supported source data and its read-side omissions.
+/// Supported source data and its read-side omissions or assumptions.
 /// The `dataset` is a projection; `omissions` explains what was not carried
-/// from the source format. Retain the original file when those details matter.
+/// or verified from the source format. Retain the original file when those
+/// details matter.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ReadResult {
     /// Detected or explicitly selected source format.
@@ -86,7 +87,7 @@ pub struct ReadResult {
     /// Projected mesh and fields.
     pub dataset: Dataset,
 
-    /// Source information absent from the projected dataset.
+    /// Source information omitted or assumed in the projected dataset.
     pub omissions: Vec<Omission>,
 
     /// True when source point IDs were assigned because the file did not carry them.

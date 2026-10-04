@@ -240,11 +240,11 @@ IDs; generated one-based IDs cannot verify result identity. Result node IDs
 must match the companion mesh exactly;
 the OP2 result table cannot verify companion coordinates or connectivity.
 A BDF must project to a basic-frame mesh and all GRID CD values must be zero.
-The other formats do not encode GRID CD; they require a basic-frame assertion,
-which explicitly asserts that both coordinates and displacements are in the
-basic frame. Companion result fields are ignored. Complex results, other OP2
-tables, nonbasic result frames, multiple unselected subcases/steps, and
-embedded-geometry recovery are outside
+The other formats do not encode GRID CD. Validation reports an unverified
+basic-frame assumption; conversion requires explicit acceptance that both
+coordinates and displacements use the basic frame. Companion result fields
+are ignored. Complex results, other OP2 tables, nonbasic result frames,
+multiple unselected subcases/steps, and embedded-geometry recovery are outside
 this read route. The OP2 writer accepts one named `DISP`/`DISPLACEMENT` nodal
 field with three or six real components. Three-component displacements have
 unknown rotations. The CLI proposes filling R1/R2/R3 with typed float `0.0`,
@@ -308,9 +308,11 @@ The public converter stages, flushes, and syncs output before installing a new
 file via a hard link. The CLI first converts into a private sibling directory
 and obtains any required acceptance. By default, it links the completed file
 into a new destination; a filesystem without hard-link support receives an
-explicit error during staging. For a single output, `convert --overwrite` uses a
-same-filesystem rename to replace an existing regular file after approval.
-The CLI refuses symbolic-link and nonregular replacement destinations, input
-aliases, and `--overwrite` with `--mesh-out`. This is not a cross-platform
+explicit error during staging. `convert --overwrite` uses same-filesystem
+renames to replace existing regular output files after approval, including
+both outputs when `--mesh-out` is used. The CLI refuses symbolic-link and
+nonregular replacement destinations and input aliases. It rechecks both paths
+before installing a pair, but a race during installation can leave the first
+file replaced and the second unchanged. This is not a cross-platform
 transactional filesystem or guaranteed power-loss durability. The public
 `caexfer::convert` operation retains its staged, no-clobber policy.

@@ -61,6 +61,7 @@ fn help_and_version_work() {
     assert!(convert.contains("--accept-omissions"));
     assert!(convert.contains("--accept-all"));
     assert!(convert.contains("--overwrite"));
+    assert!(convert.contains("-j, --json"));
     assert!(!convert.contains("Treat following arguments as paths"));
     assert!(convert.contains("--mesh-out FILE"));
     assert!(convert.contains("caexfer --formats"));
@@ -76,7 +77,9 @@ fn help_and_version_work() {
     let validate = s.run(&["validate", "--help"]);
     assert!(validate.status.success());
     let validate = String::from_utf8(validate.stdout).unwrap();
-    assert!(validate.contains("--strict"));
+    assert!(validate.contains("-s, --strict"));
+    assert!(validate.contains("-j, --json"));
+    assert!(!validate.contains("--accept-basic-frame"));
     assert!(!validate.contains("--mesh-out FILE"));
     let bare_validate = s.run(&["validate"]);
     assert!(bare_validate.status.success());
@@ -96,7 +99,7 @@ fn help_and_version_work() {
 /// Expose schema version and projected BDF counts in JSON validation.
 #[test]
 fn validation_json_has_version_and_counts() {
-    let result = Scratch::new().run(&["validate", "mesh.bdf", "--json"]);
+    let result = Scratch::new().run(&["validate", "mesh.bdf", "-j"]);
     assert!(result.status.success());
     let out = String::from_utf8(result.stdout).unwrap();
     assert!(out.contains("\"schema_version\":1"));
@@ -120,7 +123,7 @@ fn refused_conversion_does_not_create_output() {
 #[test]
 fn geometry_conversion_creates_vtu_and_reports_losses() {
     let s = Scratch::new();
-    let result = s.run(&["convert", "mesh.bdf", "mesh.vtu", "--accept-all", "--json"]);
+    let result = s.run(&["convert", "mesh.bdf", "mesh.vtu", "--accept-all", "-j"]);
     assert!(
         result.status.success(),
         "{}",
@@ -290,9 +293,9 @@ fn overwrite_rejects_source_aliases_and_symlinks() {
     );
 }
 
-/// Keep paired output installation on its existing no-clobber path.
+/// Replace both paired outputs only after explicit overwrite and acceptance.
 #[test]
-fn overwrite_is_rejected_for_paired_outputs_and_validate() {
+fn overwrite_replaces_both_paired_outputs_after_acceptance() {
     let s = Scratch::new();
     assert_eq!(
         s.run(&["validate", "mesh.bdf", "--overwrite"])
@@ -300,6 +303,32 @@ fn overwrite_is_rejected_for_paired_outputs_and_validate() {
             .code(),
         Some(2)
     );
+    let first = s.0.join("zeros.op2");
+    let second = s.0.join("zeros.bdf");
+    std::fs::write(&first, b"old results").unwrap();
+    std::fs::write(&second, b"old mesh").unwrap();
+    let no_overwrite = s.run(&[
+        "convert",
+        "mesh.bdf",
+        "zeros.op2",
+        "--mesh-out",
+        "zeros.bdf",
+        "--accept-all",
+    ]);
+    assert_eq!(no_overwrite.status.code(), Some(1));
+    assert_eq!(std::fs::read(&first).unwrap(), b"old results");
+    assert_eq!(std::fs::read(&second).unwrap(), b"old mesh");
+    let unapproved = s.run(&[
+        "convert",
+        "mesh.bdf",
+        "zeros.op2",
+        "--mesh-out",
+        "zeros.bdf",
+        "--overwrite",
+    ]);
+    assert_eq!(unapproved.status.code(), Some(2));
+    assert_eq!(std::fs::read(&first).unwrap(), b"old results");
+    assert_eq!(std::fs::read(&second).unwrap(), b"old mesh");
     assert_eq!(
         s.run(&[
             "convert",
@@ -312,10 +341,14 @@ fn overwrite_is_rejected_for_paired_outputs_and_validate() {
         ])
         .status
         .code(),
-        Some(2)
+        Some(0)
     );
-    assert!(!s.0.join("zeros.op2").exists());
-    assert!(!s.0.join("zeros.bdf").exists());
+    assert_ne!(std::fs::read(&first).unwrap(), b"old results");
+    assert!(
+        std::fs::read_to_string(&second)
+            .unwrap()
+            .contains("BEGIN BULK")
+    );
 }
 
 /// Require a suitable companion format only on Nastran result input.
@@ -435,7 +468,7 @@ fn human_validation_reports_counts_and_omissions() {
     let relaxed = String::from_utf8(relaxed.stdout).unwrap();
     assert!(relaxed.contains("INP supported-subset checks passed: 2 points"));
     assert!(relaxed.contains("Omission:"));
-    let strict = s.run(&["validate", "omitted.inp", "--strict", "--json"]);
+    let strict = s.run(&["validate", "omitted.inp", "-s", "-j"]);
     assert_eq!(strict.status.code(), Some(1));
     assert!(
         String::from_utf8(strict.stdout)
@@ -607,7 +640,7 @@ fn three_component_results_name_zero_rotation_flag() {
 
 /// A non-BDF companion requires its own basic-frame assertion.
 #[test]
-fn non_bdf_result_companion_names_frame_flag() {
+fn non_bdf_result_companion_requires_conversion_acceptance() {
     let s = Scratch::new();
     for args in [
         vec!["convert", "mesh.bdf", "zeros.op2", "--accept-all"],
@@ -620,6 +653,25 @@ fn non_bdf_result_companion_names_frame_flag() {
             String::from_utf8_lossy(&result.stderr)
         );
     }
+    let inspected = s.run(&["validate", "zeros.op2", "--mesh", "mesh.vtu", "-j"]);
+    assert!(inspected.status.success());
+    let receipt = String::from_utf8(inspected.stdout).unwrap();
+    assert!(receipt.contains("\"passed\":true"));
+    assert!(receipt.contains("basic-frame"));
+    let strict = s.run(&["validate", "zeros.op2", "--mesh", "mesh.vtu", "-s"]);
+    assert_eq!(strict.status.code(), Some(1));
+    assert_eq!(
+        s.run(&[
+            "validate",
+            "zeros.op2",
+            "--mesh",
+            "mesh.vtu",
+            "--accept-basic-frame",
+        ])
+        .status
+        .code(),
+        Some(2)
+    );
     let waiting = s.run(&[
         "convert",
         "zeros.op2",

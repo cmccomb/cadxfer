@@ -19,7 +19,7 @@ pub(super) fn run_convert(args: &Args) -> Result<u8> {
     let companion = args
         .mesh_out
         .as_deref()
-        .map(|path| PendingOutput::new(path, &args.paths[0], false))
+        .map(|path| PendingOutput::new(path, &args.paths[0], args.overwrite))
         .transpose()?;
     let mut options = conversion_options(args)?;
     // The library may write every proposed projection into private paths.

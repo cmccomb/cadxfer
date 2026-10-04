@@ -205,7 +205,7 @@ pub struct Options {
     /// Optional geometry companion to write alongside an OP2 result.
     pub mesh_output: Option<PathBuf>,
 
-    /// Fail validation when the supported projection omits source information.
+    /// Fail validation when the projection reports an omission or assumption.
     pub strict: bool,
 
     /// Accept every reported omission and explicit assumption for file output.

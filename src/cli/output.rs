@@ -176,12 +176,16 @@ fn same_file(first: &Path, second: &Path) -> Result<bool> {
 
 /// Install an approved OP2 and companion, reporting a partial pair precisely.
 pub(super) fn install_pair(first: &PendingOutput, second: &PendingOutput) -> Result<()> {
+    // Check both destinations before changing either. A later race can still
+    // prevent the second install after the first succeeds.
+    check_destination(&first.destination, &first.source, first.overwrite)?;
+    check_destination(&second.destination, &second.source, second.overwrite)?;
     first.install()?;
     second.install().map_err(|error| {
         Error::new(
             error.code,
             format!(
-                "{} was created, but {} could not be installed: {}",
+                "{} was installed, but {} could not be installed: {}",
                 first.destination.display(),
                 second.destination.display(),
                 error.message

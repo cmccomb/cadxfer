@@ -3,7 +3,7 @@
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use caexfer::{MshVersion, Options, convert, validate};
+use caexfer::{AssumptionKind, MshVersion, Options, Stage, convert, validate};
 
 static NEXT: AtomicU64 = AtomicU64::new(0);
 
@@ -122,6 +122,39 @@ fn op2_companion_is_staged_and_reported() {
     .unwrap();
     assert!(reread.passed);
     assert_eq!(reread.points, 4);
+}
+
+#[test]
+fn validation_reports_unverified_frame_without_acceptance() {
+    let scratch = Scratch::new();
+    let source = fixture("examples/plate.bdf");
+    let op2 = scratch.path("results.op2");
+    let mesh = scratch.path("mesh.vtu");
+    let accepted = Options {
+        accept_all: true,
+        ..Options::default()
+    };
+    convert(&source, &op2, &accepted).unwrap();
+    convert(&source, &mesh, &accepted).unwrap();
+
+    let options = Options {
+        mesh: Some(mesh),
+        ..Options::default()
+    };
+    let report = validate(&op2, &options).unwrap();
+    assert!(report.passed);
+    assert!(report.omissions.iter().any(|item| {
+        item.stage == Stage::Assumption && item.assumption == Some(AssumptionKind::BasicFrame)
+    }));
+    let strict = validate(
+        &op2,
+        &Options {
+            strict: true,
+            ..options
+        },
+    )
+    .unwrap();
+    assert!(!strict.passed);
 }
 
 #[test]

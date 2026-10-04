@@ -31,21 +31,19 @@ INPUT OPTIONS
   --from FORMAT         Override the input extension; see 'caexfer --formats'
   --max-bytes N         Limit input size in bytes (default: 268435456 / 256 MiB)
   --mesh FILE           Companion mesh for OP2/PCH results
-  --accept-basic-frame  Assert basic frame with a non-BDF companion mesh
   --subcase N           Select an OP2/PCH displacement subcase
   --step N              Select OP2/PCH/Exodus step by zero-based index, or FRD step number
 
-VALIDATION OPTIONS
-  --strict              Fail when the source has reported omissions
-
 GENERAL OPTIONS
-  --json                Return the report as JSON (schema_version=1)
+  -s, --strict          Fail when the source has omissions or assumptions
+  -j, --json            Return the report as JSON (schema_version=1)
   -h, --help            Show this command's help
 
 EXAMPLES
   caexfer validate model.bdf
   caexfer validate model.bdf --strict --json
   caexfer validate results.op2 --mesh model.bdf --subcase 1
+  caexfer validate results.op2 --mesh model.vtu
 ";
 
 /// Explain conversion in the order users choose source, destination, and receipt.
@@ -64,7 +62,7 @@ INPUT OPTIONS
 DESTINATION OPTIONS
   --msh-version 2.2|4.1      MSH output dialect (default: 4.1)
   --mesh-out FILE            Write a companion mesh alongside OP2 output
-  --overwrite                Replace an existing regular file (single output only)
+  --overwrite                Replace existing regular output files
 
 ACCEPTANCE OPTIONS
   --accept-omissions        Accept reported source and destination losses
@@ -74,12 +72,14 @@ ACCEPTANCE OPTIONS
   --accept-all              Accept all reported changes
 
 GENERAL OPTIONS
-  --json                     Return the report as JSON (schema_version=1)
+  -j, --json                 Return the report as JSON (schema_version=1)
   -h, --help                 Show this command's help
 
 OUTPUT is selected by its extension. Existing files require --overwrite.
 Replacement occurs after conversion and acceptance; it does not imply acceptance.
---overwrite cannot be used with --mesh-out or to replace the input file.
+With --mesh-out, --overwrite applies to both output paths. The input file
+cannot be replaced. A failure installing the second file can leave the first
+output installed.
 Conversions with reported losses or assumptions list them and ask for
 confirmation. In a noninteractive session, pass the listed acceptance flags.
 

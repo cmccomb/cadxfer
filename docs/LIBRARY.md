@@ -32,8 +32,10 @@ fn main() -> Result<()> {
 ```
 
 Ordinary validation passes when the source can be projected into caexfer's
-supported mesh-and-fields subset, even if the report lists omissions. Set
-`Options.strict = true` to make any source omission set `report.passed = false`.
+supported mesh-and-fields subset, even if the report lists omissions or
+assumptions. For OP2/PCH with a non-BDF companion mesh, validation reports an
+unverified basic-frame assumption without requiring acceptance. Set
+`Options.strict = true` to make any notice set `report.passed = false`.
 Parse, I/O, size-limit, and unsafe-projection failures return an `Error`. A
 passing report does not validate a full solver model.
 
@@ -73,7 +75,7 @@ override parsing, coordinate-system, representability, or I/O errors.
 | --- | --- |
 | `input_format` | Override source extension detection with a `Format` value |
 | `mesh` | Matching mesh path for OP2 or PCH input; original node IDs are required |
-| `assume_basic_frame` | Assert basic-frame coordinates and displacements for a non-BDF companion |
+| `assume_basic_frame` | Accept basic-frame coordinates and displacements for conversion with a non-BDF companion |
 | `subcase`, `step` | Select an OP2/PCH result; `step` also selects an FRD or Exodus step |
 | `msh_version` | Select MSH 2.2 output; default is 4.1 |
 | `max_bytes` | Bound the input and companion mesh reads; default is 256 MiB |
