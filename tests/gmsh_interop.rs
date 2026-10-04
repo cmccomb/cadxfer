@@ -2,6 +2,7 @@
 use caexfer::bdf::Document;
 use caexfer::core::{Cell, CellKind, Dataset, Mesh, Point};
 use caexfer::msh;
+use caexfer::stl;
 use std::collections::BTreeMap;
 use std::fs;
 use std::process::Command;
@@ -22,6 +23,36 @@ fn cell_tags(mesh: &Mesh) -> BTreeMap<u64, (CellKind, Vec<u64>)> {
             )
         })
         .collect()
+}
+
+#[test]
+fn gmsh_imports_binary_stl_surface() {
+    let Ok(gmsh) = std::env::var("CAEXFER_GMSH") else {
+        return;
+    };
+    let source = std::env::temp_dir().join(format!("caexfer-stl-{}.stl", std::process::id()));
+    let resaved = std::env::temp_dir().join(format!("caexfer-stl-{}.msh", std::process::id()));
+    let dataset = stl::read_projection(b"solid sample\nfacet normal 0 0 1\nouter loop\nvertex 0 0 0\nvertex 1 0 0\nvertex 0 1 0\nendloop\nendfacet\nendsolid sample\n")
+        .unwrap()
+        .dataset;
+    let mut bytes = Vec::new();
+    stl::write_data(&dataset, &mut bytes).unwrap();
+    fs::write(&source, bytes).unwrap();
+    let output = Command::new(gmsh)
+        .arg(&source)
+        .args(["-0", "-o"])
+        .arg(&resaved)
+        .args(["-v", "3"])
+        .output()
+        .expect("launch Gmsh");
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(resaved.exists());
+    let _ = fs::remove_file(source);
+    let _ = fs::remove_file(resaved);
 }
 
 #[test]

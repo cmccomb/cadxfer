@@ -14,7 +14,7 @@ use std::path::{Path, PathBuf};
 
 use crate::bdf::{self, Document, ParseOptions};
 use crate::core::{Dataset, Error, FieldLocation, Mesh, Result};
-use crate::{frd, inp, msh, op2, pch, vtk, vtu};
+use crate::{frd, inp, msh, op2, pch, stl, vtk, vtu};
 
 /// Supported conversion format.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -42,6 +42,9 @@ pub enum Format {
 
     /// Nastran text punch displacement results (read only).
     Pch,
+
+    /// ASCII or binary triangle surface.
+    Stl,
 }
 
 impl Format {
@@ -57,6 +60,7 @@ impl Format {
             Self::Frd => "frd",
             Self::Op2 => "op2",
             Self::Pch => "pch",
+            Self::Stl => "stl",
         }
     }
 
@@ -84,6 +88,7 @@ impl Format {
             "frd" => Ok(Self::Frd),
             "op2" => Ok(Self::Op2),
             "pch" => Ok(Self::Pch),
+            "stl" => Ok(Self::Stl),
             _ => Err(Error::new(
                 "E_FORMAT",
                 format!("unknown input format {name}"),
@@ -109,7 +114,9 @@ impl Format {
         let extension = extension(path);
         match extension.as_str() {
             "bdf" | "nas" | "dat" => Ok(Self::Bdf),
-            "vtu" | "vtk" | "msh" | "inp" | "frd" | "op2" | "pch" => Self::parse(&extension),
+            "vtu" | "vtk" | "msh" | "inp" | "frd" | "op2" | "pch" | "stl" => {
+                Self::parse(&extension)
+            }
             _ => Err(Error::new(
                 "E_FORMAT",
                 format!("no reader for extension {extension:?}; use --from"),
@@ -136,7 +143,7 @@ impl Format {
         let extension = extension(path);
         match extension.as_str() {
             "bdf" | "nas" => Ok(Self::Bdf),
-            "vtu" | "vtk" | "msh" | "inp" | "frd" | "op2" => Self::parse(&extension),
+            "vtu" | "vtk" | "msh" | "inp" | "frd" | "op2" | "stl" => Self::parse(&extension),
             _ => Err(Error::new(
                 "E_FORMAT",
                 format!("no writer for extension {extension:?}"),
@@ -514,6 +521,33 @@ pub fn read_path(path: &Path, options: &Options) -> Result<ReadResult> {
             }
             (projection.dataset, omissions, false)
         }
+        Format::Stl => {
+            let bytes = read_limited(path, options.max_bytes)?;
+            let projection = stl::read_projection(&bytes)?;
+            let mut omissions = vec![Omission::new(
+                Stage::Source,
+                "STL has no node or element IDs; assigned one-based facet-local IDs without welding",
+            )];
+            if projection.normals > 0 {
+                omissions.push(Omission::new(
+                    Stage::Source,
+                    format!(
+                        "{} STL facet normal(s) not retained as numeric fields",
+                        projection.normals
+                    ),
+                ));
+            }
+            if projection.attributed_facets > 0 {
+                omissions.push(Omission::new(
+                    Stage::Source,
+                    format!(
+                        "{} STL facet(s) have nonstandard attribute bytes that were omitted",
+                        projection.attributed_facets
+                    ),
+                ));
+            }
+            (projection.dataset, omissions, false)
+        }
         Format::Msh => {
             // The MSH reader handles geometry and data; other sections are
             // recorded as source omissions for the caller to review.
@@ -777,6 +811,33 @@ pub fn convert(
                 }
             }
             vtk::write_data(dataset, &mut writer)?;
+        }
+        Format::Stl => {
+            if !dataset.fields.is_empty() {
+                omissions.push(Omission::new(
+                    Stage::Destination,
+                    format!(
+                        "{} numeric field(s) omitted from STL triangle surface",
+                        dataset.fields.len()
+                    ),
+                ));
+            }
+            if dataset
+                .mesh
+                .cells
+                .iter()
+                .any(|cell| cell.property_id.is_some())
+            {
+                omissions.push(Omission::new(
+                    Stage::Destination,
+                    "property IDs have no STL mapping",
+                ));
+            }
+            omissions.push(Omission::new(
+                Stage::Destination,
+                "STL has no node or element IDs or shared-vertex identity; binary coordinates use float32",
+            ));
+            stl::write_data(dataset, &mut writer)?;
         }
         Format::Msh => {
             // MSH stores numeric tuples but loses these component labels and

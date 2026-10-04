@@ -684,6 +684,11 @@ fn run(args: &Args) -> Result<u8> {
                         "ASCII real SORT1 displacement and matching mesh",
                         "read-only; no PCH writer",
                     ),
+                    (
+                        "stl",
+                        "ASCII or binary triangle surface; facet-local generated IDs",
+                        "binary triangle surface; IDs and fields omitted",
+                    ),
                 ];
                 emit(&object([
                     ("schema_version", "1".into()),
@@ -702,7 +707,7 @@ fn run(args: &Args) -> Result<u8> {
                 ]))?;
             } else {
                 emit(
-                    "bdf  document + linear mesh; geometry export\nvtu  ASCII XML mesh + numeric fields, read/write\nvtk  ASCII legacy unstructured grid + numeric fields, read/write\nmsh  ASCII 4.1/2.2 mesh + numeric fields, read/write (output defaults to 4.1)\ninp  flat mesh subset, read/geometry write\nfrd  ASCII mesh + nodal fields, read/write\nop2  32-bit real OUGV1 displacement, read/write; explicit synthetic-zero option; optional companion mesh\npch  ASCII real SORT1 displacement, read-only; matching mesh required",
+                    "bdf  document + linear mesh; geometry export\nvtu  ASCII XML mesh + numeric fields, read/write\nvtk  ASCII legacy unstructured grid + numeric fields, read/write\nmsh  ASCII 4.1/2.2 mesh + numeric fields, read/write (output defaults to 4.1)\ninp  flat mesh subset, read/geometry write\nfrd  ASCII mesh + nodal fields, read/write\nop2  32-bit real OUGV1 displacement, read/write; explicit synthetic-zero option; optional companion mesh\npch  ASCII real SORT1 displacement, read-only; matching mesh required\nstl  ASCII/binary triangle surface, binary write; no IDs or fields",
                 )?;
             }
             return Ok(0);

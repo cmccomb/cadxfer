@@ -114,6 +114,23 @@ Component labels and step/time metadata are reported as destination omissions.
 Binary data, nondefault lookup tables, structured grids, polydata, and
 higher-order cells fail explicitly. CI checks output with VTK 9.6.1 itself.
 
+### STL
+
+Read ASCII and binary triangle surfaces. Binary input is recognized from its
+exact header/count/record length, even when its header starts with `solid`.
+STL has no node or element IDs, so reading assigns one-based IDs in facet order
+and leaves vertices facet-local; it does not infer shared nodes by coordinate
+welding. Facet normals and nonstandard binary attribute bytes are reported as
+source omissions. Units are not inferred.
+
+The default writer emits binary STL with float32 coordinates and unit normals
+computed from written triangle winding. The library also offers `stl::write_ascii`
+with f64 coordinate text. Only triangle cells are accepted; volume meshes are
+not silently reduced to their boundary. Numeric fields, properties, IDs, and
+shared-vertex identity have no STL mapping and are reported as destination
+losses by conversion. Degenerate facets and values that overflow or underflow
+binary float32 fail.
+
 ### Gmsh MSH
 
 Read/write ASCII MSH 4.1 and 2.2 with the seven supported linear element

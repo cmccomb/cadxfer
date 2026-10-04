@@ -184,6 +184,40 @@ fn format_names_and_output_capabilities_are_explicit() {
 }
 
 #[test]
+fn stl_route_reports_missing_identity_and_refuses_volume_export() {
+    let scratch = Scratch::new();
+    let source = scratch.write(
+        "surface.stl",
+        b"solid sample\nfacet normal 0 0 1\nouter loop\nvertex 0 0 0\nvertex 1 0 0\nvertex 0 1 0\nendloop\nendfacet\nendsolid sample\n",
+    );
+    let read = conversion::read_path(&source, &Options::default()).unwrap();
+    assert_eq!(read.format, Format::Stl);
+    assert_eq!(read.dataset.mesh.cells.len(), 1);
+    assert!(
+        read.omissions
+            .iter()
+            .any(|item| item.detail.contains("facet-local IDs"))
+    );
+    let mut output = Vec::new();
+    let report = conversion::convert(read, Format::Stl, &Options::default(), &mut output).unwrap();
+    assert_eq!(output.len(), 134);
+    assert!(
+        report
+            .omissions
+            .iter()
+            .any(|item| item.stage == Stage::Destination)
+    );
+
+    let volume = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/mixed-linear.bdf");
+    assert_eq!(
+        conversion::convert_path(&volume, Format::Stl, &Options::default(), Vec::new())
+            .unwrap_err()
+            .code,
+        "E_STL"
+    );
+}
+
+#[test]
 fn result_options_cannot_change_unrelated_mesh_readers() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"));
     let source = root.join("examples/plate.bdf");
