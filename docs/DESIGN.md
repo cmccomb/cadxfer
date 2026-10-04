@@ -2,10 +2,10 @@
 
 ## Source layout
 
-`src/core.rs` defines mesh, fields, validation, and errors. `src/conversion.rs`
+`src/core/` defines mesh, fields, validation, and errors. `src/conversion/`
 owns format dispatch and projection reports. `src/bdf/` holds the native BDF
 document, parser, and geometry projection. `src/mesh_formats/` groups adapters
-that carry mesh geometry (VTU, legacy VTK, MSH, INP, and FRD).
+that carry mesh geometry.
 `src/nastran_results/` groups OP2 and PCH with their shared displacement
 projection and OP2 record codec. `src/cli/` contains JSON rendering and staged
 output; `src/main.rs` handles commands. Public module paths such as
