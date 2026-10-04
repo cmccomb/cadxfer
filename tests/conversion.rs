@@ -533,12 +533,13 @@ fn result_companion_frames_and_frd_steps_fail_explicitly() {
         step: Some(1),
         ..Options::default()
     };
-    assert!(
-        !conversion::read_path(&frd, &options)
+    assert_eq!(
+        conversion::read_path(&frd, &options)
             .unwrap()
             .dataset
             .fields
-            .is_empty()
+            .len(),
+        2
     );
     let options = Options {
         step: Some(99),

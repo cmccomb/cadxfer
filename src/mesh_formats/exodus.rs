@@ -1035,7 +1035,7 @@ mod tests {
                 .iter()
                 .any(|item| item.contains("node_ns1"))
         );
-        assert!(projection.dataset.fields.is_empty());
+        assert_eq!(projection.dataset.fields, Vec::new());
         assert!(read_projection(source, Some(0)).is_err());
     }
 
