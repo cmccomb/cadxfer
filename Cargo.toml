@@ -2,7 +2,7 @@
 name = "caexfer"
 version = "0.1.0"
 edition = "2024"
-rust-version = "1.85"
+rust-version = "1.86"
 license = "MIT OR Apache-2.0"
 authors = ["Christopher McComb"]
 repository = "https://github.com/cmccomb/caexfer"
@@ -13,7 +13,7 @@ keywords = ["engineering", "nastran", "file-formats", "mesh"]
 categories = ["science", "parser-implementations"]
 
 [dependencies]
-quick-xml = "=0.39.4"
+quick-xml = "=0.42.0"
 netcdf3 = "=0.6.1"
 
 [lints.rust]

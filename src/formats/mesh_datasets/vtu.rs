@@ -4,6 +4,7 @@
 //! this bounded reader/writer.
 
 use crate::core::{Cell, CellKind, Dataset, Error, Field, FieldLocation, Mesh, Point, Result};
+use quick_xml::XmlVersion;
 use quick_xml::events::{BytesStart, Event};
 use quick_xml::reader::Reader;
 use std::collections::{BTreeMap, BTreeSet};
@@ -340,18 +341,14 @@ impl XmlNode {
     }
 }
 
-fn xml_start(start: &BytesStart<'_>, reader: &Reader<&[u8]>) -> Result<XmlNode> {
-    let name = std::str::from_utf8(start.name().as_ref())
-        .map_err(|_| Error::new("E_VTU", "invalid XML element name"))?
-        .to_owned();
+fn xml_start(start: &BytesStart<'_>) -> Result<XmlNode> {
+    let name = start.name().as_ref().to_owned();
     let mut attributes = BTreeMap::new();
     for attribute in start.attributes() {
         let attribute = attribute.map_err(|e| Error::new("E_VTU", e.to_string()))?;
-        let key = std::str::from_utf8(attribute.key.as_ref())
-            .map_err(|_| Error::new("E_VTU", "invalid XML attribute name"))?
-            .to_owned();
+        let key = attribute.key.as_ref().to_owned();
         let value = attribute
-            .decode_and_unescape_value(reader.decoder())
+            .normalized_value(XmlVersion::Implicit1_0)
             .map_err(|e| Error::new("E_VTU", e.to_string()))?
             .into_owned();
         if attributes.insert(key, value).is_some() {
@@ -388,7 +385,7 @@ fn xml_tree(source: &str) -> Result<XmlNode> {
                         "nested DataArray content is unsupported",
                     ));
                 }
-                stack.push(xml_start(&start, &reader)?);
+                stack.push(xml_start(&start)?);
             }
             Event::Empty(start) => {
                 if stack
@@ -400,7 +397,7 @@ fn xml_tree(source: &str) -> Result<XmlNode> {
                         "nested DataArray content is unsupported",
                     ));
                 }
-                let node = xml_start(&start, &reader)?;
+                let node = xml_start(&start)?;
                 if let Some(parent) = stack.last_mut() {
                     parent.children.push(node);
                 } else if root.replace(node).is_some() {
@@ -411,7 +408,7 @@ fn xml_tree(source: &str) -> Result<XmlNode> {
                 let node = stack
                     .pop()
                     .ok_or_else(|| Error::new("E_VTU", "unexpected XML close"))?;
-                if node.name.as_bytes() != end.name().as_ref() {
+                if node.name != end.name().as_ref() {
                     return Err(Error::new("E_VTU", "mismatched XML close"));
                 }
                 if let Some(parent) = stack.last_mut() {
@@ -421,9 +418,7 @@ fn xml_tree(source: &str) -> Result<XmlNode> {
                 }
             }
             Event::Text(value) => {
-                let text = value
-                    .xml_content()
-                    .map_err(|e| Error::new("E_VTU", e.to_string()))?;
+                let text = value.xml10_content();
                 if let Some(node) = stack.last_mut() {
                     if node.name != "DataArray" && !text.trim().is_empty() {
                         return Err(Error::new("E_VTU", "text outside DataArray"));

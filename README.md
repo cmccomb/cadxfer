@@ -14,7 +14,7 @@ given a matching mesh. Each conversion reports omissions and assumptions.
 
 ## Install and try the CLI
 
-Requires Rust 1.85 or newer. Until version 0.1.0 is published, install the CLI
+Requires Rust 1.86 or newer. Until version 0.1.0 is published, install the CLI
 from GitHub:
 
 ```sh
