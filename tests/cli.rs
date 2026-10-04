@@ -64,12 +64,22 @@ fn help_and_version_work() {
         convert,
         String::from_utf8(s.run(&["help", "convert"]).stdout).unwrap()
     );
+    let bare_convert = s.run(&["convert"]);
+    assert!(bare_convert.status.success());
+    assert_eq!(convert, String::from_utf8(bare_convert.stdout).unwrap());
+    assert_eq!(bare_convert.stderr, b"");
 
     let validate = s.run(&["validate", "--help"]);
     assert!(validate.status.success());
     let validate = String::from_utf8(validate.stdout).unwrap();
     assert!(validate.contains("--strict"));
     assert!(!validate.contains("--mesh-out FILE"));
+    let bare_validate = s.run(&["validate"]);
+    assert!(bare_validate.status.success());
+    assert_eq!(validate, String::from_utf8(bare_validate.stdout).unwrap());
+    assert_eq!(bare_validate.stderr, b"");
+    assert_eq!(s.run(&["convert", "mesh.bdf"]).status.code(), Some(2));
+    assert_eq!(s.run(&["validate", "--strict"]).status.code(), Some(2));
 
     assert_eq!(
         String::from_utf8(s.run(&["--version"]).stdout)

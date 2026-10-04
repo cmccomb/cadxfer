@@ -140,6 +140,14 @@ fn parse_args(raw: &[OsString]) -> Result<Args> {
     if !matches!(command.as_str(), "validate" | "convert") {
         return Err(usage(format!("unknown command {command:?}; use --help")));
     }
+    // A command name alone requests its help, like the bare executable.
+    if raw.len() == 1 {
+        return Ok(Args {
+            command,
+            help_requested: true,
+            ..Args::default()
+        });
+    }
     let mut args = Args {
         command,
         ..Args::default()

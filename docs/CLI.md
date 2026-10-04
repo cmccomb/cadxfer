@@ -37,8 +37,9 @@ These commands use example input names. The [format limits](SUPPORT.md) describe
 which cells, sets, fields, and time data each route can retain.
 
 `caexfer --help` lists the commands and global options. `caexfer -f` and
-`caexfer --formats` list format capabilities. Use `caexfer validate --help` or
-`caexfer convert --help` for command options and examples. Paths can occur
+`caexfer --formats` list format capabilities. Run `caexfer validate` or
+`caexfer convert` without paths to see that command's options and examples.
+`--help` works after either command too. Paths can occur
 before or after options; use `--` for paths beginning with a hyphen. Filenames
 use OS-native strings internally; JSON/human display of non-UTF-8 paths is
 lossy, not an exact path serialization.
