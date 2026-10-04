@@ -47,6 +47,8 @@ mod op2_binary;
 pub mod pch;
 #[path = "mesh_formats/stl.rs"]
 pub mod stl;
+#[path = "mesh_formats/su2.rs"]
+pub mod su2;
 #[path = "mesh_formats/vtk.rs"]
 pub mod vtk;
 #[path = "mesh_formats/vtu.rs"]

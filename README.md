@@ -7,7 +7,7 @@
 
 **Exchange finite-element meshes and results across formats.**
 
-`caexfer` reads and writes supported subsets of STL, VTU, legacy VTK, Gmsh MSH
+`caexfer` reads and writes supported subsets of STL, SU2, VTU, legacy VTK, Gmsh MSH
 4.1/2.2, Abaqus/CalculiX INP, CalculiX FRD, Nastran BDF, and Nastran OP2.
 It also reads displacement results from PCH when given a
 matching mesh. Each conversion reports omitted data and explicit assumptions.
@@ -50,10 +50,11 @@ files must be new; the CLI never overwrites an existing path.
 
 [![Schematic of BDF, VTU, VTK, MSH, INP, FRD, OP2, and PCH representations](https://raw.githubusercontent.com/cmccomb/caexfer/main/assets/conversion-flow.svg)](https://github.com/cmccomb/caexfer/blob/main/assets/conversion-flow.svg)
 
-The figure and matrix summarize the mesh and result routes. STL is also
-available for triangle surfaces: it has no source IDs or fields and accepts no
-volume cells. See the [format limits](https://github.com/cmccomb/caexfer/blob/main/docs/SUPPORT.md)
-for its conversion contract.
+The figure and matrix summarize the original mesh and result routes. STL is
+available for triangle surfaces. SU2 carries named boundary markers, including
+those read from Gmsh physical groups. See the
+[format limits](https://github.com/cmccomb/caexfer/blob/main/docs/SUPPORT.md)
+for their conversion contracts.
 
 | From ↓ / To →           | BDF | VTU | VTK | MSH 4.1/2.2 | INP | FRD | OP2 (+ optional mesh) |
 |-------------------------|-----|-----|-----|-------------|-----|-----|-----------------------|

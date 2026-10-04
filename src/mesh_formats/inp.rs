@@ -233,6 +233,7 @@ pub fn read(source: &str) -> Result<Inspection> {
 pub fn write(mesh: &Mesh, mut writer: impl Write) -> Result<()> {
     // Property IDs have no mapping here, so reject them before any output.
     mesh.validate()?;
+    mesh.require_no_sets("E_INP")?;
     if mesh.cells.iter().any(|c| c.property_id.is_some()) {
         return Err(err(
             "property IDs have no lossless INP mapping in this writer",

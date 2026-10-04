@@ -67,6 +67,7 @@ fn read_binary(bytes: &[u8], count: usize) -> Result<Projection> {
                 .ok_or_else(|| err("STL vertex count overflows"))?,
         ),
         cells: Vec::with_capacity(count),
+        ..Mesh::default()
     };
     let mut attributed_facets = 0;
     for chunk in bytes[84..].chunks_exact(50) {
@@ -218,6 +219,7 @@ pub fn read_projection(bytes: &[u8]) -> Result<Projection> {
 #[allow(clippy::cast_possible_truncation)] // Binary STL requires float32; bounds are checked below.
 fn triangles(dataset: &Dataset) -> Result<Vec<[[f32; 3]; 3]>> {
     dataset.validate()?;
+    dataset.mesh.require_no_sets("E_STL")?;
     let mut output = Vec::with_capacity(dataset.mesh.cells.len());
     for cell in &dataset.mesh.cells {
         if cell.kind != CellKind::Triangle3 {
@@ -311,6 +313,7 @@ pub fn write_data(dataset: &Dataset, mut writer: impl Write) -> Result<()> {
 /// failure. A writer error may leave partial bytes in the stream.
 pub fn write_ascii(dataset: &Dataset, mut writer: impl Write) -> Result<()> {
     dataset.validate()?;
+    dataset.mesh.require_no_sets("E_STL")?;
     if dataset
         .mesh
         .cells

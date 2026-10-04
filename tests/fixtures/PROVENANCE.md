@@ -24,6 +24,11 @@ linear mesh. Gmsh renumbered its elements; the fixture tests independent MSH
 2.2 syntax and all seven linear topologies, not ID preservation across Gmsh's
 own resave operation.
 
+`su2-triangle.geo` is an authored Gmsh geometry with a named wall and fluid
+region. Gmsh 4.15.2 generated `su2-triangle.msh` from it using ASCII MSH 4.1.
+The opt-in SU2 interop test converts that file to `.su2` and asks SU2_CFD 8.4.0
+to load the resulting mesh and `wall` marker.
+
 `msc-reference-displacement.pch` is a minimal displacement block transcribed
 from the published MSC Nastran 2021.4 Reference Guide's punch-format example
 (grid 101, T2 = 9.994075E-04). Its header sequence and continuation layout are

@@ -76,6 +76,7 @@ pub fn write(mesh: &Mesh, writer: impl Write) -> Result<()> {
 pub fn write_data(dataset: &Dataset, mut writer: impl Write) -> Result<()> {
     // Finish all checks that can fail independently of I/O before emitting XML.
     dataset.validate()?;
+    dataset.mesh.require_no_sets("E_VTU")?;
     let mesh = &dataset.mesh;
 
     // These names carry original mesh IDs, so fields cannot replace them.
@@ -658,7 +659,11 @@ pub fn read(source: &str) -> Result<Dataset> {
         return Err(Error::new("E_VTU", "unused connectivity"));
     }
     let mut dataset = Dataset {
-        mesh: Mesh { points, cells },
+        mesh: Mesh {
+            points,
+            cells,
+            ..Mesh::default()
+        },
         fields: Vec::new(),
     };
 
@@ -786,6 +791,7 @@ mod tests {
                 connectivity: vec![0, 1, 2],
                 property_id: Some(7),
             }],
+            ..Mesh::default()
         }
     }
 

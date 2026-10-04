@@ -73,6 +73,7 @@ pub fn write_displacements(
 ) -> Result<Vec<u8>> {
     // Reject incomplete or nonfinite data before building an OP2 table.
     dataset.mesh.validate()?;
+    dataset.mesh.require_no_sets("E_OP2")?;
     if dataset.mesh.points.is_empty()
         || field.values.len()
             != dataset
@@ -195,6 +196,7 @@ mod tests {
                     position: [0.0; 3],
                 }],
                 cells: Vec::new(),
+                ..Mesh::default()
             },
             fields: Vec::new(),
         };

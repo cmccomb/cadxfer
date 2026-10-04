@@ -56,6 +56,7 @@ fn gmsh_imports_binary_stl_surface() {
 }
 
 #[test]
+#[allow(clippy::too_many_lines)] // One fixture checks mixed cells and a nodes-only mesh.
 fn gmsh_import_preserves_mixed_dimensions_and_original_ids() {
     let Ok(gmsh) = std::env::var("CAEXFER_GMSH") else {
         return;
@@ -109,6 +110,7 @@ fn gmsh_import_preserves_mixed_dimensions_and_original_ids() {
             mesh: Mesh {
                 points: points.clone(),
                 cells,
+                ..Mesh::default()
             },
             fields: vec![],
         };

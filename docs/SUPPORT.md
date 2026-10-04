@@ -137,18 +137,41 @@ Read/write ASCII MSH 4.1 and 2.2 with the seven supported linear element
 families and complete numeric `NodeData`/`ElementData` blocks. Input dialect is
 detected from `$MeshFormat`; output defaults to 4.1, and `--msh-version 2.2`
 selects the flat 2.2 dialect. The 2.2 writer requires node/element IDs within
-the signed 32-bit range. 2.2 element tag lists are reported as source omissions;
-they are not interpreted as solver regions.
+the signed 32-bit range. On input, named 4.1 physical groups and 2.2 physical
+tags become overlapping dimensioned cell sets; a tag without `PhysicalNames`
+gets a deterministic `physical_<dimension>_<tag>` name with a source notice.
+Geometrical and other 2.2 element tags are reported as omissions. Group names
+do not imply material, load, or boundary-condition values.
 Node and element tags remain integer IDs. Binary MSH, high-order types,
-parametric nodes and partial result blocks fail. Extra sections such as physical
-names or entity metadata are reported as omissions by the CLI. MSH field values,
+parametric nodes and partial result blocks fail. Entity bounds and CAD topology
+are reported as omissions by the CLI. MSH field values,
 time and step are retained when supplied. A field without step metadata uses
 MSH step 0 with an omission note. Per-component names and BDF property IDs do
 not have mappings in this exporter. The writer declares one discrete entity per
 occupied element dimension and classifies nodes on the highest dimension; for a
 nodes-only mesh it declares one point entity per node. These entities carry no
-physical groups or boundary topology. CI checks that Gmsh can import and resave
+physical groups or boundary topology. Direct writers reject nonempty sets;
+conversion reports and omits them. CI checks that Gmsh can import and resave
 mixed-dimension and nodes-only exports without changing IDs or connectivity.
+
+### SU2
+
+Read/write one ASCII SU2 zone with 2D triangle/quad or 3D tetrahedron,
+pyramid, wedge, and hexahedron interior cells. `NMARK` marker names and oriented
+line (2D) or triangle/quad (3D) boundary elements become named cell sets tied
+to their generated IDs. Source connectivity uses zero-based positions, so
+caexfer assigns one-based node and element IDs and reports that fact. Optional
+explicit row indices must match source order. Counts, references, and section
+structure are bounded and checked. Multiple zones and result fields are not
+supported by this mesh reader.
+
+The writer requires every lower-dimensional cell to belong to a named marker
+set. It does not invent a marker for an ungrouped face or extract a volume
+boundary. A 2D mesh must have z=0. Node sets, interior cell sets, properties,
+numeric fields, and source IDs cannot be encoded; conversion reports these
+losses. The direct writer rejects unsupported sets. Marker names carry no
+boundary-condition values. An opt-in test converts a Gmsh-generated named
+boundary mesh and verifies the output with SU2_CFD 8.4.0.
 
 ### Abaqus/CalculiX INP
 

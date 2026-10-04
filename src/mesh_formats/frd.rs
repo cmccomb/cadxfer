@@ -109,6 +109,7 @@ pub fn write(dataset: &Dataset, mut output: impl Write) -> Result<()> {
     // Check the entire dataset against FRD's fixed-width constraints before
     // writing any bytes to the caller's stream.
     dataset.validate()?;
+    dataset.mesh.require_no_sets("E_FRD")?;
     if dataset.mesh.points.is_empty() || dataset.mesh.cells.is_empty() {
         return Err(err("FRD requires nodes and elements"));
     }
@@ -591,7 +592,11 @@ pub fn read(source: &[u8]) -> Result<Dataset> {
         });
     }
     let mut dataset = Dataset {
-        mesh: Mesh { points, cells },
+        mesh: Mesh {
+            points,
+            cells,
+            ..Mesh::default()
+        },
         fields: Vec::new(),
     };
 

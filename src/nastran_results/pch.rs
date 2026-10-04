@@ -349,6 +349,7 @@ mod tests {
                 })
                 .collect(),
             cells: vec![],
+            ..Mesh::default()
         }
     }
 

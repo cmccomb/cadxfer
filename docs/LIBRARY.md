@@ -33,11 +33,15 @@ same result type for both caexfer and filesystem operations.
 | Extract supported BDF geometry | `bdf::read_geometry(bytes)` or `Document::geometry()` | `GeometryProjection { mesh, omissions }` |
 | Read a mesh and numeric results | `vtu::read`, `msh::read`, or `frd::read` | `core::Dataset` |
 | Read a flat INP mesh | `inp::read` | `Inspection { mesh, omitted_keywords }` |
+| Read an STL triangle surface | `stl::read_projection` | Generated facet-local IDs and explicit source losses |
+| Read SU2 markers or Gmsh physical groups | `su2::read_projection` or `msh::read_projection` | `Mesh` with named boundary cell sets |
 | Read one OP2 displacement result | `op2::read_displacements` | `(Dataset, assumed_zero)`; matching `Mesh` required |
 | Read one PCH displacement result | `pch::read` | `Projection { dataset, skipped_blocks }`; matching `Mesh` required |
 | Convert a file and inspect losses | `conversion::convert_path` | Caller-owned output stream and `ConversionReport` |
 
-`core::Mesh` contains original positive point and cell IDs. Cell connectivity
+`core::Mesh` contains positive point and cell IDs plus named node and cell sets.
+STL and SU2 lack source IDs, so their readers assign deterministic IDs and
+report that choice. Cell connectivity
 contains **zero-based indices into `mesh.points`**, not point IDs. A
 `core::Dataset` adds `Field`s; their values are ordered by entity, then by
 component. A field's `location` identifies whether those entities are points

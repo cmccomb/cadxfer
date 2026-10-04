@@ -689,6 +689,11 @@ fn run(args: &Args) -> Result<u8> {
                         "ASCII or binary triangle surface; facet-local generated IDs",
                         "binary triangle surface; IDs and fields omitted",
                     ),
+                    (
+                        "su2",
+                        "single-zone ASCII mesh with named boundary markers",
+                        "single-zone ASCII mesh with named boundary markers",
+                    ),
                 ];
                 emit(&object([
                     ("schema_version", "1".into()),
@@ -707,7 +712,7 @@ fn run(args: &Args) -> Result<u8> {
                 ]))?;
             } else {
                 emit(
-                    "bdf  document + linear mesh; geometry export\nvtu  ASCII XML mesh + numeric fields, read/write\nvtk  ASCII legacy unstructured grid + numeric fields, read/write\nmsh  ASCII 4.1/2.2 mesh + numeric fields, read/write (output defaults to 4.1)\ninp  flat mesh subset, read/geometry write\nfrd  ASCII mesh + nodal fields, read/write\nop2  32-bit real OUGV1 displacement, read/write; explicit synthetic-zero option; optional companion mesh\npch  ASCII real SORT1 displacement, read-only; matching mesh required\nstl  ASCII/binary triangle surface, binary write; no IDs or fields",
+                    "bdf  document + linear mesh; geometry export\nvtu  ASCII XML mesh + numeric fields, read/write\nvtk  ASCII legacy unstructured grid + numeric fields, read/write\nmsh  ASCII 4.1/2.2 mesh + numeric fields, read/write (output defaults to 4.1)\ninp  flat mesh subset, read/geometry write\nfrd  ASCII mesh + nodal fields, read/write\nop2  32-bit real OUGV1 displacement, read/write; explicit synthetic-zero option; optional companion mesh\npch  ASCII real SORT1 displacement, read-only; matching mesh required\nstl  ASCII/binary triangle surface, binary write; no IDs or fields\nsu2  ASCII mesh and named boundary markers, read/write",
                 )?;
             }
             return Ok(0);

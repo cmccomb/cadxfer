@@ -514,7 +514,11 @@ pub fn read_projection(source: &str) -> Result<Projection> {
         })
         .collect::<Result<Vec<_>>>()?;
     let dataset = Dataset {
-        mesh: Mesh { points, cells },
+        mesh: Mesh {
+            points,
+            cells,
+            ..Mesh::default()
+        },
         fields,
     };
     dataset.validate()?;
@@ -549,6 +553,7 @@ pub fn read(source: &str) -> Result<Dataset> {
 #[allow(clippy::too_many_lines)] // One ordered legacy grid is emitted after preflight checks.
 pub fn write_data(dataset: &Dataset, mut writer: impl Write) -> Result<()> {
     dataset.validate()?;
+    dataset.mesh.require_no_sets("E_VTK")?;
     let mesh = &dataset.mesh;
     let mut cell_size = 0usize;
     for cell in &mesh.cells {

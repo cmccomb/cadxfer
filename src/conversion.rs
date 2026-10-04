@@ -14,7 +14,7 @@ use std::path::{Path, PathBuf};
 
 use crate::bdf::{self, Document, ParseOptions};
 use crate::core::{Dataset, Error, FieldLocation, Mesh, Result};
-use crate::{frd, inp, msh, op2, pch, stl, vtk, vtu};
+use crate::{frd, inp, msh, op2, pch, stl, su2, vtk, vtu};
 
 /// Supported conversion format.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -45,6 +45,9 @@ pub enum Format {
 
     /// ASCII or binary triangle surface.
     Stl,
+
+    /// Single-zone SU2 ASCII mesh with named boundary markers.
+    Su2,
 }
 
 impl Format {
@@ -61,6 +64,7 @@ impl Format {
             Self::Op2 => "op2",
             Self::Pch => "pch",
             Self::Stl => "stl",
+            Self::Su2 => "su2",
         }
     }
 
@@ -89,6 +93,7 @@ impl Format {
             "op2" => Ok(Self::Op2),
             "pch" => Ok(Self::Pch),
             "stl" => Ok(Self::Stl),
+            "su2" => Ok(Self::Su2),
             _ => Err(Error::new(
                 "E_FORMAT",
                 format!("unknown input format {name}"),
@@ -114,7 +119,7 @@ impl Format {
         let extension = extension(path);
         match extension.as_str() {
             "bdf" | "nas" | "dat" => Ok(Self::Bdf),
-            "vtu" | "vtk" | "msh" | "inp" | "frd" | "op2" | "pch" | "stl" => {
+            "vtu" | "vtk" | "msh" | "inp" | "frd" | "op2" | "pch" | "stl" | "su2" => {
                 Self::parse(&extension)
             }
             _ => Err(Error::new(
@@ -143,7 +148,9 @@ impl Format {
         let extension = extension(path);
         match extension.as_str() {
             "bdf" | "nas" => Ok(Self::Bdf),
-            "vtu" | "vtk" | "msh" | "inp" | "frd" | "op2" | "stl" => Self::parse(&extension),
+            "vtu" | "vtk" | "msh" | "inp" | "frd" | "op2" | "stl" | "su2" => {
+                Self::parse(&extension)
+            }
             _ => Err(Error::new(
                 "E_FORMAT",
                 format!("no writer for extension {extension:?}"),
@@ -548,6 +555,17 @@ pub fn read_path(path: &Path, options: &Options) -> Result<ReadResult> {
             }
             (projection.dataset, omissions, false)
         }
+        Format::Su2 => {
+            let bytes = read_limited(path, options.max_bytes)?;
+            let text = std::str::from_utf8(&bytes)
+                .map_err(|_| Error::new("E_SU2", "SU2 mesh must be UTF-8 ASCII"))?;
+            let projection = su2::read_projection(text)?;
+            let omissions = vec![Omission::new(
+                Stage::Source,
+                "SU2 uses positional connectivity; assigned one-based node and element IDs",
+            )];
+            (projection.dataset, omissions, false)
+        }
         Format::Msh => {
             // The MSH reader handles geometry and data; other sections are
             // recorded as source omissions for the caller to review.
@@ -562,13 +580,17 @@ pub fn read_path(path: &Path, options: &Options) -> Result<ReadResult> {
                 .filter(|section| {
                     !matches!(
                         *section,
-                        "MeshFormat" | "Nodes" | "Elements" | "NodeData" | "ElementData"
+                        "MeshFormat" | "Nodes" | "Elements" | "NodeData" | "ElementData" | "PhysicalNames"
                     )
                 })
                 .map(|section| {
                     Omission::new(
                         Stage::Source,
-                        format!("MSH ${section} section is not represented in the projection"),
+                        if section == "Entities" {
+                            "MSH $Entities bounds and CAD topology are not retained; physical group membership is projected".to_owned()
+                        } else {
+                            format!("MSH ${section} section is not represented in the projection")
+                        },
                     )
                 })
                 .collect::<Vec<_>>();
@@ -576,9 +598,15 @@ pub fn read_path(path: &Path, options: &Options) -> Result<ReadResult> {
                 omissions.push(Omission::new(
                     Stage::Source,
                     format!(
-                        "{} MSH 2.2 element tag list(s) have no group or entity mapping",
+                        "{} MSH 2.2 element tag list(s) have geometrical or other metadata without a mapping",
                         projection.tagged_elements
                     ),
+                ));
+            }
+            if projection.generated_group_names > 0 {
+                omissions.push(Omission::new(
+                    Stage::Source,
+                    format!("{} MSH physical group(s) have no source name; assigned physical_<dimension>_<tag> names", projection.generated_group_names),
                 ));
             }
             (projection.dataset, omissions, false)
@@ -772,6 +800,30 @@ pub fn convert(
     let source_fields = source.dataset.fields.len();
     let dataset = &mut source.dataset;
     let omissions = &mut source.omissions;
+    if target != Format::Su2 {
+        if !dataset.mesh.node_sets.is_empty() {
+            omissions.push(Omission::new(
+                Stage::Destination,
+                format!(
+                    "{} named node set(s) omitted by {}",
+                    dataset.mesh.node_sets.len(),
+                    target.name()
+                ),
+            ));
+        }
+        if !dataset.mesh.cell_sets.is_empty() {
+            omissions.push(Omission::new(
+                Stage::Destination,
+                format!(
+                    "{} named cell set(s) omitted by {}",
+                    dataset.mesh.cell_sets.len(),
+                    target.name()
+                ),
+            ));
+        }
+        dataset.mesh.node_sets.clear();
+        dataset.mesh.cell_sets.clear();
+    }
     match target {
         Format::Vtu => {
             // VTU has one array per location and name; multiple source steps
@@ -838,6 +890,66 @@ pub fn convert(
                 "STL has no node or element IDs or shared-vertex identity; binary coordinates use float32",
             ));
             stl::write_data(dataset, &mut writer)?;
+        }
+        Format::Su2 => {
+            if !dataset.fields.is_empty() {
+                omissions.push(Omission::new(
+                    Stage::Destination,
+                    format!(
+                        "{} numeric field(s) omitted from SU2 mesh",
+                        dataset.fields.len()
+                    ),
+                ));
+            }
+            if !dataset.mesh.node_sets.is_empty() {
+                omissions.push(Omission::new(
+                    Stage::Destination,
+                    format!(
+                        "{} named node set(s) have no SU2 marker mapping",
+                        dataset.mesh.node_sets.len()
+                    ),
+                ));
+            }
+            let dimension = dataset
+                .mesh
+                .cells
+                .iter()
+                .map(|cell| cell.kind.dimension())
+                .max()
+                .unwrap_or(0);
+            let unrepresented = dataset
+                .mesh
+                .cell_sets
+                .iter()
+                .filter(|set| set.dimension != dimension.saturating_sub(1))
+                .count();
+            if unrepresented > 0 {
+                omissions.push(Omission::new(
+                    Stage::Destination,
+                    format!("{unrepresented} cell set(s) are not SU2 boundary markers"),
+                ));
+            }
+            dataset.mesh.node_sets.clear();
+            dataset
+                .mesh
+                .cell_sets
+                .retain(|set| set.dimension == dimension.saturating_sub(1));
+            if dataset
+                .mesh
+                .cells
+                .iter()
+                .any(|cell| cell.property_id.is_some())
+            {
+                omissions.push(Omission::new(
+                    Stage::Destination,
+                    "property IDs have no SU2 mapping",
+                ));
+            }
+            omissions.push(Omission::new(
+                Stage::Destination,
+                "SU2 uses positional connectivity; original node and element IDs are not encoded",
+            ));
+            su2::write_data(dataset, &mut writer)?;
         }
         Format::Msh => {
             // MSH stores numeric tuples but loses these component labels and

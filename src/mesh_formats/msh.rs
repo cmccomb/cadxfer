@@ -1,5 +1,7 @@
 //! ASCII Gmsh MSH 4.1 and 2.2 linear mesh and numeric data blocks.
-use crate::core::{Cell, CellKind, Dataset, Error, Field, FieldLocation, Mesh, Point, Result};
+use crate::core::{
+    Cell, CellKind, CellSet, Dataset, Error, Field, FieldLocation, Mesh, NodeSet, Point, Result,
+};
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write as _;
 use std::io::Write;
@@ -15,14 +17,17 @@ pub enum Version {
     V4_1,
 }
 
-/// Mesh projection and count of ignored 2.2 element tag lists.
+/// Mesh projection and metadata that had no native group mapping.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Projection {
     /// Complete supported geometry and numeric fields.
     pub dataset: Dataset,
 
-    /// Elements with nonzero physical/geometrical or other unmapped tags.
+    /// Elements with nonzero geometrical or other unmapped 2.2 tags.
     pub tagged_elements: usize,
+
+    /// Physical groups assigned deterministic names because none were stored.
+    pub generated_group_names: usize,
 }
 
 /// One MSH 2.2 element before regrouping into internal 4.1 blocks.
@@ -35,6 +40,9 @@ struct Element22 {
 
     /// Original node tags in Gmsh ordering.
     nodes: Vec<u64>,
+
+    /// First metadata tag, when it is a positive physical group number.
+    physical: Option<u64>,
 }
 
 /// Attach the MSH-specific diagnostic code to a parsing or writing failure.
@@ -111,6 +119,148 @@ fn data_sections<'a>(source: &'a str, name: &str) -> Result<Vec<&'a str>> {
     Ok(out)
 }
 
+/// Decode explicit physical group names, retaining spaces inside quotes.
+fn physical_names(source: &str) -> Result<BTreeMap<(u8, u64), String>> {
+    let Some(body) = section(source, "PhysicalNames")? else {
+        return Ok(BTreeMap::new());
+    };
+    let mut lines = body.lines().map(str::trim).filter(|line| !line.is_empty());
+    let count: usize = number(lines.next(), "physical name count")?;
+    if count > body.len() / 5 {
+        return Err(err("physical name count exceeds input"));
+    }
+    let mut names = BTreeMap::new();
+    for _ in 0..count {
+        let line = lines.next().ok_or_else(|| err("missing physical name"))?;
+        let mut words = line.split_whitespace();
+        let dimension: u8 = number(words.next(), "physical dimension")?;
+        let tag: u64 = number(words.next(), "physical tag")?;
+        let start = line
+            .find('"')
+            .ok_or_else(|| err("physical name must be quoted"))?;
+        let end = line
+            .rfind('"')
+            .ok_or_else(|| err("physical name must be quoted"))?;
+        if start == end || dimension > 3 || tag == 0 {
+            return Err(err("invalid physical name record"));
+        }
+        let name = line[start + 1..end].to_owned();
+        if name.is_empty() || names.insert((dimension, tag), name).is_some() {
+            return Err(err("empty or duplicate physical group name"));
+        }
+    }
+    if lines.next().is_some() {
+        return Err(err("extra physical name records"));
+    }
+    Ok(names)
+}
+
+/// Read entity physical tags from the structured MSH 4.1 entity section.
+fn entity_physical_tags(source: &str) -> Result<BTreeMap<(u8, u64), Vec<u64>>> {
+    let Some(body) = section(source, "Entities")? else {
+        return Ok(BTreeMap::new());
+    };
+    let mut lines = body.lines().map(str::trim).filter(|line| !line.is_empty());
+    let counts = lines
+        .next()
+        .ok_or_else(|| err("missing entity counts"))?
+        .split_whitespace()
+        .map(|word| {
+            word.parse::<usize>()
+                .map_err(|_| err("invalid entity count"))
+        })
+        .collect::<Result<Vec<_>>>()?;
+    let counts: [usize; 4] = counts
+        .try_into()
+        .map_err(|_| err("four entity counts required"))?;
+    let declared = counts
+        .iter()
+        .try_fold(0_usize, |total, count| total.checked_add(*count))
+        .ok_or_else(|| err("entity count overflows"))?;
+    if declared > body.len() / 5 {
+        return Err(err("entity count exceeds input"));
+    }
+    let mut entities = BTreeMap::new();
+    for (dimension, count) in counts.into_iter().enumerate() {
+        for _ in 0..count {
+            let words = lines
+                .next()
+                .ok_or_else(|| err("missing entity record"))?
+                .split_whitespace()
+                .collect::<Vec<_>>();
+            let prefix = if dimension == 0 { 4 } else { 7 };
+            if words.len() <= prefix {
+                return Err(err("short entity record"));
+            }
+            let tag: u64 = number(words.first().copied(), "entity tag")?;
+            let physical_count: usize =
+                number(words.get(prefix).copied(), "entity physical count")?;
+            if physical_count > words.len().saturating_sub(prefix + 1) {
+                return Err(err("entity physical count exceeds record"));
+            }
+            let physical = words[prefix + 1..prefix + 1 + physical_count]
+                .iter()
+                .map(|word| {
+                    word.parse::<u64>()
+                        .map_err(|_| err("invalid entity physical tag"))
+                })
+                .collect::<Result<Vec<_>>>()?;
+            let dimension = u8::try_from(dimension).map_err(|_| err("invalid entity dimension"))?;
+            if entities.insert((dimension, tag), physical).is_some() {
+                return Err(err("duplicate entity tag"));
+            }
+        }
+    }
+    if lines.next().is_some() {
+        return Err(err("extra entity records"));
+    }
+    Ok(entities)
+}
+
+/// Attach overlapping physical groups to the cells they select.
+fn attach_cell_sets(
+    mesh: &mut Mesh,
+    names: &BTreeMap<(u8, u64), String>,
+    groups: BTreeMap<(u8, u64), Vec<u64>>,
+) -> usize {
+    let mut generated = 0;
+    for ((dimension, tag), cell_ids) in groups {
+        if cell_ids.is_empty() {
+            continue;
+        }
+        let name = names.get(&(dimension, tag)).cloned().unwrap_or_else(|| {
+            generated += 1;
+            format!("physical_{dimension}_{tag}")
+        });
+        mesh.cell_sets.push(CellSet {
+            name,
+            dimension,
+            cell_ids,
+        });
+    }
+    generated
+}
+
+/// Attach physical point groups from dimension-zero node entities.
+fn attach_node_sets(
+    mesh: &mut Mesh,
+    names: &BTreeMap<(u8, u64), String>,
+    groups: BTreeMap<u64, Vec<u64>>,
+) -> usize {
+    let mut generated = 0;
+    for (tag, point_ids) in groups {
+        if point_ids.is_empty() {
+            continue;
+        }
+        let name = names.get(&(0, tag)).cloned().unwrap_or_else(|| {
+            generated += 1;
+            format!("physical_0_{tag}")
+        });
+        mesh.node_sets.push(NodeSet { name, point_ids });
+    }
+    generated
+}
+
 /// Read an ASCII MSH 4.1 file with linear elements and numeric data blocks.
 ///
 /// Binary files, parametric nodes, and unknown element types are rejected.
@@ -135,7 +285,7 @@ fn data_sections<'a>(source: &'a str, name: &str) -> Result<Vec<&'a str>> {
 /// # Ok::<(), caexfer::core::Error>(())
 /// ```
 #[allow(clippy::too_many_lines)] // MSH section counts and records are validated in one pass.
-fn read_41(source: &str) -> Result<Dataset> {
+fn read_41(source: &str) -> Result<(Dataset, usize)> {
     // Normalize line endings before looking for exact section delimiters.
     let normalized = source.replace("\r\n", "\n");
     let source = normalized.as_str();
@@ -144,6 +294,10 @@ fn read_41(source: &str) -> Result<Dataset> {
     if h.next() != Some("4.1") || h.next() != Some("0") || h.next() != Some("8") {
         return Err(err("only ASCII MSH 4.1 with 8-byte data size is supported"));
     }
+    let names = physical_names(source)?;
+    let entity_physical = entity_physical_tags(source)?;
+    let mut selected_cells: BTreeMap<(u8, u64), Vec<u64>> = BTreeMap::new();
+    let mut selected_nodes: BTreeMap<u64, Vec<u64>> = BTreeMap::new();
 
     // Gmsh stores node tags before coordinate tuples within each block.
     // Build a tag-to-index map for later element connectivity.
@@ -159,8 +313,8 @@ fn read_41(source: &str) -> Result<Dataset> {
         return Err(err("node counts exceed available input"));
     }
     for _ in 0..blocks {
-        let _: u32 = number(t.next(), "entity dimension")?;
-        let _: u64 = number(t.next(), "entity tag")?;
+        let entity_dim: u8 = number(t.next(), "entity dimension")?;
+        let entity_tag: u64 = number(t.next(), "entity tag")?;
         let parametric: u8 = number(t.next(), "parametric flag")?;
         if parametric != 0 {
             return Err(err("parametric nodes are unsupported"));
@@ -183,6 +337,13 @@ fn read_41(source: &str) -> Result<Dataset> {
                 return Err(err("duplicate node tag"));
             }
             mesh.points.push(Point { id, position });
+            if entity_dim == 0 {
+                if let Some(tags) = entity_physical.get(&(0, entity_tag)) {
+                    for &tag in tags {
+                        selected_nodes.entry(tag).or_default().push(id);
+                    }
+                }
+            }
         }
     }
     if mesh.points.len() != total {
@@ -201,7 +362,7 @@ fn read_41(source: &str) -> Result<Dataset> {
         }
         for _ in 0..blocks {
             let dim: u32 = number(t.next(), "entity dimension")?;
-            let _: u64 = number(t.next(), "entity tag")?;
+            let entity_tag: u64 = number(t.next(), "entity tag")?;
             let type_code: u32 = number(t.next(), "element type")?;
             let cell_kind = kind(type_code)?;
             if dim != code(cell_kind).1 {
@@ -233,12 +394,28 @@ fn read_41(source: &str) -> Result<Dataset> {
                     connectivity,
                     property_id: None,
                 });
+                if let Some(tags) = entity_physical.get(&(
+                    u8::try_from(dim).map_err(|_| err("invalid entity dimension"))?,
+                    entity_tag,
+                )) {
+                    for &tag in tags {
+                        selected_cells
+                            .entry((
+                                u8::try_from(dim).map_err(|_| err("invalid entity dimension"))?,
+                                tag,
+                            ))
+                            .or_default()
+                            .push(id);
+                    }
+                }
             }
         }
         if mesh.cells.len() != total {
             return Err(err("element count mismatch"));
         }
     }
+    let generated_group_names = attach_cell_sets(&mut mesh, &names, selected_cells)
+        + attach_node_sets(&mut mesh, &names, selected_nodes);
     let mut dataset = Dataset {
         mesh,
         fields: Vec::new(),
@@ -323,7 +500,7 @@ fn read_41(source: &str) -> Result<Dataset> {
         }
     }
     dataset.validate()?;
-    Ok(dataset)
+    Ok((dataset, generated_group_names))
 }
 
 /// Parse MSH 2.2 flat sections and reuse the common data-block decoder.
@@ -366,9 +543,19 @@ fn read_22(source: &str) -> Result<Projection> {
             return Err(err("element tags exceed available input"));
         }
         let mut meaningful_tag = false;
-        for _ in 0..tag_count {
+        let mut physical = None;
+        for index in 0..tag_count {
             let tag: i64 = number(tokens.next(), "element metadata tag")?;
-            meaningful_tag |= tag != 0;
+            if index == 0 {
+                if tag < 0 {
+                    return Err(err("physical tag must be nonnegative"));
+                }
+                if tag > 0 {
+                    physical = Some(u64::try_from(tag).map_err(|_| err("invalid physical tag"))?);
+                }
+            } else {
+                meaningful_tag |= tag != 0;
+            }
         }
         if meaningful_tag {
             tagged_elements += 1;
@@ -377,10 +564,26 @@ fn read_22(source: &str) -> Result<Projection> {
         for _ in 0..cell_kind.node_count() {
             nodes.push(number(tokens.next(), "element node")?);
         }
-        parsed.push(Element22 { id, code, nodes });
+        parsed.push(Element22 {
+            id,
+            code,
+            nodes,
+            physical,
+        });
     }
     if tokens.next().is_some() {
         return Err(err("extra MSH 2.2 element tokens"));
+    }
+    let names = physical_names(source)?;
+    let mut selected_cells: BTreeMap<(u8, u64), Vec<u64>> = BTreeMap::new();
+    for element in &parsed {
+        if let Some(tag) = element.physical {
+            let dimension = kind(element.code)?.dimension();
+            selected_cells
+                .entry((dimension, tag))
+                .or_default()
+                .push(element.id);
+        }
     }
 
     // The 4.1 parser already owns node-ID resolution and complete data-block
@@ -452,9 +655,13 @@ fn read_22(source: &str) -> Result<Projection> {
             writeln!(text, "${name}\n{}\n$End{name}", body.trim()).expect("String write");
         }
     }
+    let (mut dataset, _) = read_41(&text)?;
+    let generated_group_names = attach_cell_sets(&mut dataset.mesh, &names, selected_cells);
+    dataset.validate()?;
     Ok(Projection {
-        dataset: read_41(&text)?,
+        dataset,
         tagged_elements,
+        generated_group_names,
     })
 }
 
@@ -472,10 +679,14 @@ pub fn read_projection(source: &str) -> Result<Projection> {
         return Err(err("only ASCII MSH with 8-byte data size is supported"));
     }
     match version {
-        "4.1" => Ok(Projection {
-            dataset: read_41(&normalized)?,
-            tagged_elements: 0,
-        }),
+        "4.1" => {
+            let (dataset, generated_group_names) = read_41(&normalized)?;
+            Ok(Projection {
+                dataset,
+                tagged_elements: 0,
+                generated_group_names,
+            })
+        }
         "2.2" => read_22(&normalized),
         _ => Err(err(format!("unsupported MSH version {version}"))),
     }
@@ -593,6 +804,7 @@ fn write_nodes(mesh: &Mesh, max_dim: Option<u32>, writer: &mut impl Write) -> Re
 pub fn write(dataset: &Dataset, mut writer: impl Write) -> Result<()> {
     // Finish validation and reject unrepresentable properties before writing.
     dataset.validate()?;
+    dataset.mesh.require_no_sets("E_MSH")?;
     if dataset.mesh.cells.iter().any(|c| c.property_id.is_some()) {
         return Err(err(
             "property IDs have no lossless MSH mapping in this writer",
@@ -686,6 +898,7 @@ fn write_fields(dataset: &Dataset, writer: &mut impl Write) -> Result<()> {
 /// failure of the caller-owned output stream.
 pub fn write_22(dataset: &Dataset, mut writer: impl Write) -> Result<()> {
     dataset.validate()?;
+    dataset.mesh.require_no_sets("E_MSH")?;
     let mesh = &dataset.mesh;
     if mesh.cells.iter().any(|cell| cell.property_id.is_some()) {
         return Err(err(
@@ -763,6 +976,7 @@ mod tests {
                     connectivity: vec![0, 1, 2],
                     property_id: None,
                 }],
+                ..Mesh::default()
             },
             fields: vec![
                 Field {
@@ -799,10 +1013,45 @@ mod tests {
         let source = "$MeshFormat\n2.2 0 8\n$EndMeshFormat\n$Nodes\n2\n10 0 0 0\n20 1 0 0\n$EndNodes\n$Elements\n1\n30 1 2 7 8 10 20\n$EndElements\n";
         let projection = read_projection(source).unwrap();
         assert_eq!(projection.tagged_elements, 1);
+        assert_eq!(projection.generated_group_names, 1);
         assert_eq!(projection.dataset.mesh.cells[0].id, 30);
         assert_eq!(projection.dataset.mesh.cells[0].connectivity, [0, 1]);
+        assert_eq!(projection.dataset.mesh.cell_sets[0].name, "physical_1_7");
         assert!(read(&source.replace("$Nodes\n2", "$Nodes\n999999999")).is_err());
         assert!(read(&source.replace("30 1 2", "30 1 999999999")).is_err());
+    }
+
+    #[test]
+    fn msh41_physical_names_select_overlapping_boundary_cells() {
+        let source = include_str!("../../tests/fixtures/named-boundary.msh");
+        let dataset = read(source).unwrap();
+        assert_eq!(dataset.mesh.cell_sets.len(), 3);
+        assert_eq!(dataset.mesh.cell_sets[0].name, "inlet");
+        assert_eq!(dataset.mesh.cell_sets[0].cell_ids, [1]);
+        assert_eq!(dataset.mesh.cell_sets[1].name, "outer wall");
+        assert_eq!(dataset.mesh.cell_sets[1].cell_ids, [1]);
+        assert_eq!(write(&dataset, Vec::new()).unwrap_err().code, "E_MSH");
+        let mut boundary_only = dataset.clone();
+        boundary_only
+            .mesh
+            .cell_sets
+            .retain(|set| set.dimension == 1);
+        let mut output = Vec::new();
+        crate::su2::write_data(&boundary_only, &mut output).unwrap();
+        assert!(
+            std::str::from_utf8(&output)
+                .unwrap()
+                .contains("MARKER_TAG= outer wall")
+        );
+    }
+
+    #[test]
+    fn msh41_physical_point_name_becomes_node_set() {
+        let source = "$MeshFormat\n4.1 0 8\n$EndMeshFormat\n$PhysicalNames\n1\n0 42 \"fixed\"\n$EndPhysicalNames\n$Entities\n1 0 0 0\n1 0 0 0 1 42\n$EndEntities\n$Nodes\n1 1 10 10\n0 1 0 1\n10\n0 0 0\n$EndNodes\n$Elements\n0 0 0 0\n$EndElements\n";
+        let projection = read_projection(source).unwrap();
+        assert_eq!(projection.generated_group_names, 0);
+        assert_eq!(projection.dataset.mesh.node_sets[0].name, "fixed");
+        assert_eq!(projection.dataset.mesh.node_sets[0].point_ids, [10]);
     }
 
     #[test]
@@ -832,6 +1081,7 @@ mod tests {
                     },
                 ],
                 cells: vec![],
+                ..Mesh::default()
             },
             fields: vec![],
         };

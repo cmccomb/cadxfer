@@ -42,6 +42,7 @@ fn name(kind: CellKind) -> &'static str {
 pub fn write(mesh: &Mesh, mut writer: impl Write) -> Result<()> {
     // Verify indices before writing, since output resolves each to a GRID ID.
     mesh.validate()?;
+    mesh.require_no_sets("E_BDF")?;
     writeln!(
         writer,
         "$ caexfer geometry projection; no solver properties, loads, constraints, or units"
