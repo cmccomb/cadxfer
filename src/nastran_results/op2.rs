@@ -61,7 +61,7 @@ pub fn read_displacements(
 ///
 /// # Errors
 ///
-/// Returns an error for invalid or unrepresentable displacement data, an
+/// Returns an error for invalid or unrepresentable displacement data, including
 /// a count or value outside the supported 32-bit OP2 representation.
 #[allow(clippy::cast_possible_truncation)] // OP2 stores float32; range and underflow are checked.
 pub fn write_displacements(
@@ -71,7 +71,7 @@ pub fn write_displacements(
     zero_missing_rotations: bool,
     assumed_zero: bool,
 ) -> Result<Vec<u8>> {
-    // Validate shape and numeric representability before encoding.
+    // Reject incomplete or nonfinite data before building an OP2 table.
     dataset.mesh.validate()?;
     if dataset.mesh.points.is_empty()
         || field.values.len()
@@ -88,24 +88,28 @@ pub fn write_displacements(
             "OP2 output requires complete finite displacement values for every mesh node",
         ));
     }
+    // The OP2 subcase header holds a positive signed 32-bit integer.
     if subcase <= 0 || subcase > i64::from(i32::MAX) {
         return Err(Error::new(
             "E_OP2",
             "subcase must be a positive 32-bit integer",
         ));
     }
+    // Float32 conversion must not overflow or erase a nonzero time value.
     if field
         .time
         .is_some_and(|value| !(value as f32).is_finite() || (value != 0.0 && (value as f32) == 0.0))
     {
         return Err(Error::new("E_OP2", "time is outside the OP2 float32 range"));
     }
+    // This writer accepts nodal translations with optional rotations.
     if field.location != FieldLocation::Point || !matches!(field.components.len(), 3 | 6) {
         return Err(Error::new(
             "E_OP2",
             "OP2 output requires a 3- or 6-component nodal displacement",
         ));
     }
+    // Treat absent rotations as zero only with the caller's explicit assertion.
     if field.components.len() == 3 && !zero_missing_rotations {
         return Err(Error::new(
             "E_OP2",
@@ -123,6 +127,7 @@ pub fn write_displacements(
             "assumed-zero OP2 output requires six zero components per node",
         ));
     }
+    // Accept source labels and the normalized label produced by result readers.
     let name = field.name.to_ascii_uppercase();
     let named_displacement = name == "DISP"
         || name == "DISPLACEMENT"
@@ -136,6 +141,7 @@ pub fn write_displacements(
         ));
     }
 
+    // Preserve companion-mesh order and original GRID IDs in the table rows.
     let mut rows = Vec::with_capacity(dataset.mesh.points.len());
     for (i, point) in dataset.mesh.points.iter().enumerate() {
         // The low decimal digit stores the OP2 device code.
@@ -167,6 +173,7 @@ pub fn write_displacements(
         }
         rows.push((point.id, values));
     }
+    // Encode only after all rows have passed the range and completeness checks.
     op2_binary::encode(
         &rows,
         i32::try_from(subcase).map_err(|_| Error::new("E_OP2", "subcase exceeds 32-bit range"))?,
