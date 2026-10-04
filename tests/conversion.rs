@@ -168,6 +168,18 @@ fn pch_non_bdf_companion_requires_basic_frame_assertion() {
 fn format_names_and_output_capabilities_are_explicit() {
     assert_eq!(Format::parse("PCH").unwrap(), Format::Pch);
     assert_eq!(Format::parse("not-a-format").unwrap_err().code, "E_FORMAT");
+    for format in Format::ALL {
+        assert_eq!(Format::parse(format.name()).unwrap(), format);
+        let filename = format!("mesh.{}", format.name());
+        assert_eq!(
+            Format::from_input_path(Path::new(&filename)).unwrap(),
+            format
+        );
+        assert_eq!(
+            Format::from_output_path(Path::new(&filename)).is_ok(),
+            format != Format::Pch
+        );
+    }
     assert_eq!(
         Format::from_input_path(Path::new("unknown.mesh"))
             .unwrap_err()

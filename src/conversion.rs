@@ -57,6 +57,22 @@ pub enum Format {
 }
 
 impl Format {
+    /// Every supported format in the order used by capability listings.
+    pub const ALL: [Self; 12] = [
+        Self::Bdf,
+        Self::Vtu,
+        Self::Vtk,
+        Self::Msh,
+        Self::Inp,
+        Self::Frd,
+        Self::Op2,
+        Self::Pch,
+        Self::Stl,
+        Self::Su2,
+        Self::Unv,
+        Self::Exodus,
+    ];
+
     /// Canonical lowercase format name.
     #[must_use]
     pub fn name(self) -> &'static str {
@@ -91,24 +107,10 @@ impl Format {
     /// # Ok::<(), caexfer::core::Error>(())
     /// ```
     pub fn parse(name: &str) -> Result<Self> {
-        match name.to_ascii_lowercase().as_str() {
-            "bdf" => Ok(Self::Bdf),
-            "vtu" => Ok(Self::Vtu),
-            "vtk" => Ok(Self::Vtk),
-            "msh" => Ok(Self::Msh),
-            "inp" => Ok(Self::Inp),
-            "frd" => Ok(Self::Frd),
-            "op2" => Ok(Self::Op2),
-            "pch" => Ok(Self::Pch),
-            "stl" => Ok(Self::Stl),
-            "su2" => Ok(Self::Su2),
-            "unv" => Ok(Self::Unv),
-            "exodus" => Ok(Self::Exodus),
-            _ => Err(Error::new(
-                "E_FORMAT",
-                format!("unknown input format {name}"),
-            )),
-        }
+        Self::ALL
+            .into_iter()
+            .find(|format| format.name().eq_ignore_ascii_case(name))
+            .ok_or_else(|| Error::new("E_FORMAT", format!("unknown input format {name}")))
     }
 
     /// Infer a source format from its case-insensitive extension.
@@ -128,19 +130,14 @@ impl Format {
     pub fn from_input_path(path: &Path) -> Result<Self> {
         let extension = extension(path);
         match extension.as_str() {
-            "bdf" | "nas" | "dat" => Ok(Self::Bdf),
-            "vtu" | "vtk" | "msh" | "inp" | "frd" | "op2" | "pch" | "stl" | "su2" | "unv"
-            | "exo" | "e" | "exodus" => {
-                if matches!(extension.as_str(), "exo" | "e") {
-                    Ok(Self::Exodus)
-                } else {
-                    Self::parse(&extension)
-                }
-            }
-            _ => Err(Error::new(
-                "E_FORMAT",
-                format!("no reader for extension {extension:?}; use --from"),
-            )),
+            "nas" | "dat" => Ok(Self::Bdf),
+            "exo" | "e" => Ok(Self::Exodus),
+            _ => Self::parse(&extension).map_err(|_| {
+                Error::new(
+                    "E_FORMAT",
+                    format!("no reader for extension {extension:?}; use --from"),
+                )
+            }),
         }
     }
 
@@ -161,21 +158,14 @@ impl Format {
     /// ```
     pub fn from_output_path(path: &Path) -> Result<Self> {
         let extension = extension(path);
-        match extension.as_str() {
-            "bdf" | "nas" => Ok(Self::Bdf),
-            "vtu" | "vtk" | "msh" | "inp" | "frd" | "op2" | "stl" | "su2" | "unv" | "exo" | "e"
-            | "exodus" => {
-                if matches!(extension.as_str(), "exo" | "e") {
-                    Ok(Self::Exodus)
-                } else {
-                    Self::parse(&extension)
-                }
-            }
-            _ => Err(Error::new(
-                "E_FORMAT",
-                format!("no writer for extension {extension:?}"),
-            )),
-        }
+        let format = match extension.as_str() {
+            "nas" => Some(Self::Bdf),
+            "exo" | "e" => Some(Self::Exodus),
+            _ => Self::parse(&extension).ok(),
+        };
+        format
+            .filter(|format| *format != Self::Pch)
+            .ok_or_else(|| Error::new("E_FORMAT", format!("no writer for extension {extension:?}")))
     }
 }
 
