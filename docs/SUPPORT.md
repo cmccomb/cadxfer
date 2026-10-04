@@ -132,6 +132,7 @@ VTI reads/writes one ASCII VTK XML `ImageData` piece with zero-based extents,
 isotropic spacing, and one `UInt8` cell array named `occupancy` containing 0 or
 1 in x-fastest order. Other arrays, multiple pieces, binary/appended/compressed
 data, and anisotropic grids are rejected. VTI retains origin and spacing.
+Rotated `ImageData` direction matrices are rejected.
 
 VOX reads/writes one MagicaVoxel version 150 `SIZE`/`XYZI` model, at most 256
 cells per axis. The reader accepts an optional palette but omits colors; scene

@@ -295,6 +295,7 @@ fn voxel_formats_bridge_surface_and_volume_meshes() {
             .iter()
             .any(|item| item.detail.contains("voxel centers"))
     );
+    assert_eq!(report.voxel_grid, Some(([2, 1, 1], 2)));
     let vti_path = scratch.write("blocks.vti", vti);
     let vti_read = conversion::read_path(&vti_path, &Options::default()).unwrap();
     assert_eq!(vti_read.voxel_grid.as_ref(), Some(&grid));
@@ -305,6 +306,7 @@ fn voxel_formats_bridge_surface_and_volume_meshes() {
     let vox_path = scratch.write("blocks.vox", vox);
     let vox_read = conversion::read_path(&vox_path, &Options::default()).unwrap();
     assert_eq!(vox_read.voxel_grid.as_ref(), Some(&grid));
+    assert!(vox_read.omissions.iter().any(|item| item.detail.contains("color indices")));
     let mut reconstructed_stl = Vec::new();
     conversion::convert(
         vox_read,

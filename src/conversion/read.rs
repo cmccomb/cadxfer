@@ -255,12 +255,11 @@ pub fn read_path(path: &Path, options: &Options) -> Result<ReadResult> {
                 Stage::Source,
                 "VOX has no physical origin or spacing; origin 0 and unit spacing are used",
             )];
-            if projection.colored_voxels > 0 || projection.palette {
-                omissions.push(Omission::new(
-                    Stage::Source,
-                    "VOX color indices and palette are omitted from occupancy",
-                ));
-            }
+            omissions.push(Omission::new(
+                Stage::Source,
+                format!("VOX color indices and palette are omitted from occupancy ({} non-default color index voxel(s), palette present: {})",
+                    projection.colored_voxels, projection.palette),
+            ));
             (
                 Dataset {
                     mesh,

@@ -60,8 +60,13 @@ pub fn read(source: &str) -> Result<VoxelGrid> {
                         return Err(err("expected VTK ImageData"));
                     }
                 } else if name == "ImageData" {
-                    if stack.last().map(String::as_str) != Some("VTKFile") {
+                    if stack.last().map(String::as_str) != Some("VTKFile") || origin.is_some() {
                         return Err(err("unexpected ImageData"));
+                    }
+                    if let Some(direction) = attr(&start, "Direction")? {
+                        if numbers::<f64>(&direction, 9)? != [1.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,1.0] {
+                            return Err(err("rotated ImageData is unsupported"));
+                        }
                     }
                     let o = attr(&start, "Origin")?.ok_or_else(|| err("missing Origin"))?;
                     let s = attr(&start, "Spacing")?.ok_or_else(|| err("missing Spacing"))?;
