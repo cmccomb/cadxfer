@@ -25,18 +25,24 @@ class Card:
     filename: str
     accent: str
     visual: str
+    topology: str
+    data: str
     note: str
 
 
 FORMATS = (
-    Card(45, 118, "BDF", "mesh.bdf", "#69dfc0", "bdf", "Solver cards omitted"),
-    Card(435, 118, "VTU", "mesh.vtu", "#ffae75", "vtu", "Point and cell arrays"),
-    Card(825, 118, "MSH 4.1 / 2.2", "mesh.msh", "#b9a0ff", "msh", "Component labels can be lost"),
-    Card(45, 373, "INP", "mesh.inp", "#75d2d6", "inp", "Properties and results omitted"),
-    Card(435, 373, "FRD", "results.frd", "#f28eaa", "frd", "ASCII values rounded"),
-    Card(825, 373, "OP2", "results.op2", "#f6c76d", "op2", "Optional separate mesh export"),
-    Card(45, 628, "VTK legacy", "mesh.vtk", "#9fdaa5", "vtk", "ASCII point and cell arrays"),
-    Card(435, 628, "PCH", "results.pch", "#daa8f5", "op2", "Read-only; matching mesh required"),
+    Card(45, 118, "BDF", "mesh.bdf", "#69dfc0", "bdf", "linear cells", "mesh only", "Native document keeps source bytes"),
+    Card(435, 118, "INP", "mesh.inp", "#75d2d6", "inp", "linear cells", "mesh only", "Sets and solver data are omitted"),
+    Card(825, 118, "UNV", "mesh.unv", "#c2b4f9", "unv", "linear cells", "mesh only", "Original labels; no pyramids"),
+    Card(45, 373, "VTU", "mesh.vtu", "#ffae75", "vtu", "linear cells", "numeric", "Point and cell arrays"),
+    Card(435, 373, "VTK legacy", "mesh.vtk", "#9fdaa5", "vtk", "linear cells", "numeric", "ASCII arrays; metadata can be lost"),
+    Card(825, 373, "MSH 4.1 / 2.2", "mesh.msh", "#b9a0ff", "msh", "linear cells", "numeric", "Physical groups read; sets not written"),
+    Card(45, 628, "STL", "surface.stl", "#efab7c", "stl", "triangles", "none", "IDs assigned on read; binary float32"),
+    Card(435, 628, "SU2", "mesh.su2", "#70d7bc", "su2", "cells+markers", "none", "Named, oriented boundary markers"),
+    Card(825, 628, "Exodus II", "results.exo", "#e7c675", "exodus", "linear blocks", "scalar+time", "Classic NetCDF-3; complete fields"),
+    Card(45, 883, "FRD", "results.frd", "#f28eaa", "frd", "linear cells", "nodal", "ASCII values rounded"),
+    Card(435, 883, "OP2", "results.op2", "#f6c76d", "op2", "separate", "DISP only", "Matching mesh and node IDs required"),
+    Card(825, 883, "PCH", "results.pch", "#daa8f5", "op2", "separate", "DISP only", "Read-only; matching mesh required"),
 )
 
 
@@ -49,7 +55,16 @@ def text(x: int, y: int, value: str, *, size: int = 16, color: str = WHITE,
 
 
 def mesh(x: int, y: int, accent: str, variant: str) -> str:
-    """Show the same linear topology in each mesh-bearing representation."""
+    """Show representative topology without implying every format carries it."""
+    if variant == "stl":
+        return "\n".join((
+            '<g aria-hidden="true">',
+            f'<path d="M{x} {y + 91}L{x + 77} {y + 3}L{x + 99} {y + 91}Z" '
+            f'fill="#37546b" stroke="{accent}" stroke-width="2"/>',
+            f'<path d="M{x + 105} {y + 91}L{x + 120} {y + 3}L{x + 195} {y + 91}Z" '
+            f'fill="#37546b" stroke="{accent}" stroke-width="2"/>',
+            '</g>',
+        ))
     points = {}
     for row in range(4):
         for col in range(5):
@@ -62,18 +77,23 @@ def mesh(x: int, y: int, accent: str, variant: str) -> str:
             corners = (points[col, row], points[col + 1, row],
                        points[col + 1, row + 1], points[col, row + 1])
             coords = " ".join(f"{px},{py}" for px, py in corners)
-            fill = "#b45e3d" if variant == "vtu" and (col + row) % 2 else "#37546b"
-            opacity = ".45" if variant in {"vtu", "frd"} else ".24"
+            fill = "#b45e3d" if variant in {"vtu", "exodus"} and (col + row) % 2 else "#37546b"
+            opacity = ".45" if variant in {"vtu", "frd", "exodus"} else ".24"
             parts.append(f'<polygon points="{coords}" fill="{fill}" fill-opacity="{opacity}" '
                          f'stroke="{accent}" stroke-width="1.5" stroke-linejoin="round"/>')
     for (col, row), (px, py) in points.items():
         color = ("#ffe2a5" if (col + row) % 3 == 0 else accent) if variant == "frd" else accent
         parts.append(f'<circle cx="{px}" cy="{py}" r="2.6" fill="{color}"/>')
-    if variant == "msh":
+    if variant in {"msh", "unv"}:
         for col, row, label in ((0, 0, "10"), (2, 0, "20"), (4, 3, "30")):
             px, py = points[col, row]
             label_y = py + 13 if row == 0 else py - 7
             parts.append(text(px + 5, label_y, label, size=10, color=WHITE, mono=True))
+    if variant == "su2":
+        first = points[0, 0]
+        last = points[4, 0]
+        parts.append(f'<path d="M{first[0]} {first[1]}L{last[0]} {last[1]}" '
+                     'stroke="#ffe2a5" stroke-width="5" stroke-linecap="round"/>')
     parts.append("</g>")
     return "\n".join(parts)
 
@@ -120,13 +140,9 @@ def card(card: Card) -> str:
         art,
         f'<path d="M{x + 231} {y + 82}V{y + 181}" stroke="#3c5875"/>',
         text(right, y + 106, "TOPOLOGY", size=11, color=DIM, weight=700, spacing=1),
-        text(right, y + 128, "not stored" if card.visual == "op2" else "same cells",
-             size=13, color=WHITE),
+        text(right, y + 128, card.topology, size=13, color=WHITE),
         text(right, y + 154, "DATA", size=11, color=DIM, weight=700, spacing=1),
-        text(right, y + 176, "DISP only" if card.visual == "op2" else
-            "nodal" if card.visual == "frd" else
-            "mesh only" if card.visual in {"bdf", "inp"} else "numeric",
-             size=13, color=card.accent),
+        text(right, y + 176, card.data, size=13, color=card.accent),
         f'<path d="M{x + 24} {y + 189}H{x + 341}" stroke="#38516b"/>',
         text(x + 24, y + 210, card.note, size=13, color=MUTED),
     ))
@@ -134,28 +150,28 @@ def card(card: Card) -> str:
 
 def render() -> str:
     parts = [
-        '<svg xmlns="http://www.w3.org/2000/svg" width="1240" height="892" '
-        'viewBox="0 0 1240 892" role="img" aria-labelledby="title description">',
-        '<title id="title">Eight engineering format representations</title>',
-        '<desc id="description">The cards show BDF and INP geometry decks; '
-        'VTU, legacy VTK, and MSH meshes with numeric fields; '
-        'FRD mesh with nodal fields; and OP2 and PCH displacement tables requiring separate meshes. '
-        'Mesh-bearing representations share the same topology.</desc>',
+        '<svg xmlns="http://www.w3.org/2000/svg" width="1240" height="1147" '
+        'viewBox="0 0 1240 1147" role="img" aria-labelledby="title description">',
+        '<title id="title">Twelve engineering format representations</title>',
+        '<desc id="description">The cards show BDF, INP, and UNV geometry; '
+        'VTU, legacy VTK, MSH, and classic Exodus meshes with supported fields; '
+        'STL triangle facets; SU2 boundary markers; FRD nodal results; '
+        'and OP2 and PCH displacements requiring separate meshes.</desc>',
         '<defs><linearGradient id="background" x1="0" y1="0" x2="1" y2="1">'
         '<stop offset="0" stop-color="#122238"/>'
         f'<stop offset="1" stop-color="{BACKGROUND}"/>'
         '</linearGradient></defs>',
-        '<rect width="1240" height="892" rx="24" fill="url(#background)"/>',
-        text(45, 49, "EIGHT FORMAT REPRESENTATIONS", size=22, weight=700),
-        text(46, 76, "Mesh-bearing outputs retain cell topology; carried fields depend on the input.",
+        '<rect width="1240" height="1147" rx="24" fill="url(#background)"/>',
+        text(45, 49, "TWELVE FORMAT REPRESENTATIONS", size=22, weight=700),
+        text(46, 76, "Each adapter carries a documented subset of mesh identity, topology, and results.",
              size=15, color=MUTED),
-        text(46, 97, "Routes and conditions are specified in the matrix below.",
+        text(46, 97, "See the format limits for supported routes and reported losses.",
              size=13, color=DIM),
     ]
     parts.extend(card(item) for item in FORMATS)
     parts.extend((
-        '<path d="M45 868H1190" stroke="#304761"/>',
-        text(46, 885, "Schematic only: field availability depends on the source; OP2 and PCH need matching meshes.",
+        '<path d="M45 1123H1190" stroke="#304761"/>',
+        text(46, 1140, "Schematic only: field availability depends on the source; OP2 and PCH need matching meshes.",
              size=12, color=MUTED),
         '</svg>',
     ))

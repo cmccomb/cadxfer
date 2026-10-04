@@ -21,6 +21,22 @@ caexfer convert results.frd results.op2 --zero-missing-rotations \
 
 Use a fresh output filename for each command.
 
+STL reads triangle surfaces and writes binary STL. SU2 carries named boundary
+markers when the input contains oriented boundary cells and corresponding cell
+sets. UNV carries geometry with original node and element labels. Classic
+Exodus II carries supported mesh blocks and complete scalar fields over time.
+For example:
+
+```sh
+caexfer convert surface.stl surface.vtu --accept-projection
+caexfer convert named-boundaries.msh named-boundaries.su2 --accept-projection
+caexfer convert mesh.unv mesh.vtu --accept-projection
+caexfer convert results.exo results.vtu --step 0 --accept-projection
+```
+
+These commands use example input names. The [format limits](SUPPORT.md) describe
+which cells, sets, fields, and time data each route can retain.
+
 `caexfer --help` lists all commands. Paths can occur before or after options; use
 `--` for paths beginning with a hyphen. Filenames use OS-native strings internally;
 JSON/human display of non-UTF-8 paths is lossy, not an exact path serialization.
@@ -51,6 +67,9 @@ matching mesh. `--mesh-out FILE` optionally writes a geometry-only companion
 in BDF, VTU, VTK, MSH, INP, or FRD format. `--subcase N` and
 zero-based `--step N` select an OP2 or PCH displacement result. For FRD, `--step N` selects the
 step number. These selection options also work with `info` and `validate`.
+For Exodus input, `--step N` selects a zero-based time step. Without it, the
+reader carries all complete scalar fields and times that the destination can
+represent.
 `--zero-missing-rotations` is an OP2-output-only assertion that absent
 R1/R2/R3 in a three-component displacement are known float zero. Without it,
 that conversion fails rather than filling unknown results.

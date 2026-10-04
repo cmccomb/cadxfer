@@ -1,4 +1,4 @@
-//! Pure Rust reader for the NetCDF-3 classic subset of Exodus II.
+//! Pure Rust adapter for the NetCDF-3 classic subset of Exodus II.
 //!
 //! Exodus blocks partition the native element order. Their identifiers are
 //! reported, not reinterpreted as solver property IDs. Node and element maps

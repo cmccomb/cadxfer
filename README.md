@@ -49,6 +49,8 @@ files must be new; the CLI never overwrites an existing path.
 
 ## Conversion routes
 
+[![Twelve format representations, including STL, SU2, UNV, and Exodus II](https://raw.githubusercontent.com/cmccomb/caexfer/main/assets/conversion-flow.svg)](https://github.com/cmccomb/caexfer/blob/main/assets/conversion-flow.svg)
+
 `caexfer formats` lists the current readers and writers. Mesh sources can be
 converted when the destination supports their cell types and data. VTU, legacy
 VTK, MSH, and classic Exodus carry numeric fields within their documented
