@@ -1,4 +1,0 @@
-# Keep profiles from instrumented Cargo runs out of the checkout. The coverage
-# script overrides this with its own temporary target directory.
-[env]
-LLVM_PROFILE_FILE = "%t/caexfer-%p-%m.profraw"
