@@ -1,10 +1,14 @@
+//! Public BDF geometry tests, including malformed input and lossy projection.
+
 use caexfer::bdf;
 use caexfer::core::CellKind;
 use std::fmt::Write as _;
 
+/// Small deck with stable GRID and element IDs for read/write checks.
 const TRI: &str =
     "GRID,10,,0.,0.,0.\nGRID,20,,1.,0.,0.\nGRID,30,,0.,1.,0.\nCTRIA3,100,7,10,20,30\n";
 
+/// Build one fixed-width BDF physical line with an optional continuation label.
 fn fixed(head: &str, fields: &[&str], width: usize, tail: &str) -> String {
     let capacity = if width == 16 { 4 } else { 8 };
     let mut text = format!("{head:<8}");
@@ -15,6 +19,7 @@ fn fixed(head: &str, fields: &[&str], width: usize, tail: &str) -> String {
     text
 }
 
+/// Keep BDF GRID IDs and coordinates across free and fixed field syntax.
 #[test]
 fn free_and_fixed_geometry_keep_ids_and_coordinates() {
     let projection = bdf::mesh::read(TRI).unwrap();
@@ -44,8 +49,10 @@ fn free_and_fixed_geometry_keep_ids_and_coordinates() {
     );
 }
 
+/// Accept supported deck wrappers and reject malformed continuation structure.
 #[test]
 fn full_decks_and_continuations_are_bounded() {
+    // A complete deck needs exactly one bulk marker; punch input needs none.
     let full = "SOL 101\nCEND\nBEGIN,BULK\nGRID,1\nENDDATA\n";
     assert_eq!(bdf::mesh::read(full).unwrap().mesh.points.len(), 1);
     assert_eq!(
@@ -73,6 +80,7 @@ fn full_decks_and_continuations_are_bounded() {
     );
 }
 
+/// Refuse BDF geometry whose frames or cards cannot be projected safely.
 #[test]
 fn unsupported_geometry_and_frames_fail() {
     for (source, code) in [
@@ -89,8 +97,11 @@ fn unsupported_geometry_and_frames_fail() {
     }
 }
 
+/// Reject invalid IDs and references without returning partial BDF geometry.
 #[test]
 fn malformed_ids_and_connectivity_fail_without_partial_mesh() {
+    // Each case isolates a different condition that would make projected
+    // geometry incomplete or ambiguous if parsing continued.
     for (source, code) in [
         ("GRID,1,,0,0,0\nGRID,1,,1,1,1\n", "E_DUPLICATE_GRID"),
         ("GRID,1\nCROD,10,7,1,999\n", "E_MISSING_GRID"),
@@ -119,6 +130,7 @@ fn malformed_ids_and_connectivity_fail_without_partial_mesh() {
     );
 }
 
+/// Report solver cards omitted from BDF geometry and detect nonbasic output frames.
 #[test]
 fn opaque_solver_cards_are_reported() {
     let projection = bdf::mesh::read(format!("{TRI}MAT1,7,not-a-number\n")).unwrap();
@@ -133,6 +145,7 @@ fn opaque_solver_cards_are_reported() {
     assert!(nonbasic.has_nonbasic_output_frame);
 }
 
+/// Enforce BDF input limits and read back a geometry-only writer result.
 #[test]
 fn byte_limit_and_writer_are_explicit() {
     assert_eq!(
@@ -146,8 +159,10 @@ fn byte_limit_and_writer_are_explicit() {
     assert_ne!(output, TRI.as_bytes());
 }
 
+/// Sort projected IDs and round-trip every supported linear BDF family.
 #[test]
 fn deterministic_ids_and_all_linear_families() {
+    // Reverse source order so sorted output cannot pass by accident.
     let mut nodes = String::new();
     for id in (1..=8).rev() {
         writeln!(&mut nodes, "GRID,{id},,{id},0,0").unwrap();
@@ -169,6 +184,7 @@ fn deterministic_ids_and_all_linear_families() {
     assert_eq!(rewritten.cells[7].kind, CellKind::Hex8);
 }
 
+/// Keep byte-level BDF parsing panic-free for every one-byte input.
 #[test]
 fn arbitrary_short_inputs_do_not_panic() {
     for byte in 0..=255_u8 {

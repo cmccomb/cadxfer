@@ -345,6 +345,7 @@ pub fn write_data(dataset: &Dataset, mut writer: impl Write) -> Result<()> {
 mod tests {
     use super::*;
 
+    /// Retain SU2 marker names and boundary edge orientation on round trip.
     #[test]
     fn marker_names_and_oriented_edges_roundtrip() {
         let source = "NDIME= 2\nNELEM= 1\n5 0 1 2\nNPOIN= 3\n0 0\n1 0\n0 1\nNMARK= 2\nMARKER_TAG= inlet\nMARKER_ELEMS= 1\n3 0 1\nMARKER_TAG= wall\nMARKER_ELEMS= 2\n3 1 2\n3 2 0\n";
@@ -357,6 +358,7 @@ mod tests {
         assert_eq!(second.dataset, first.dataset);
     }
 
+    /// Reject incorrect SU2 counts and boundary cells without a marker.
     #[test]
     fn bad_counts_and_unmarked_boundaries_fail() {
         assert_eq!(
@@ -371,6 +373,7 @@ mod tests {
         assert_eq!(write_data(&data, Vec::new()).unwrap_err().code, "E_SU2");
     }
 
+    /// Round-trip supported three-dimensional SU2 cells and markers.
     #[test]
     fn three_dimensional_linear_cells_round_trip() {
         let kinds = [
@@ -410,6 +413,7 @@ mod tests {
         assert_eq!(parsed.dataset, dataset);
     }
 
+    /// Reject invalid SU2 indices and unknown cell type codes.
     #[test]
     fn positional_indices_and_unrecognized_types_fail() {
         let base = "NDIME= 2\nNELEM= 1\n5 0 1 2 0\nNPOIN= 3\n0 0 0\n1 0 1\n0 1 2\nNMARK= 0\n";

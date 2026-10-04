@@ -1,3 +1,5 @@
+//! Public conversion tests for supported routes, omissions, and assertions.
+
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -7,9 +9,11 @@ use caexfer::core::{CellSet, Field, FieldLocation, NodeSet};
 
 static NEXT_SCRATCH: AtomicU64 = AtomicU64::new(0);
 
+/// Temporary fixture directory unique to each test invocation.
 struct Scratch(PathBuf);
 
 impl Scratch {
+    /// Create an isolated directory without changing the process working dir.
     fn new() -> Self {
         let path = std::env::temp_dir().join(format!(
             "caexfer-conversion-{}-{}",
@@ -20,6 +24,7 @@ impl Scratch {
         Self(path)
     }
 
+    /// Persist source bytes under the selected fixture filename.
     fn write(&self, name: &str, bytes: impl AsRef<[u8]>) -> PathBuf {
         let path = self.0.join(name);
         std::fs::write(&path, bytes).unwrap();
@@ -28,11 +33,13 @@ impl Scratch {
 }
 
 impl Drop for Scratch {
+    /// Remove generated input and output files after each check.
     fn drop(&mut self) {
         let _ = std::fs::remove_dir_all(&self.0);
     }
 }
 
+/// Refuse INP mesh generators that would add unparsed geometry.
 #[test]
 fn inp_generators_fail_instead_of_projecting_incomplete_geometry() {
     for generator in ["*NGEN\n1,3,1\n", "*ELGEN\n10,3,1\n"] {
@@ -43,6 +50,7 @@ fn inp_generators_fail_instead_of_projecting_incomplete_geometry() {
     }
 }
 
+/// Reject huge MSH counts before unsafe allocation or overflow.
 #[test]
 fn msh_declared_counts_cannot_allocate_beyond_input() {
     let huge_nodes = "$MeshFormat\n4.1 0 8\n$EndMeshFormat\n$Nodes\n1 1 1 1\n3 1 0 18446744073709551615\n$EndNodes\n$Elements\n0 0 0 0\n$EndElements\n";
@@ -52,6 +60,7 @@ fn msh_declared_counts_cannot_allocate_beyond_input() {
     assert_eq!(caexfer::msh::read(huge_elements).unwrap_err().code, "E_MSH");
 }
 
+/// Return source and destination omissions alongside converted geometry.
 #[test]
 fn public_conversion_reports_source_and_destination_losses() {
     let source = Path::new(env!("CARGO_MANIFEST_DIR")).join("examples/plate.bdf");
@@ -77,6 +86,7 @@ fn public_conversion_reports_source_and_destination_losses() {
     );
 }
 
+/// Require a basic-frame assertion when the companion lacks GRID CD.
 #[test]
 fn op2_non_bdf_companion_requires_explicit_frame_assertion() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"));
@@ -90,6 +100,7 @@ fn op2_non_bdf_companion_requires_explicit_frame_assertion() {
     assert!(error.message.contains("--assume-basic-frame"));
 }
 
+/// Require companion identity and result selection for PCH input.
 #[test]
 fn pch_read_requires_matching_mesh_and_explicit_selection() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"));
@@ -130,6 +141,7 @@ fn pch_read_requires_matching_mesh_and_explicit_selection() {
     );
 }
 
+/// Apply the same non-BDF frame rule to PCH displacement input.
 #[test]
 fn pch_non_bdf_companion_requires_basic_frame_assertion() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"));
@@ -164,6 +176,7 @@ fn pch_non_bdf_companion_requires_basic_frame_assertion() {
     std::fs::remove_dir(folder).unwrap();
 }
 
+/// Expose readable and writable format capabilities without guessing.
 #[test]
 fn format_names_and_output_capabilities_are_explicit() {
     assert_eq!(Format::parse("PCH").unwrap(), Format::Pch);
@@ -196,6 +209,7 @@ fn format_names_and_output_capabilities_are_explicit() {
     }
 }
 
+/// Report STL-generated IDs and reject volume cells on export.
 #[test]
 fn stl_route_reports_missing_identity_and_refuses_volume_export() {
     let scratch = Scratch::new();
@@ -230,6 +244,7 @@ fn stl_route_reports_missing_identity_and_refuses_volume_export() {
     );
 }
 
+/// Carry a named Gmsh boundary through SU2 marker output.
 #[test]
 fn named_msh_boundary_survives_su2_conversion() {
     let source = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/named-boundary.msh");
@@ -255,6 +270,7 @@ fn named_msh_boundary_survives_su2_conversion() {
     );
 }
 
+/// Report UNV datasets omitted from geometry projection.
 #[test]
 fn unv_geometry_route_reports_native_omissions() {
     let source = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/gmsh-six-kind.unv");
@@ -287,6 +303,7 @@ fn unv_geometry_route_reports_native_omissions() {
     );
 }
 
+/// Carry complete Exodus scalar fields and report block semantics.
 #[test]
 fn classic_exodus_route_preserves_scalar_results_and_reports_blocks() {
     let source = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/exodus-two-blocks.exo");
@@ -320,8 +337,11 @@ fn classic_exodus_route_preserves_scalar_results_and_reports_blocks() {
     assert_eq!(reread.dataset.fields[1].values, [20.0, 21.0]);
 }
 
+/// Receipt fields, property IDs, and named sets lost by geometry outputs.
 #[test]
 fn geometry_outputs_receipt_fields_properties_and_group_losses() {
+    // Enrich one real boundary fixture with every value that geometry-only
+    // targets cannot all retain, then inspect each destination receipt.
     let root = Path::new(env!("CARGO_MANIFEST_DIR"));
     let source = root.join("tests/fixtures/named-boundary.msh");
     let mut read = conversion::read_path(&source, &Options::default()).unwrap();
@@ -413,6 +433,7 @@ fn geometry_outputs_receipt_fields_properties_and_group_losses() {
     );
 }
 
+/// Report destination limits when exporting Exodus or STL.
 #[test]
 fn classic_exodus_and_stl_report_destination_projection() {
     let stl = b"solid surface\nfacet normal 0 0 1\nouter loop\nvertex 0 0 0\nvertex 1 0 0\nvertex 0 1 0\nendloop\nendfacet\nendsolid surface\n";
@@ -471,6 +492,7 @@ fn classic_exodus_and_stl_report_destination_projection() {
     assert_eq!(projected.fields[0].values, [1.0, 2.0, 3.0]);
 }
 
+/// Include ignored STL attributes and result metadata in receipts.
 #[test]
 fn source_receipts_include_binary_stl_attributes_and_result_titles() {
     let scratch = Scratch::new();
@@ -506,8 +528,11 @@ fn source_receipts_include_binary_stl_attributes_and_result_titles() {
     );
 }
 
+/// Reject fields in direct geometry writers while conversion reports drops.
 #[test]
 fn geometry_only_writers_reject_fields_while_conversion_reports_them() {
+    // Direct writers reject an unrepresentable dataset; the conversion layer
+    // may project it only while explicitly reporting the dropped field.
     let inputs = [
         (
             Format::Stl,
@@ -580,8 +605,11 @@ fn geometry_only_writers_reject_fields_while_conversion_reports_them() {
     }
 }
 
+/// Reject unmapped properties directly and report them in conversion.
 #[test]
 fn writers_reject_unmapped_properties_while_conversion_reports_them() {
+    // The direct writer and the converter have intentionally different
+    // contracts for the same unsupported property ID.
     let stl = caexfer::stl::read_projection(b"solid s\nfacet normal 0 0 1\nouter loop\nvertex 0 0 0\nvertex 1 0 0\nvertex 0 1 0\nendloop\nendfacet\nendsolid s\n")
         .unwrap()
         .dataset;
@@ -622,6 +650,7 @@ fn writers_reject_unmapped_properties_while_conversion_reports_them() {
     }
 }
 
+/// Refuse incompatible result frames and invalid FRD step selections.
 #[test]
 fn result_companion_frames_and_frd_steps_fail_explicitly() {
     let scratch = Scratch::new();
@@ -680,6 +709,7 @@ fn result_companion_frames_and_frd_steps_fail_explicitly() {
     );
 }
 
+/// Reject result-only options on ordinary mesh inputs.
 #[test]
 fn result_options_cannot_change_unrelated_mesh_readers() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"));
@@ -705,6 +735,7 @@ fn result_options_cannot_change_unrelated_mesh_readers() {
     }
 }
 
+/// Enforce file limits and text decoding before conversion starts.
 #[test]
 fn bounded_reads_and_bad_encodings_fail_before_projection() {
     let s = Scratch::new();
@@ -733,6 +764,7 @@ fn bounded_reads_and_bad_encodings_fail_before_projection() {
     }
 }
 
+/// Report assigned identity and ignored native sections from external files.
 #[test]
 fn external_identity_and_ignored_sections_are_visible_in_receipts() {
     let s = Scratch::new();
@@ -780,6 +812,7 @@ fn external_identity_and_ignored_sections_are_visible_in_receipts() {
     );
 }
 
+/// Explain fields that cannot be mapped unambiguously to a destination.
 #[test]
 fn destination_reports_ambiguous_or_dropped_fields() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"));
@@ -814,6 +847,7 @@ fn destination_reports_ambiguous_or_dropped_fields() {
     assert_ne!(encoded, []);
 }
 
+/// Assign and report stable IDs for VTU without identity arrays.
 #[test]
 fn external_vtu_without_identity_arrays_gets_explicit_stable_ids() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"));
@@ -867,6 +901,7 @@ fn external_vtu_without_identity_arrays_gets_explicit_stable_ids() {
     assert!(error.message.contains("original node IDs"));
 }
 
+/// Reject generated node IDs as proof of Nastran result identity.
 #[test]
 fn generated_ids_cannot_validate_nastran_result_companions() {
     let scratch = Scratch::new();

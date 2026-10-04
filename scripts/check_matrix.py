@@ -1,5 +1,11 @@
 #!/usr/bin/env python3
-"""Exercise the core mesh/result route matrix; optionally check OP2 decoding."""
+"""Exercise supported CLI conversion routes using files from several formats.
+
+Build ``target/debug/caexfer`` before running. ``--op2-check`` requires
+pyNastran as a test-only dependency and verifies Rust-written OP2 with an
+independent reader. All generated files live in a temporary directory. Route
+counts, fields, IDs, assumptions, and refusal behavior are checked explicitly.
+"""
 from __future__ import annotations
 import argparse
 import contextlib
@@ -16,6 +22,7 @@ BINARY = ROOT / 'target' / 'debug' / ('caexfer.exe' if sys.platform == 'win32' e
 
 
 def main() -> None:
+    """Build source fixtures, check each writable route, and report the count."""
     parser = argparse.ArgumentParser()
     parser.add_argument('--op2-check', action='store_true', help='exercise native OP2 routes')
     options = parser.parse_args()
@@ -24,7 +31,7 @@ def main() -> None:
 
     def independent_op2(path: Path, *, assumed_zero: bool = False,
                         expected_rows: dict[int, list[float]] | None = None) -> None:
-        """Check Rust-written bytes with pyNastran, which is CI-only tooling."""
+        """Check OP2 table identity, components, and values with pyNastran."""
         from pyNastran.op2.op2 import read_op2
         with contextlib.redirect_stdout(io.StringIO()):
             external = read_op2(str(path), build_dataframe=False, debug=False,
@@ -45,6 +52,7 @@ def main() -> None:
             assert (result.data == 0).all()
 
     def run(*args: object, code: int = 0) -> dict:
+        """Run one JSON CLI command and require the expected process status."""
         result = subprocess.run([str(BINARY), *map(str, args), '--json'],
                                 cwd=ROOT, capture_output=True, text=True)
         assert result.returncode == code, (args, result.returncode, result.stdout, result.stderr)
@@ -52,6 +60,8 @@ def main() -> None:
 
     with tempfile.TemporaryDirectory(prefix='caexfer-matrix-') as folder:
         folder = Path(folder)
+        # Generate additional source dialects from a stable BDF fixture. Each
+        # later route uses a real file rather than an in-memory Rust round trip.
         sources = {'bdf': ROOT / 'examples/plate.bdf',
                    'frd': ROOT / 'tests/fixtures/linear-results.frd'}
         for extension in ('vtu', 'vtk', 'msh', 'inp'):
@@ -66,12 +76,15 @@ def main() -> None:
             sources['op2'] = ROOT / 'tests/fixtures/solid_bending.op2'
         routes = 0
         for source_format, source in sources.items():
+            # Result files need matching mesh IDs and sometimes subcase
+            # selection; ordinary mesh files require no companion options.
             extra = []
             if source_format == 'op2':
                 extra = ['--mesh', ROOT / 'tests/fixtures/solid_bending.bdf']
             elif source_format == 'pch':
                 extra = ['--mesh', ROOT / 'tests/fixtures/pch-companion.bdf', '--subcase', '1']
             for target_format in ('bdf', 'vtu', 'vtk', 'msh', 'inp'):
+                # Check basic identity and field counts for every route.
                 target = folder / f'{source_format}-to-{target_format}.{target_format}'
                 report = run('convert', source, target, '--accept-projection', *extra)
                 assert target.is_file() and report['points'] > 0 and report['cells'] > 0
@@ -104,6 +117,7 @@ def main() -> None:
                         assert first[3:] == [0., 0., 0.]
                 routes += 1
             dialect = folder / f'{source_format}-to-msh22.msh'
+            # MSH 2.2 is an explicit writer dialect of the same format family.
             report = run('convert', source, dialect, '--msh-version', '2.2',
                          '--accept-projection', *extra)
             assert dialect.read_text().startswith('$MeshFormat\n2.2 0 8\n')
@@ -121,12 +135,16 @@ def main() -> None:
             routes += 1
 
             if source_format == 'frd':
+                # Rotations are unknown in a three-component FRD displacement;
+                # OP2 output must refuse them without an explicit assertion.
                 result = folder / 'frd-to-op2.op2'
                 refused = run('convert', source, result, '--accept-projection', code=1)
                 assert refused['error']['code'] == 'E_OP2' and not result.exists()
                 assert 'unknown rotations' in refused['error']['message']
 
             if options.op2_check and source_format in ('frd', 'op2'):
+                # Verify Rust OP2 output independently, then ingest it again
+                # through the public CLI route with its companion mesh.
                 result = folder / f'{source_format}-to-op2.op2'
                 if source_format == 'frd':
                     mesh = folder / 'frd-for-op2.bdf'
@@ -159,6 +177,7 @@ def main() -> None:
                 assert first[3:] == [0., 0., 0.]
                 routes += 1
             elif source_format in ('bdf', 'inp', 'vtu', 'msh'):
+                # A geometry-only source cannot silently become a result file.
                 target = folder / f'{source_format}-to-op2.op2'
                 result = run('convert', source, target, '--accept-projection', code=1)
                 assert result['error']['code'] == 'E_OP2' and not target.exists()
@@ -185,6 +204,8 @@ def main() -> None:
                         assert any('synthetic all-zero' in item for item in reread_report['omissions'])
                     routes += 1
         if options.op2_check:
+            # Exercise PCH transfer and the basic-frame/companion rules with
+            # independently supplied OP2 results.
             pch_mesh = ROOT / 'tests/fixtures/pch-companion.bdf'
             pch_op2 = folder / 'pch-to-op2.op2'
             run('convert', sources['pch'], pch_op2, '--mesh', pch_mesh,
@@ -227,6 +248,8 @@ def main() -> None:
                           '--accept-projection', code=1)
             assert refused['error']['code'] == 'E_OP2' and not mismatched.exists()
             existing = folder / 'existing-companion.bdf'
+            # Paired output must leave an existing companion untouched and
+            # avoid installing a partial OP2 result.
             existing.write_text('already here')
             failed_pair = folder / 'no-partial-pair.op2'
             refused = run('convert', sources['frd'], failed_pair, '--mesh-out', existing,

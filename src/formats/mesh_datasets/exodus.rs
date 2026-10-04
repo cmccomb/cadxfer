@@ -920,6 +920,7 @@ mod tests {
 
     const SOURCE: &[u8] = include_bytes!("../../../tests/fixtures/exodus-two-blocks.exo");
 
+    /// Read a classic Exodus fixture with its original maps and scalar values.
     #[test]
     fn independent_classic_fixture_preserves_ids_and_values() {
         let projection = read_projection(SOURCE, None).unwrap();
@@ -960,6 +961,7 @@ mod tests {
         );
     }
 
+    /// Preserve chosen Exodus time-step fields through write and read.
     #[test]
     fn selected_step_and_writer_round_trip() {
         let selected = read_projection(SOURCE, Some(1)).unwrap();
@@ -973,6 +975,7 @@ mod tests {
         assert_eq!(reread.fields, full.fields);
     }
 
+    /// Refuse incomplete Exodus fields and unsupported container layouts.
     #[test]
     fn partial_and_unsupported_inputs_fail() {
         let partial = include_bytes!("../../../tests/fixtures/exodus-partial.exo");
@@ -1007,6 +1010,7 @@ mod tests {
         );
     }
 
+    /// Handle legacy coordinate arrays and report assigned IDs when maps are absent.
     #[test]
     fn legacy_coordinates_and_missing_maps_are_explicit() {
         let source = include_bytes!("../../../tests/fixtures/exodus-legacy.exo");
@@ -1047,6 +1051,7 @@ mod tests {
         assert!(read_projection(source, Some(0)).is_err());
     }
 
+    /// Encode and decode all supported Exodus linear element families.
     #[test]
     fn all_linear_kinds_write_and_read() {
         for kind in [
@@ -1096,6 +1101,7 @@ mod tests {
         }
     }
 
+    /// Reject mixed dimensions and ID maps outside classic Exodus limits.
     #[test]
     fn writer_refuses_unrepresentable_dimensions_and_id_maps() {
         let mut dataset = read_projection(SOURCE, None).unwrap().dataset;
@@ -1138,6 +1144,7 @@ mod tests {
         );
     }
 
+    /// Require valid scalar and time metadata before writing Exodus results.
     #[test]
     fn writer_requires_explicit_scalar_time_metadata() {
         let original = read_projection(SOURCE, None).unwrap().dataset;

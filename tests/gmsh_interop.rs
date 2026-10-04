@@ -7,6 +7,7 @@ use std::collections::BTreeMap;
 use std::fs;
 use std::process::Command;
 
+/// Compare original element IDs and ordered original node IDs across readers.
 fn cell_tags(mesh: &Mesh) -> BTreeMap<u64, (CellKind, Vec<u64>)> {
     mesh.cells
         .iter()
@@ -25,6 +26,7 @@ fn cell_tags(mesh: &Mesh) -> BTreeMap<u64, (CellKind, Vec<u64>)> {
         .collect()
 }
 
+/// Check Gmsh can import a Rust-written binary STL surface.
 #[test]
 fn gmsh_imports_binary_stl_surface() {
     let Ok(gmsh) = std::env::var("CAEXFER_GMSH") else {
@@ -55,6 +57,7 @@ fn gmsh_imports_binary_stl_surface() {
     let _ = fs::remove_file(resaved);
 }
 
+/// Check Gmsh imports exported MSH 4.1 entities with original IDs.
 #[test]
 #[allow(clippy::too_many_lines)] // One fixture checks mixed cells and a nodes-only mesh.
 fn gmsh_import_preserves_mixed_dimensions_and_original_ids() {
@@ -161,6 +164,7 @@ fn gmsh_import_preserves_mixed_dimensions_and_original_ids() {
     }
 }
 
+/// Check Gmsh imports every supported MSH 2.2 linear topology.
 #[test]
 fn gmsh_imports_msh22_all_linear_topologies() {
     let Ok(gmsh) = std::env::var("CAEXFER_GMSH") else {

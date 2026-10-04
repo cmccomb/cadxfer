@@ -268,11 +268,13 @@ impl Mesh {
 mod tests {
     use super::*;
 
+    /// Allow an empty mesh as a structurally valid container.
     #[test]
     fn empty_mesh_is_structurally_valid() {
         Mesh::default().validate().unwrap();
     }
 
+    /// Reject repeated point IDs before any connectivity can become ambiguous.
     #[test]
     fn rejects_duplicate_point_ids() {
         let p = Point {
@@ -292,6 +294,7 @@ mod tests {
         );
     }
 
+    /// Reject NaN coordinates in the shared mesh validator.
     #[test]
     fn rejects_nonfinite_points() {
         let mesh = Mesh {
@@ -305,6 +308,7 @@ mod tests {
         assert_eq!(mesh.validate().unwrap_err().code, "E_NONFINITE");
     }
 
+    /// Reject cell connectivity that points outside the point array.
     #[test]
     fn rejects_bad_indices() {
         let mesh = Mesh {
@@ -320,6 +324,7 @@ mod tests {
         assert_eq!(mesh.validate().unwrap_err().code, "E_CONNECTIVITY");
     }
 
+    /// Permit overlapping named sets while checking member IDs and dimensions.
     #[test]
     fn named_sets_allow_overlap_but_require_real_matching_ids() {
         let mut mesh = Mesh {

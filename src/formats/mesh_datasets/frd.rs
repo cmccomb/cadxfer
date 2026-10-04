@@ -649,6 +649,7 @@ mod tests {
     use super::*;
     use std::fmt::Write as _;
 
+    /// Parse long FRD IDs separately from adjacent fixed-width record markers.
     #[test]
     fn long_fixed_width_ids_do_not_merge_with_record_keys() {
         let nodes = [1_234_567_890, 1_234_567_891, 1_234_567_892];
@@ -684,6 +685,7 @@ mod tests {
         assert_eq!(dataset.mesh.cells[0].connectivity, vec![0, 1, 2]);
     }
 
+    /// Round-trip FRD geometry and continued nodal result records.
     #[test]
     fn ascii_writer_preserves_mesh_and_nodal_values_with_continuation() {
         let mut dataset =
@@ -707,11 +709,13 @@ mod tests {
         assert_eq!(decoded.fields[2].time, Some(0.25));
     }
 
+    /// Refuse FRD output for a topology the writer cannot encode.
     #[test]
     fn ascii_writer_rejects_unsupported_pyramid() {
         assert_eq!(type_code(CellKind::Pyramid5).unwrap_err().code, "E_FRD");
     }
 
+    /// Round-trip every supported FRD linear cell family in one dataset.
     #[test]
     fn all_supported_linear_topologies_roundtrip_in_one_file() {
         let mut mesh =
@@ -745,6 +749,7 @@ mod tests {
         assert_eq!(decoded.mesh.cells.len(), 6);
     }
 
+    /// Reject broken FRD result and element records with format errors.
     #[test]
     fn malformed_result_and_connectivity_records_fail_explicitly() {
         let source = include_str!("../../../tests/fixtures/linear-results.frd");
@@ -763,6 +768,7 @@ mod tests {
         }
     }
 
+    /// Reject FRD values that exceed fixed-width columns before output begins.
     #[test]
     fn writer_preflights_fixed_width_limits_before_writing() {
         let baseline = read(include_bytes!("../../../tests/fixtures/linear-results.frd")).unwrap();

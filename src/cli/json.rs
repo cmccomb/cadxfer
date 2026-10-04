@@ -47,14 +47,20 @@ pub fn array(values: impl IntoIterator<Item = String>) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Escape JSON control bytes before emitting machine-readable CLI output.
     #[test]
     fn escapes_every_control_character() {
         assert_eq!(quote("a\"b\\c\n\r\t\0"), "\"a\\\"b\\\\c\\n\\r\\t\\u0000\"");
     }
+
+    /// Leave valid Unicode content intact in JSON strings.
     #[test]
     fn preserves_unicode() {
         assert_eq!(quote("Δ"), "\"Δ\"");
     }
+
+    /// Serialize JSON object members with the expected delimiters and values.
     #[test]
     fn builds_objects() {
         assert_eq!(

@@ -339,6 +339,7 @@ mod tests {
     use super::*;
     use crate::core::Point;
 
+    /// Build a companion mesh with the exact GRID IDs needed by each table.
     fn mesh(ids: &[u64]) -> Mesh {
         Mesh {
             points: ids
@@ -353,6 +354,7 @@ mod tests {
         }
     }
 
+    /// Decode a published MSC PCH displacement layout against a matching mesh.
     #[test]
     fn published_msc_displacement_excerpt_decodes() {
         let source = include_str!("../../../tests/fixtures/msc-reference-displacement.pch");
@@ -362,6 +364,7 @@ mod tests {
         assert_eq!(result.dataset.fields[0].time, None);
     }
 
+    /// Select one PCH subcase and time step without mixing result rows.
     #[test]
     fn subcase_and_time_step_selection_are_explicit() {
         let source = include_str!("../../../tests/fixtures/pch-multiple.pch");
@@ -386,6 +389,7 @@ mod tests {
         );
     }
 
+    /// Reject PCH displacement tables outside the supported real SORT1 subset.
     #[test]
     fn unsupported_and_incomplete_displacements_fail() {
         let source = include_str!("../../../tests/fixtures/msc-reference-displacement.pch");
@@ -420,6 +424,7 @@ mod tests {
         );
     }
 
+    /// Report skipped PCH result blocks instead of treating them as displacement.
     #[test]
     fn unrelated_result_block_is_reported() {
         let source = format!(
@@ -430,6 +435,7 @@ mod tests {
         assert_eq!(projection.skipped_blocks, 1);
     }
 
+    /// Reject malformed PCH headers and GRID displacement rows.
     #[test]
     fn invalid_headers_and_grid_records_are_rejected() {
         let source = include_str!("../../../tests/fixtures/msc-reference-displacement.pch");
@@ -469,6 +475,7 @@ mod tests {
         );
     }
 
+    /// Refuse transient frames with missing GRID rows rather than merging steps.
     #[test]
     fn incomplete_transient_steps_do_not_mix_grid_values() {
         let source = include_str!("../../../tests/fixtures/pch-multiple.pch");

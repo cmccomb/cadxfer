@@ -307,6 +307,7 @@ mod tests {
     use super::{read_projection, write_data};
     use crate::core::CellKind;
 
+    /// Round-trip the supported UNV families using a Gmsh-generated fixture.
     #[test]
     fn gmsh_six_kind_fixture_round_trips() {
         let source = include_str!("../../../tests/fixtures/gmsh-six-kind.unv");
@@ -321,6 +322,7 @@ mod tests {
         assert_eq!(second.dataset, read.dataset);
     }
 
+    /// Reject malformed UNV datasets and unsupported element records.
     #[test]
     fn rejects_malformed_and_unsupported_records() {
         assert!(read_projection("    -1\n  2411\n1 1 1 11\n0 0 0\n").is_err());

@@ -685,6 +685,7 @@ mod tests {
     use super::*;
     use crate::bdf;
 
+    /// Round-trip legacy VTK topology, original IDs, and numeric arrays.
     #[test]
     fn all_linear_cells_ids_and_fields_roundtrip() {
         let mesh = bdf::mesh::read(include_bytes!("../../../tests/fixtures/mixed-linear.bdf"))
@@ -719,6 +720,7 @@ mod tests {
         assert_eq!(read, dataset);
     }
 
+    /// Assign deterministic IDs and report the loss when legacy VTK omits them.
     #[test]
     fn missing_ids_are_reported_and_assigned() {
         let source = "# vtk DataFile Version 2.0\nexample\nASCII\nDATASET UNSTRUCTURED_GRID\nPOINTS 2 float\n0 0 0 1 0 0\nCELLS 1 3\n2 0 1\nCELL_TYPES 1\n3\nPOINT_DATA 2\nSCALARS temperature double 1\nLOOKUP_TABLE default\n1.5 2.5\n";
@@ -729,6 +731,7 @@ mod tests {
         assert_eq!(projection.dataset.fields[0].values, [1.5, 2.5]);
     }
 
+    /// Read an independently written VTK offsets/connectivity fixture.
     #[test]
     fn vtk_written_offsets_fixture_preserves_ids_and_topology() {
         let dataset = read(include_str!("../../../tests/fixtures/vtk-5.1-mixed.vtk")).unwrap();
@@ -739,6 +742,7 @@ mod tests {
         assert_eq!(dataset.mesh.cells[6].connectivity, [0, 1, 2, 3, 8]);
     }
 
+    /// Reject malformed legacy VTK sections and unsupported datasets.
     #[test]
     fn malformed_and_unsupported_inputs_fail() {
         let source = "# vtk DataFile Version 2.0\nexample\nASCII\nDATASET UNSTRUCTURED_GRID\nPOINTS 2 float\n0 0 0 1 0 0\nCELLS 1 3\n2 0 2\nCELL_TYPES 1\n3\n";
@@ -748,6 +752,7 @@ mod tests {
         assert!(read(&source.replace("POINTS 2", "POINTS 999999999")).is_err());
     }
 
+    /// Preserve supported legacy VTK scalar, vector, and integer arrays.
     #[test]
     fn scalar_vector_and_integer_attributes_are_preserved() {
         let source = "# vtk DataFile Version 2.0\nattributes\nASCII\nDATASET UNSTRUCTURED_GRID\nPOINTS 2 double\n0 0 0 1 0 0\nCELLS 1 3\n2 0 1\nCELL_TYPES 1\n3\nPOINT_DATA 2\nSCALARS temperature int\nLOOKUP_TABLE default\n2 3\nVECTORS velocity float\n1 2 3 4 5 6\nCELL_DATA 1\nSCALARS pressure unsigned_short 1\nLOOKUP_TABLE default\n7\n";
@@ -759,6 +764,7 @@ mod tests {
         assert_eq!(dataset.fields[2].values, [7.]);
     }
 
+    /// Reject incomplete attribute records and invalid cell offsets.
     #[test]
     fn malformed_legacy_attributes_and_offsets_are_rejected() {
         let base = "# vtk DataFile Version 2.0\nmalformed\nASCII\nDATASET UNSTRUCTURED_GRID\nPOINTS 2 float\n0 0 0 1 0 0\nCELLS 1 3\n2 0 1\nCELL_TYPES 1\n3\n";

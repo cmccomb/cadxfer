@@ -5,6 +5,7 @@ use std::fs;
 use std::path::Path;
 use std::process::Command;
 
+/// Check Gmsh can import Rust-written UNV geometry.
 #[test]
 fn gmsh_imports_written_unv_geometry() {
     let Ok(gmsh) = std::env::var("CAEXFER_GMSH") else {

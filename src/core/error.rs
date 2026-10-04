@@ -165,6 +165,7 @@ impl ValidationReport {
 mod tests {
     use super::*;
 
+    /// Keep warning-only reports distinct from complete solver validation.
     #[test]
     fn warnings_do_not_claim_full_validation() {
         let mut report = ValidationReport::default();
@@ -178,6 +179,7 @@ mod tests {
         assert_eq!(report.warning_count(), 1);
     }
 
+    /// Include one-based source lines in formatted diagnostics.
     #[test]
     fn error_display_carries_line() {
         assert_eq!(

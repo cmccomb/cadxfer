@@ -189,6 +189,7 @@ mod tests {
     use super::*;
     use crate::core::Point;
 
+    /// Return a valid displacement dataset and its field for writer checks.
     fn sample() -> (Dataset, Field) {
         let dataset = Dataset {
             mesh: Mesh {
@@ -212,6 +213,7 @@ mod tests {
         (dataset, field)
     }
 
+    /// Do not invent rotational displacement components during OP2 writing.
     #[test]
     fn unknown_rotations_are_not_filled_implicitly() {
         let (dataset, field) = sample();
@@ -219,6 +221,7 @@ mod tests {
         assert!(error.message.contains("unknown rotations"));
     }
 
+    /// Validate the public displacement field before encoding binary records.
     #[test]
     fn malformed_public_field_fails_before_encoding() {
         let (dataset, mut field) = sample();
@@ -231,6 +234,7 @@ mod tests {
         );
     }
 
+    /// Require real zero values before labeling an OP2 table synthetic zero.
     #[test]
     fn synthetic_provenance_requires_actual_zero_values() {
         let (dataset, mut field) = sample();
@@ -246,6 +250,7 @@ mod tests {
         );
     }
 
+    /// Reject IDs and numbers outside the supported OP2 binary layout.
     #[test]
     fn writer_rejects_values_and_ids_that_binary_records_cannot_represent() {
         let (dataset, field) = sample();

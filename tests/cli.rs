@@ -1,3 +1,5 @@
+//! End-to-end CLI tests for exit codes, receipts, and no-clobber output.
+
 use std::path::PathBuf;
 use std::process::{Command, Output};
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -7,6 +9,7 @@ static COUNTER: AtomicU64 = AtomicU64::new(0);
 /// Isolated directory for one CLI test invocation.
 struct Scratch(PathBuf);
 impl Scratch {
+    /// Create one isolated working directory with a minimal BDF mesh.
     fn new() -> Self {
         let path = std::env::temp_dir().join(format!(
             "caexfer-cli-test-{}-{}",
@@ -21,6 +24,7 @@ impl Scratch {
         .unwrap();
         Self(path)
     }
+    /// Run the published executable from this fixture directory.
     fn run(&self, args: &[&str]) -> Output {
         Command::new(env!("CARGO_BIN_EXE_caexfer"))
             .args(args)
@@ -30,11 +34,13 @@ impl Scratch {
     }
 }
 impl Drop for Scratch {
+    /// Remove files made by the CLI during this test.
     fn drop(&mut self) {
         let _ = std::fs::remove_dir_all(&self.0);
     }
 }
 
+/// Keep the published help and version entry points usable.
 #[test]
 fn help_and_version_work() {
     let s = Scratch::new();
@@ -47,6 +53,7 @@ fn help_and_version_work() {
     );
 }
 
+/// Expose schema version and projected BDF counts in JSON info.
 #[test]
 fn info_json_has_version_and_scope() {
     let result = Scratch::new().run(&["info", "mesh.bdf", "--json"]);
@@ -57,6 +64,7 @@ fn info_json_has_version_and_scope() {
     assert!(out.contains("\"cells\":1"));
 }
 
+/// Reject the removed roundtrip command without creating a file.
 #[test]
 fn retired_roundtrip_command_is_rejected() {
     let s = Scratch::new();
@@ -67,6 +75,7 @@ fn retired_roundtrip_command_is_rejected() {
     assert!(!s.0.join("copy.bdf").exists());
 }
 
+/// Require projection acknowledgement before creating an output file.
 #[test]
 fn refused_conversion_does_not_create_output() {
     let s = Scratch::new();
@@ -77,6 +86,7 @@ fn refused_conversion_does_not_create_output() {
     assert!(!s.0.join("mesh.vtu").exists());
 }
 
+/// Write VTU geometry and a machine-readable omission receipt.
 #[test]
 fn geometry_conversion_creates_vtu_and_reports_losses() {
     let s = Scratch::new();
@@ -104,6 +114,7 @@ fn geometry_conversion_creates_vtu_and_reports_losses() {
     );
 }
 
+/// Protect an input file even when selected as the output path.
 #[test]
 fn source_file_is_never_overwritten() {
     let s = Scratch::new();
@@ -116,6 +127,7 @@ fn source_file_is_never_overwritten() {
     assert_eq!(before, std::fs::read(s.0.join("mesh.bdf")).unwrap());
 }
 
+/// Require a suitable companion format only on Nastran result input.
 #[test]
 fn companion_mesh_option_is_only_for_op2_and_needs_a_mesh_format() {
     let s = Scratch::new();
@@ -149,6 +161,7 @@ fn companion_mesh_option_is_only_for_op2_and_needs_a_mesh_format() {
     assert!(!s.0.join("extra.op2").exists());
 }
 
+/// Treat omitted BDF material semantics as a strict validation failure.
 #[test]
 fn strict_validation_fails_on_opaque_material() {
     let s = Scratch::new();
@@ -160,6 +173,7 @@ fn strict_validation_fails_on_opaque_material() {
     );
 }
 
+/// Return a structured JSON diagnostic for absent input.
 #[test]
 fn missing_file_json_error() {
     let result = Scratch::new().run(&["info", "absent.bdf", "--json"]);
@@ -171,6 +185,7 @@ fn missing_file_json_error() {
     );
 }
 
+/// Reject OP2 result rows that do not match companion GRID IDs.
 #[test]
 fn op2_requires_matching_mesh() {
     let result = Scratch::new().run(&[
@@ -188,6 +203,7 @@ fn op2_requires_matching_mesh() {
     );
 }
 
+/// Show PCH read-only capability in JSON and human formats output.
 #[test]
 fn formats_advertises_read_only_pch_in_both_presentations() {
     let s = Scratch::new();
@@ -205,8 +221,11 @@ fn formats_advertises_read_only_pch_in_both_presentations() {
     );
 }
 
+/// Explain projected counts and validation scope in human CLI output.
 #[test]
 fn human_inspection_and_validation_report_their_scopes() {
+    // BDF and INP share the projected-data CLI path, but INP also supplies
+    // a source omission that strict validation must reject.
     let s = Scratch::new();
     let bdf = s.run(&["info", "mesh.bdf"]);
     assert!(bdf.status.success());
@@ -246,8 +265,10 @@ fn human_inspection_and_validation_report_their_scopes() {
     );
 }
 
+/// Print omitted data and installed companion paths for human users.
 #[test]
 fn human_conversion_reports_omissions_and_companion_install() {
+    // Test ordinary single-file output before the paired OP2/mesh path.
     let s = Scratch::new();
     let converted = s.run(&["convert", "mesh.bdf", "mesh.vtu", "--accept-projection"]);
     assert!(converted.status.success());
@@ -290,6 +311,7 @@ fn human_conversion_reports_omissions_and_companion_install() {
     );
 }
 
+/// Reject over-limit input and wrong format options before output exists.
 #[test]
 fn bounded_and_explicit_format_input_fail_before_output_creation() {
     let s = Scratch::new();
@@ -317,6 +339,7 @@ fn bounded_and_explicit_format_input_fail_before_output_creation() {
     assert!(!s.0.join("wrong.vtu").exists());
 }
 
+/// Reject conflicting or malformed flags without touching destinations.
 #[test]
 fn malformed_cli_options_fail_without_writing() {
     let s = Scratch::new();
@@ -357,6 +380,7 @@ fn malformed_cli_options_fail_without_writing() {
     assert!(!s.0.join("bad.vtu").exists());
 }
 
+/// Constrain synthetic OP2 to supported source and basic output frames.
 #[test]
 fn synthetic_result_rejects_nonbasic_output_frames_and_mesh_sources() {
     let s = Scratch::new();
@@ -391,6 +415,7 @@ fn synthetic_result_rejects_nonbasic_output_frames_and_mesh_sources() {
     assert!(!s.0.join("bad.op2").exists());
 }
 
+/// Surface BDF geometry errors and entry help in human CLI output.
 #[test]
 fn entry_help_and_bdf_diagnostics_are_visible_to_human_users() {
     let s = Scratch::new();
@@ -412,6 +437,7 @@ fn entry_help_and_bdf_diagnostics_are_visible_to_human_users() {
     );
 }
 
+/// Stage a synthetic OP2 result with an explicitly selected MSH 2.2 mesh.
 #[test]
 fn synthetic_op2_can_stage_an_explicit_msh22_companion() {
     let s = Scratch::new();

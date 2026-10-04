@@ -5,6 +5,7 @@ use std::fs;
 use std::path::Path;
 use std::process::Command;
 
+/// Check SU2_CFD loads the named marker transferred from a Gmsh mesh.
 #[test]
 fn su2_loads_named_markers_from_gmsh_mesh() {
     let Ok(su2) = std::env::var("CAEXFER_SU2") else {

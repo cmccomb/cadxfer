@@ -51,6 +51,7 @@ pub(crate) fn parse_real(input: &str) -> Result<f64> {
 mod tests {
     use super::*;
 
+    /// Parse standard, D-exponent, and implicit-exponent Nastran reals.
     #[test]
     fn common_notations() {
         for (input, expected) in [
@@ -69,6 +70,7 @@ mod tests {
         }
     }
 
+    /// Reject malformed and nonfinite Nastran numeric tokens.
     #[test]
     fn rejects_invalid_or_nonfinite() {
         for input in ["", "NaN", "inf", "1e999", "1 2", "1-2-3", "--1", "one"] {

@@ -737,26 +737,38 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Parse CLI tokens without spawning the executable.
     fn args(values: &[&str]) -> Result<Args> {
         let raw: Vec<OsString> = values.iter().map(OsString::from).collect();
         parse_args(&raw)
     }
+
+    /// Require an explicit projection acknowledgement before any conversion command runs.
     #[test]
     fn conversion_requires_acknowledgement() {
         assert!(args(&["convert", "x.bdf", "x.vtu"]).is_err());
     }
+
+    /// Keep unsupported GRID editing outside the public CLI command set.
     #[test]
     fn grid_edit_is_not_a_cli_command() {
         assert!(args(&["set-grid", "x.bdf", "y.bdf"]).is_err());
     }
+
+    /// Reject repeated option flags so command intent is unambiguous.
     #[test]
     fn duplicate_option_rejected() {
         assert!(args(&["info", "x.bdf", "--json", "--json"]).is_err());
     }
+
+    /// Reject options that do not apply to the selected command or format.
     #[test]
     fn irrelevant_flag_rejected() {
         assert!(args(&["info", "x.bdf", "--strict"]).is_err());
     }
+
+    /// Apply the MSH version switch only when writing an MSH destination.
     #[test]
     fn msh_dialect_is_selected_only_for_msh_output() {
         let selected = args(&[
@@ -792,6 +804,8 @@ mod tests {
             .is_err()
         );
     }
+
+    /// Treat paths after -- as paths even when they begin with a hyphen.
     #[test]
     fn double_dash_supports_dash_path() {
         assert_eq!(
@@ -799,18 +813,26 @@ mod tests {
             PathBuf::from("-mesh.bdf")
         );
     }
+
+    /// Return a usage error for an unknown command name.
     #[test]
     fn typo_command_rejected() {
         assert!(args(&["convertx"]).is_err());
     }
+
+    /// Reject commands with missing or extra positional paths.
     #[test]
     fn bad_arity_rejected() {
         assert!(args(&["convert", "only.bdf", "--accept-projection"]).is_err());
     }
+
+    /// Keep the formats command independent of input and output files.
     #[test]
     fn format_report_takes_no_paths() {
         assert!(args(&["formats", "x.bdf"]).is_err());
     }
+
+    /// Constrain synthetic zero displacement to its explicit OP2 output path.
     #[test]
     fn assumed_zero_requires_op2_output_and_no_rotation_fill_flag() {
         assert!(

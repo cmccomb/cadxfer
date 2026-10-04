@@ -483,12 +483,14 @@ pub(crate) fn encode(
 mod tests {
     use super::*;
 
+    /// Compare six OP2 components using the format's float32 precision.
     fn assert_values(actual: [f64; 6], expected: [f64; 6]) {
         for (left, right) in actual.into_iter().zip(expected) {
             assert!((left - right).abs() < 1e-6);
         }
     }
 
+    /// Require explicit selection when an external OP2 contains multiple subcases.
     #[test]
     fn externally_written_subcases_require_selection() {
         let bytes = include_bytes!("../../../../tests/fixtures/two-subcases.op2");
@@ -504,6 +506,7 @@ mod tests {
         assert_values(selected.rows[&20], [14., 16., 18., 20., 22., 24.]);
     }
 
+    /// Require explicit step selection for transient external OP2 data.
     #[test]
     fn externally_written_transient_steps_require_selection() {
         let bytes = include_bytes!("../../../../tests/fixtures/two-steps.op2");
@@ -519,6 +522,7 @@ mod tests {
         assert_values(selected.rows[&10], [2., 4., 6., 8., 10., 12.]);
     }
 
+    /// Validate OP2 binary record framing and synthetic-zero provenance.
     #[test]
     fn record_lengths_and_zero_provenance_are_checked() {
         let rows = [(10, [0_f32; 6])];

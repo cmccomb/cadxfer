@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""Generate the README's format-comparison SVG using only Python's stdlib."""
+"""Generate the README's format-comparison SVG using only Python's stdlib.
+
+Run without options to refresh ``assets/conversion-flow.svg``. Use ``--check``
+in CI to fail when the committed image differs from the generated source.
+All labels describe supported projections, not complete native file formats.
+"""
 
 from __future__ import annotations
 
@@ -19,19 +24,25 @@ DIM = "#758ba3"
 
 @dataclass(frozen=True)
 class Card:
+    """One format panel: position, display labels, visual style, and limits."""
+
+    # The first two values position the panel in the fixed SVG canvas.
     x: int
     y: int
+    # The next four identify the format and select its representative drawing.
     label: str
     filename: str
     accent: str
     visual: str
+    # These short claims appear beside and below the drawing.
     topology: str
     data: str
     note: str
 
 
+# Keep one panel per advertised format representation, in visual row order.
 FORMATS = (
-    Card(45, 118, "BDF", "mesh.bdf", "#69dfc0", "bdf", "linear cells", "mesh only", "Native document keeps source bytes"),
+    Card(45, 118, "BDF", "mesh.bdf", "#69dfc0", "bdf", "linear cells", "mesh only", "Geometry projection; solver data omitted"),
     Card(435, 118, "INP", "mesh.inp", "#75d2d6", "inp", "linear cells", "mesh only", "Sets and solver data are omitted"),
     Card(825, 118, "UNV", "mesh.unv", "#c2b4f9", "unv", "linear cells", "mesh only", "Original labels; no pyramids"),
     Card(45, 373, "VTU", "mesh.vtu", "#ffae75", "vtu", "linear cells", "numeric", "Point and cell arrays"),
@@ -48,6 +59,7 @@ FORMATS = (
 
 def text(x: int, y: int, value: str, *, size: int = 16, color: str = WHITE,
          weight: int = 400, mono: bool = False, spacing: int = 0) -> str:
+    """Return one SVG text element, escaping format labels as XML content."""
     family = "Menlo, Consolas, monospace" if mono else "Arial, Helvetica, sans-serif"
     return (f'<text x="{x}" y="{y}" fill="{color}" font-family="{family}" '
             f'font-size="{size}" font-weight="{weight}" letter-spacing="{spacing}">'
@@ -55,7 +67,7 @@ def text(x: int, y: int, value: str, *, size: int = 16, color: str = WHITE,
 
 
 def mesh(x: int, y: int, accent: str, variant: str) -> str:
-    """Show representative topology without implying every format carries it."""
+    """Draw representative topology without implying every format carries it."""
     if variant == "stl":
         return "\n".join((
             '<g aria-hidden="true">',
@@ -65,6 +77,7 @@ def mesh(x: int, y: int, accent: str, variant: str) -> str:
             f'fill="#37546b" stroke="{accent}" stroke-width="2"/>',
             '</g>',
         ))
+    # Build shared drawing coordinates; these are illustrative, not mesh data.
     points = {}
     for row in range(4):
         for col in range(5):
@@ -99,10 +112,11 @@ def mesh(x: int, y: int, accent: str, variant: str) -> str:
 
 
 def op2_table(x: int, y: int, accent: str) -> str:
-    """Align each displacement component under its own centered heading."""
+    """Draw the companion-result panel with six aligned displacement columns."""
     columns = (58, 82, 106, 130, 154, 178)
 
     def cell(offset: int, baseline: int, value: str) -> str:
+        """Place one table value relative to the panel origin."""
         return f'<text x="{x + offset}" y="{y + baseline}">{value}</text>'
 
     parts = [
@@ -126,6 +140,7 @@ def op2_table(x: int, y: int, accent: str) -> str:
 
 
 def card(card: Card) -> str:
+    """Assemble one labeled panel from its drawing and support summary."""
     x, y = card.x, card.y
     art = (op2_table(x + 25, y + 83, card.accent) if card.visual == "op2"
            else mesh(x + 30, y + 87, card.accent, card.visual))
@@ -149,6 +164,7 @@ def card(card: Card) -> str:
 
 
 def render() -> str:
+    """Build deterministic SVG source for all advertised format panels."""
     parts = [
         '<svg xmlns="http://www.w3.org/2000/svg" width="1240" height="1147" '
         'viewBox="0 0 1240 1147" role="img" aria-labelledby="title description">',
@@ -179,6 +195,7 @@ def render() -> str:
 
 
 def main() -> int:
+    """Check or write the SVG, returning zero only for valid current output."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--check", action="store_true", help="fail if the committed SVG is stale")
     args = parser.parse_args()

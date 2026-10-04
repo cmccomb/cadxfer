@@ -799,6 +799,7 @@ mod tests {
     use super::*;
     use crate::core::{Cell, Point};
 
+    /// Build a small mesh with stable original IDs for VTU assertions.
     fn triangle() -> Mesh {
         Mesh {
             points: vec![
@@ -825,6 +826,7 @@ mod tests {
         }
     }
 
+    /// Write VTU arrays that retain mesh identity, connectivity, and cell kind.
     #[test]
     fn writes_ids_connectivity_and_type() {
         let mut output = Vec::new();
@@ -836,6 +838,7 @@ mod tests {
         assert!(text.contains("format=\"ascii\">\n5\n"));
     }
 
+    /// Validate the mesh before emitting partial VTU output.
     #[test]
     fn invalid_mesh_writes_nothing() {
         let mut mesh = triangle();
@@ -845,6 +848,7 @@ mod tests {
         assert_eq!(output, Vec::<u8>::new());
     }
 
+    /// Map every supported linear cell to its VTK type code.
     #[test]
     fn all_linear_cell_numbers() {
         assert_eq!(
@@ -862,6 +866,7 @@ mod tests {
         );
     }
 
+    /// Keep large original IDs in integer arrays without floating-point rounding.
     #[test]
     fn preserves_large_ids_as_integers() {
         let mut mesh = triangle();
@@ -875,6 +880,7 @@ mod tests {
         );
     }
 
+    /// Surface caller-owned stream failures from the VTU writer.
     #[test]
     fn propagates_writer_failure() {
         /// Output stream that always fails for writer error propagation tests.
@@ -890,6 +896,7 @@ mod tests {
         assert_eq!(write(&triangle(), Broken).unwrap_err().code, "E_IO");
     }
 
+    /// Separate numeric fields from identity arrays at both entity locations.
     #[test]
     fn reads_numeric_point_and_cell_fields_without_mixing_ids() {
         let dataset = Dataset {
@@ -919,6 +926,7 @@ mod tests {
         assert_eq!(parsed, dataset);
     }
 
+    /// Ignore commented XML tags when selecting mesh coordinates.
     #[test]
     fn xml_comments_cannot_spoof_geometry() {
         let mut bytes = Vec::new();
@@ -930,6 +938,7 @@ mod tests {
         assert_eq!(dataset.mesh.points, triangle().points);
     }
 
+    /// Require exact XML attribute names rather than suffix matches.
     #[test]
     fn xml_attribute_names_match_exactly() {
         let mut bytes = Vec::new();
@@ -940,6 +949,7 @@ mod tests {
         assert_eq!(read(&source).unwrap_err().code, "E_VTU");
     }
 
+    /// Bound declared VTU array sizes before allocation or multiplication.
     #[test]
     fn declared_counts_and_components_cannot_overflow() {
         let mut bytes = Vec::new();
@@ -964,6 +974,7 @@ mod tests {
         assert_eq!(read(&source).unwrap_err().code, "E_VTU");
     }
 
+    /// Reject field names that cannot be represented in XML.
     #[test]
     fn invalid_xml_names_fail_before_writing() {
         for invalid_name in ["bad\0name", "bad\u{1}name", "bad\nname"] {
@@ -988,6 +999,7 @@ mod tests {
         }
     }
 
+    /// Reject malformed XML structure before accepting changed geometry.
     #[test]
     fn structural_xml_mutations_fail_before_geometry_can_change() {
         let mut bytes = Vec::new();
@@ -1017,6 +1029,7 @@ mod tests {
         }
     }
 
+    /// Reject truncated identity and field arrays instead of accepting partial data.
     #[test]
     fn numeric_vtu_mutations_reject_incomplete_identity_and_fields() {
         let dataset = Dataset {

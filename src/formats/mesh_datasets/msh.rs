@@ -952,6 +952,7 @@ pub fn write_version(dataset: &Dataset, version: Version, writer: impl Write) ->
 mod tests {
     use super::*;
 
+    /// Keep numeric node and element fields through MSH serialization.
     #[test]
     fn numeric_point_and_cell_fields_survive_msh_roundtrip() {
         let dataset = Dataset {
@@ -1008,6 +1009,7 @@ mod tests {
         );
     }
 
+    /// Report MSH 2.2 tags and reject declared counts beyond input bounds.
     #[test]
     fn msh22_tags_are_reported_and_counts_are_bounded() {
         let source = "$MeshFormat\n2.2 0 8\n$EndMeshFormat\n$Nodes\n2\n10 0 0 0\n20 1 0 0\n$EndNodes\n$Elements\n1\n30 1 2 7 8 10 20\n$EndElements\n";
@@ -1021,6 +1023,7 @@ mod tests {
         assert!(read(&source.replace("30 1 2", "30 1 999999999")).is_err());
     }
 
+    /// Preserve overlapping named physical selections on boundary cells.
     #[test]
     fn msh41_physical_names_select_overlapping_boundary_cells() {
         let source = include_str!("../../../tests/fixtures/named-boundary.msh");
@@ -1045,6 +1048,7 @@ mod tests {
         );
     }
 
+    /// Map a named physical point group to a node set.
     #[test]
     fn msh41_physical_point_name_becomes_node_set() {
         let source = "$MeshFormat\n4.1 0 8\n$EndMeshFormat\n$PhysicalNames\n1\n0 42 \"fixed\"\n$EndPhysicalNames\n$Entities\n1 0 0 0\n1 0 0 0 1 42\n$EndEntities\n$Nodes\n1 1 10 10\n0 1 0 1\n10\n0 0 0\n$EndNodes\n$Elements\n0 0 0 0\n$EndElements\n";
@@ -1054,6 +1058,7 @@ mod tests {
         assert_eq!(projection.dataset.mesh.node_sets[0].point_ids, [10]);
     }
 
+    /// Read all supported topologies from an external Gmsh 2.2 fixture.
     #[test]
     fn gmsh_written_msh22_fixture_preserves_all_topologies() {
         let projection =
@@ -1066,6 +1071,7 @@ mod tests {
         assert_eq!(dataset.mesh.cells[6].kind, CellKind::Pyramid5);
     }
 
+    /// Retain original node IDs in MSH 2.2 and 4.1 without elements.
     #[test]
     fn nodes_only_meshes_preserve_ids_in_both_dialects() {
         let dataset = Dataset {
@@ -1094,6 +1100,7 @@ mod tests {
         }
     }
 
+    /// Reject broken MSH field blocks before exposing partial results.
     #[test]
     fn malformed_field_blocks_cannot_create_partial_results() {
         let base = "$MeshFormat\n2.2 0 8\n$EndMeshFormat\n$Nodes\n2\n10 0 0 0\n20 1 0 0\n$EndNodes\n$Elements\n1\n30 1 0 10 20\n$EndElements\n$NodeData\n1\n\"temperature\"\n1\n0.5\n3\n2\n1\n2\n10 1\n20 2\n$EndNodeData\n";
@@ -1115,6 +1122,7 @@ mod tests {
         }
     }
 
+    /// Refuse malformed MSH 2.2 records and IDs outside writer limits.
     #[test]
     fn msh22_rejects_extra_tokens_and_unrepresentable_ids() {
         let base = "$MeshFormat\n2.2 0 8\n$EndMeshFormat\n$Nodes\n2\n10 0 0 0\n20 1 0 0\n$EndNodes\n$Elements\n1\n30 1 0 10 20\n$EndElements\n";

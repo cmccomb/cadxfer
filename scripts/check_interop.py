@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""Run the actual CLI, check its bytes/JSON/XML, and optionally read output in VTK."""
+"""Check CLI projection behavior against independent fixture expectations.
+
+Build ``target/debug/caexfer`` first, or pass ``--binary``. ``--vtk`` adds an
+optional read using VTK's own XML reader. The script writes only temporary files
+and fails on any unexpected exit code, topology, ID, or output side effect.
+"""
 from __future__ import annotations
 
 import argparse
@@ -14,6 +19,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def main() -> None:
+    """Run BDF-to-VTU interoperability and failure-path checks."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--binary", type=Path, help="path to an existing caexfer binary")
     parser.add_argument("--vtk", action="store_true", help="also require an independent Python VTK read")
@@ -22,13 +28,16 @@ def main() -> None:
     if not binary.is_file():
         raise SystemExit(f"No executable at {binary}; run cargo build first or pass --binary.")
     checks: list[str] = []
+
     def run(*cmd: str | Path, expected_code: int = 0) -> subprocess.CompletedProcess:
+        """Run the CLI and retain stdout/stderr for exact output assertions."""
         result = subprocess.run([str(binary), *map(str, cmd)], cwd=ROOT, capture_output=True)
         if result.returncode != expected_code:
             raise AssertionError((cmd, result.returncode, result.stdout.decode(errors="replace"), result.stderr.decode(errors="replace")))
         return result
     with tempfile.TemporaryDirectory(prefix="caexfer-interop-") as temp:
         temp = Path(temp)
+        # Inspect the current projected-data JSON contract before conversion.
         info = json.loads(run("info", "examples/plate.bdf", "--json").stdout)
         assert info["schema_version"] == 1 and (info["points"], info["cells"], info["fields"]) == (4, 1, 0)
         assert info["format"] == "bdf" and info["omissions"]
@@ -41,7 +50,9 @@ def main() -> None:
         expected = json.loads((ROOT / "tests/fixtures/mixed-linear.expected.json").read_text())
         piece = ET.parse(destination).find("./UnstructuredGrid/Piece")
         assert piece is not None
+
         def values(xpath: str, convert=int) -> list:
+            """Read numeric values from one required VTU DataArray."""
             node = piece.find(xpath)
             assert node is not None
             return [convert(item) for item in (node.text or "").split()]
@@ -52,6 +63,8 @@ def main() -> None:
         connectivity = values("./Cells/DataArray[@Name='connectivity']")
         offsets = values("./Cells/DataArray[@Name='offsets']")
         types = values("./Cells/DataArray[@Name='types']")
+        # Compare original IDs and every cell's ordered connectivity against
+        # a hand-authored expectation, not another caexfer reader.
         assert node_ids == [p["id"] for p in expected["nodes"]]
         assert coordinates == [x for p in expected["nodes"] for x in p["xyz"]]
         start = 0
@@ -63,6 +76,8 @@ def main() -> None:
         assert start == len(connectivity)
         checks.append("actual Rust VTU output matches independent IDs, points, topology, offsets and types")
         if args.vtk:
+            # An independent VTK reader checks that the file is usable outside
+            # the crate, beyond its XML shape and our fixture comparison.
             try:
                 from vtkmodules.vtkIOXML import vtkXMLUnstructuredGridReader
             except ImportError as error:
@@ -76,6 +91,8 @@ def main() -> None:
             id_array = mesh.GetPointData().GetArray("nastran_node_id")
             assert [id_array.GetValue(i) for i in range(9)] == node_ids
             checks.append("independent VTK reader accepts the actual Rust output and original IDs")
+        # Refused conversions must leave no destination; an existing one must
+        # retain its original bytes.
         run("convert", source, temp / "no-ack.vtu", expected_code=2)
         assert not (temp / "no-ack.vtu").exists()
         run("convert", "examples/unsupported.bdf", temp / "unknown.vtu", "--accept-projection", expected_code=1)

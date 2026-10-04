@@ -169,6 +169,7 @@ pub fn create_pair(
 mod tests {
     use super::*;
 
+    /// Give staged-output checks a distinct temporary destination directory.
     fn directory() -> PathBuf {
         let path = std::env::temp_dir().join(format!(
             "caexfer-output-test-{}-{}",
@@ -179,6 +180,7 @@ mod tests {
         path
     }
 
+    /// Refuse to replace a destination file that already exists.
     #[test]
     fn refuses_overwrite() {
         let dir = directory();
@@ -197,6 +199,7 @@ mod tests {
         fs::remove_dir_all(dir).unwrap();
     }
 
+    /// Clean staged output after a writer fails before installation.
     #[test]
     fn failed_write_leaves_no_output_or_temp() {
         let dir = directory();
@@ -213,6 +216,7 @@ mod tests {
         fs::remove_dir_all(dir).unwrap();
     }
 
+    /// Install a fully written staged file at the requested path.
     #[test]
     fn success_commits_complete_file() {
         let dir = directory();
@@ -227,6 +231,7 @@ mod tests {
         fs::remove_dir_all(dir).unwrap();
     }
 
+    /// Stage both companion outputs before either final path is installed.
     #[test]
     fn pair_stages_both_before_committing_either() {
         let dir = directory();
