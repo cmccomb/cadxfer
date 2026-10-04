@@ -44,6 +44,16 @@ fn read_limited(path: &Path, max_bytes: usize) -> Result<Vec<u8>> {
     Ok(bytes)
 }
 
+/// Decode a bounded text input with its format-specific UTF-8 error.
+fn read_text(
+    path: &Path,
+    max_bytes: usize,
+    code: &'static str,
+    message: &'static str,
+) -> Result<String> {
+    String::from_utf8(read_limited(path, max_bytes)?).map_err(|_| Error::new(code, message))
+}
+
 /// Load a Nastran result companion mesh and report source projection losses.
 /// BDF grid output frames are checked; other formats require the caller's
 /// explicit basic-frame assertion because that metadata is unavailable.
@@ -226,10 +236,8 @@ pub fn read_path(path: &Path, options: &Options) -> Result<ReadResult> {
             )
         }
         Format::Vtu => {
-            let bytes = read_limited(path, options.max_bytes)?;
-            let text = std::str::from_utf8(&bytes)
-                .map_err(|_| Error::new("E_VTU", "VTU must be UTF-8 XML"))?;
-            let projection = vtu::read_projection(text)?;
+            let text = read_text(path, options.max_bytes, "E_VTU", "VTU must be UTF-8 XML")?;
+            let projection = vtu::read_projection(&text)?;
             generated_point_ids = projection.generated_point_ids;
             let mut omissions = Vec::new();
             if projection.generated_point_ids {
@@ -247,10 +255,13 @@ pub fn read_path(path: &Path, options: &Options) -> Result<ReadResult> {
             (projection.dataset, omissions, false)
         }
         Format::Vtk => {
-            let bytes = read_limited(path, options.max_bytes)?;
-            let text = std::str::from_utf8(&bytes)
-                .map_err(|_| Error::new("E_VTK", "legacy VTK must be ASCII text"))?;
-            let projection = vtk::read_projection(text)?;
+            let text = read_text(
+                path,
+                options.max_bytes,
+                "E_VTK",
+                "legacy VTK must be ASCII text",
+            )?;
+            let projection = vtk::read_projection(&text)?;
             generated_point_ids = projection.generated_point_ids;
             let mut omissions = Vec::new();
             if projection.generated_point_ids {
@@ -296,10 +307,13 @@ pub fn read_path(path: &Path, options: &Options) -> Result<ReadResult> {
             (projection.dataset, omissions, false)
         }
         Format::Su2 => {
-            let bytes = read_limited(path, options.max_bytes)?;
-            let text = std::str::from_utf8(&bytes)
-                .map_err(|_| Error::new("E_SU2", "SU2 mesh must be UTF-8 ASCII"))?;
-            let projection = su2::read_projection(text)?;
+            let text = read_text(
+                path,
+                options.max_bytes,
+                "E_SU2",
+                "SU2 mesh must be UTF-8 ASCII",
+            )?;
+            let projection = su2::read_projection(&text)?;
             generated_point_ids = true;
             let omissions = vec![Omission::new(
                 Stage::Source,
@@ -308,10 +322,8 @@ pub fn read_path(path: &Path, options: &Options) -> Result<ReadResult> {
             (projection.dataset, omissions, false)
         }
         Format::Unv => {
-            let bytes = read_limited(path, options.max_bytes)?;
-            let text = std::str::from_utf8(&bytes)
-                .map_err(|_| Error::new("E_UNV", "UNV must be UTF-8 ASCII"))?;
-            let projection = unv::read_projection(text)?;
+            let text = read_text(path, options.max_bytes, "E_UNV", "UNV must be UTF-8 ASCII")?;
+            let projection = unv::read_projection(&text)?;
             let mut omissions = projection
                 .omitted_datasets
                 .into_iter()
@@ -339,10 +351,8 @@ pub fn read_path(path: &Path, options: &Options) -> Result<ReadResult> {
         Format::Msh => {
             // The MSH reader handles geometry and data; other sections are
             // recorded as source omissions for the caller to review.
-            let bytes = read_limited(path, options.max_bytes)?;
-            let text = std::str::from_utf8(&bytes)
-                .map_err(|_| Error::new("E_MSH", "MSH must be UTF-8 ASCII"))?;
-            let projection = msh::read_projection(text)?;
+            let text = read_text(path, options.max_bytes, "E_MSH", "MSH must be UTF-8 ASCII")?;
+            let projection = msh::read_projection(&text)?;
             let mut omissions = text
                 .lines()
                 .filter_map(|line| line.trim().strip_prefix('$'))
@@ -382,10 +392,8 @@ pub fn read_path(path: &Path, options: &Options) -> Result<ReadResult> {
             (projection.dataset, omissions, false)
         }
         Format::Inp => {
-            let bytes = read_limited(path, options.max_bytes)?;
-            let text = std::str::from_utf8(&bytes)
-                .map_err(|_| Error::new("E_INP", "INP must be UTF-8 text"))?;
-            let parsed = inp::read(text)?;
+            let text = read_text(path, options.max_bytes, "E_INP", "INP must be UTF-8 text")?;
+            let parsed = inp::read(&text)?;
             let omissions = parsed
                 .omitted_keywords
                 .into_iter()
@@ -457,10 +465,8 @@ pub fn read_path(path: &Path, options: &Options) -> Result<ReadResult> {
                 .as_deref()
                 .ok_or_else(|| Error::new("E_USAGE", "PCH requires --mesh matching mesh file"))?;
             let (mesh, mut omissions) = read_result_mesh(mesh_path, options, Format::Pch)?;
-            let bytes = read_limited(path, options.max_bytes)?;
-            let source = std::str::from_utf8(&bytes)
-                .map_err(|_| Error::new("E_PCH", "PCH must be ASCII text"))?;
-            let projection = pch::read(source, &mesh, options.subcase, options.step)?;
+            let source = read_text(path, options.max_bytes, "E_PCH", "PCH must be ASCII text")?;
+            let projection = pch::read(&source, &mesh, options.subcase, options.step)?;
             if projection.skipped_blocks > 0 {
                 omissions.push(Omission::new(
                     Stage::Source,
