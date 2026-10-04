@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """Exercise supported CLI conversion routes using files from several formats.
 
-Build ``target/debug/caexfer`` before running. ``--op2-check`` requires
-pyNastran as a test-only dependency and verifies Rust-written OP2 with an
-independent reader. All generated files live in a temporary directory. Route
-counts, fields, IDs, assumptions, and refusal behavior are checked explicitly.
+Build ``target/debug/caexfer`` before running, or pass ``--binary`` with another
+executable path. ``--op2-check`` requires pyNastran as a test-only dependency
+and verifies Rust-written OP2 with an independent reader. All generated files
+live in a temporary directory. Route counts, fields, IDs, assumptions, and
+refusal behavior are checked explicitly.
 """
 from __future__ import annotations
 import argparse
@@ -18,16 +19,18 @@ import tempfile
 import xml.etree.ElementTree as ET
 
 ROOT = Path(__file__).resolve().parents[1]
-BINARY = ROOT / 'target' / 'debug' / ('caexfer.exe' if sys.platform == 'win32' else 'caexfer')
+DEFAULT_BINARY = ROOT / 'target' / 'debug' / ('caexfer.exe' if sys.platform == 'win32' else 'caexfer')
 
 
 def main() -> None:
     """Build source fixtures, check each writable route, and report the count."""
     parser = argparse.ArgumentParser()
     parser.add_argument('--op2-check', action='store_true', help='exercise native OP2 routes')
+    parser.add_argument('--binary', type=Path, help='path to an existing caexfer binary')
     options = parser.parse_args()
-    if not BINARY.is_file():
-        raise SystemExit('Build caexfer before running this check')
+    binary = (options.binary or DEFAULT_BINARY).resolve()
+    if not binary.is_file():
+        raise SystemExit(f'No executable at {binary}; build caexfer or pass --binary')
 
     def independent_op2(path: Path, *, assumed_zero: bool = False,
                         expected_rows: dict[int, list[float]] | None = None) -> None:
@@ -53,7 +56,7 @@ def main() -> None:
 
     def run(*args: object, code: int = 0) -> dict:
         """Run one JSON CLI command and require the expected process status."""
-        result = subprocess.run([str(BINARY), *map(str, args), '--json'],
+        result = subprocess.run([str(binary), *map(str, args), '--json'],
                                 cwd=ROOT, capture_output=True, text=True)
         assert result.returncode == code, (args, result.returncode, result.stdout, result.stderr)
         return json.loads(result.stdout)
