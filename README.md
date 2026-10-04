@@ -3,7 +3,7 @@
 
 # caexfer
 
-<p align="center"><img src="https://raw.githubusercontent.com/cmccomb/caexfer/main/assets/logo.png" alt="caexfer logo" width="320"></p>
+<p align="center"><img src="https://raw.githubusercontent.com/cmccomb/caexfer/main/assets/logo.svg" alt="caexfer logo" width="320"></p>
 
 **Exchange finite-element meshes and results across formats.**
 
