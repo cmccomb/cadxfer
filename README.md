@@ -98,7 +98,7 @@ fn main() -> Result<()> {
 
 `convert` lists reported losses and assumptions before asking for confirmation.
 For scripts, pass the specific `--accept-...` flags named in that list, or use
-`--accept-all-approximations-and-infill` to accept every reported change.
+`--accept-all` to accept every reported change.
 The library returns the same receipt and writes to a caller-owned stream.
 Output files must be new in these examples. The CLI stages output before
 installation; library callers own their output policy. OP2 and PCH routes run

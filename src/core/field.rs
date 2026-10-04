@@ -111,3 +111,46 @@ impl Dataset {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{Dataset, Field, FieldLocation, Mesh};
+    use crate::core::Point;
+
+    /// Reject malformed field metadata, tuple lengths, and nonfinite values.
+    #[test]
+    fn field_validation_rejects_incomplete_or_nonfinite_data() {
+        let mut dataset = Dataset {
+            mesh: Mesh {
+                points: vec![Point {
+                    id: 1,
+                    position: [0.0; 3],
+                }],
+                ..Mesh::default()
+            },
+            fields: vec![Field {
+                name: "DISP".into(),
+                location: FieldLocation::Point,
+                components: vec!["T1".into()],
+                values: vec![0.0],
+                step: None,
+                time: None,
+            }],
+        };
+        assert!(dataset.validate().is_ok());
+
+        dataset.fields[0].name.clear();
+        assert_eq!(dataset.validate().unwrap_err().code, "E_FIELD");
+        dataset.fields[0].name = "DISP".into();
+        dataset.fields[0].components.clear();
+        assert_eq!(dataset.validate().unwrap_err().code, "E_FIELD");
+        dataset.fields[0].components.push("T1".into());
+        dataset.fields[0].values.clear();
+        assert_eq!(dataset.validate().unwrap_err().code, "E_FIELD");
+        dataset.fields[0].values.push(f64::INFINITY);
+        assert_eq!(dataset.validate().unwrap_err().code, "E_NONFINITE");
+        dataset.fields[0].values[0] = 0.0;
+        dataset.fields[0].time = Some(f64::NAN);
+        assert_eq!(dataset.validate().unwrap_err().code, "E_NONFINITE");
+    }
+}

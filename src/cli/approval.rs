@@ -16,14 +16,14 @@ pub(super) fn flag_for(notice: &Omission) -> &'static str {
             Some(AssumptionKind::BasicFrame) => "--accept-basic-frame",
             Some(AssumptionKind::ZeroRotations) => "--accept-zero-rotations",
             Some(AssumptionKind::SyntheticZero) => "--accept-synthetic-zero",
-            None => "--accept-all-approximations-and-infill",
+            None => "--accept-all",
         },
     }
 }
 
 /// Check whether the command already accepts one class of reported change.
 fn accepted(args: &Args, flag: &str) -> bool {
-    args.accept_all_approximations_and_infill
+    args.accept_all
         || match flag {
             "--accept-omissions" => args.accept_omissions,
             "--accept-basic-frame" => args.accept_basic_frame,
@@ -75,9 +75,8 @@ fn confirm_with(
         .collect::<Vec<_>>()
         .join("\n");
     let flags = flags.into_iter().collect::<Vec<_>>().join(", ");
-    let guidance = format!(
-        "use {flags} (or --accept-all-approximations-and-infill) to accept these changes without a prompt"
-    );
+    let guidance =
+        format!("use {flags} (or --accept-all) to accept these changes without a prompt");
     if !args.json {
         writeln!(warning, "Conversion limitations:\n{reasons}\n{guidance}")?;
     }

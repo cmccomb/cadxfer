@@ -1,6 +1,6 @@
 //! Classic Exodus II writer for geometry and complete scalar series.
 
-use super::err;
+use super::read::err;
 use crate::core::{CellKind, Dataset, Field, FieldLocation, Result};
 use netcdf3::{DataSet, FileWriter, Version};
 use std::cell::RefCell;

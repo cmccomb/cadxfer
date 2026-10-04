@@ -20,7 +20,7 @@ pub(super) struct Args {
     pub(super) accept_basic_frame: bool,
     pub(super) accept_zero_rotations: bool,
     pub(super) accept_synthetic_zero: bool,
-    pub(super) accept_all_approximations_and_infill: bool,
+    pub(super) accept_all: bool,
     pub(super) from: Option<String>,
     pub(super) mesh: Option<PathBuf>,
     pub(super) mesh_out: Option<PathBuf>,
@@ -194,11 +194,8 @@ pub(super) fn parse_args(raw: &[OsString]) -> Result<Args> {
             set_flag(&mut args.accept_zero_rotations, "--accept-zero-rotations")?;
         } else if options && arg == "--accept-synthetic-zero" {
             set_flag(&mut args.accept_synthetic_zero, "--accept-synthetic-zero")?;
-        } else if options && arg == "--accept-all-approximations-and-infill" {
-            set_flag(
-                &mut args.accept_all_approximations_and_infill,
-                "--accept-all-approximations-and-infill",
-            )?;
+        } else if options && arg == "--accept-all" {
+            set_flag(&mut args.accept_all, "--accept-all")?;
         } else if options && arg == "--from" {
             set_option(&mut args.from, "--from", || Ok(value(1)?.to_string()))?;
             index += 1;
@@ -268,7 +265,7 @@ pub(super) fn parse_args(raw: &[OsString]) -> Result<Args> {
     if (args.accept_omissions
         || args.accept_zero_rotations
         || args.accept_synthetic_zero
-        || args.accept_all_approximations_and_infill)
+        || args.accept_all)
         && args.command != "convert"
     {
         return Err(usage("conversion acceptance flags are only for convert"));
@@ -342,6 +339,25 @@ mod tests {
         assert!(args(&["convert", "x.bdf", "x.vtu", "--strict"]).is_err());
     }
 
+    /// Accept the short catchall spelling and reject the retired long spelling.
+    #[test]
+    fn catchall_acceptance_uses_short_spelling() {
+        assert!(
+            args(&["convert", "x.bdf", "x.vtu", "--accept-all"])
+                .unwrap()
+                .accept_all
+        );
+        assert!(
+            args(&[
+                "convert",
+                "x.bdf",
+                "x.vtu",
+                "--accept-all-approximations-and-infill",
+            ])
+            .is_err()
+        );
+    }
+
     /// Apply the MSH version switch only when writing an MSH destination.
     #[test]
     fn msh_dialect_is_selected_only_for_msh_output() {
@@ -351,7 +367,7 @@ mod tests {
             "x.msh",
             "--msh-version",
             "2.2",
-            "--accept-all-approximations-and-infill",
+            "--accept-all",
         ])
         .unwrap();
         assert_eq!(selected.msh_version, Some(msh::Version::V2_2));
@@ -362,7 +378,7 @@ mod tests {
                 "x.vtu",
                 "--msh-version",
                 "2.2",
-                "--accept-all-approximations-and-infill"
+                "--accept-all"
             ])
             .is_err()
         );
@@ -373,7 +389,7 @@ mod tests {
                 "x.msh",
                 "--msh-version",
                 "9.9",
-                "--accept-all-approximations-and-infill"
+                "--accept-all"
             ])
             .is_err()
         );
@@ -397,14 +413,7 @@ mod tests {
     /// Reject commands with missing or extra positional paths.
     #[test]
     fn bad_arity_rejected() {
-        assert!(
-            args(&[
-                "convert",
-                "only.bdf",
-                "--accept-all-approximations-and-infill"
-            ])
-            .is_err()
-        );
+        assert!(args(&["convert", "only.bdf", "--accept-all"]).is_err());
     }
 
     /// The global formats switch takes no additional options or paths.
@@ -426,7 +435,7 @@ mod tests {
                 "convert",
                 "x.bdf",
                 "x.op2",
-                "--accept-all-approximations-and-infill",
+                "--accept-all",
                 "--accept-synthetic-zero"
             ])
             .is_ok()
@@ -436,7 +445,7 @@ mod tests {
                 "convert",
                 "x.bdf",
                 "x.vtu",
-                "--accept-all-approximations-and-infill",
+                "--accept-all",
                 "--accept-synthetic-zero"
             ])
             .is_err()
@@ -446,7 +455,7 @@ mod tests {
                 "convert",
                 "x.bdf",
                 "x.op2",
-                "--accept-all-approximations-and-infill",
+                "--accept-all",
                 "--accept-synthetic-zero",
                 "--accept-zero-rotations"
             ])

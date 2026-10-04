@@ -70,7 +70,7 @@ ACCEPTANCE OPTIONS
   --accept-basic-frame      Assert basic frame with a non-BDF companion mesh
   --accept-zero-rotations   Fill missing OP2 rotations with zero
   --accept-synthetic-zero   Create synthetic zero OP2 from BDF/INP; no solver runs
-  --accept-all-approximations-and-infill  Accept all reported changes
+  --accept-all              Accept all reported changes
 
 GENERAL OPTIONS
   --json                     Return the report as JSON (schema_version=1)

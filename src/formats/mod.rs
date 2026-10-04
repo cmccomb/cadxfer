@@ -15,15 +15,15 @@ pub mod su2;
 #[path = "geometry_only/unv.rs"]
 pub mod unv;
 
-#[path = "mesh_datasets/exodus.rs"]
+#[path = "mesh_datasets/exodus/mod.rs"]
 pub mod exodus;
-#[path = "mesh_datasets/frd.rs"]
+#[path = "mesh_datasets/frd/mod.rs"]
 pub mod frd;
-#[path = "mesh_datasets/msh.rs"]
+#[path = "mesh_datasets/msh/mod.rs"]
 pub mod msh;
-#[path = "mesh_datasets/vtk.rs"]
+#[path = "mesh_datasets/vtk/mod.rs"]
 pub mod vtk;
-#[path = "mesh_datasets/vtu.rs"]
+#[path = "mesh_datasets/vtu/mod.rs"]
 pub mod vtu;
 
 #[path = "companion_results/nastran_result.rs"]

@@ -45,7 +45,7 @@ def main() -> None:
         checks.append("CLI validation emits projected counts and source omissions")
         source = ROOT / "tests/fixtures/mixed-linear.bdf"
         destination = temp / "mixed.vtu"
-        result = run("convert", source, destination, "--accept-all-approximations-and-infill", "--json")
+        result = run("convert", source, destination, "--accept-all", "--json")
         report = json.loads(result.stdout)
         assert report["points"] == 9 and report["cells"] == 7 and report["omissions"]
         expected = json.loads((ROOT / "tests/fixtures/mixed-linear.expected.json").read_text())
@@ -96,13 +96,13 @@ def main() -> None:
         # retain its original bytes.
         run("convert", source, temp / "no-ack.vtu", expected_code=2)
         assert not (temp / "no-ack.vtu").exists()
-        run("convert", "examples/unsupported.bdf", temp / "unknown.vtu", "--accept-all-approximations-and-infill", expected_code=1)
+        run("convert", "examples/unsupported.bdf", temp / "unknown.vtu", "--accept-all", expected_code=1)
         assert not (temp / "unknown.vtu").exists()
-        run("convert", "examples/nonbasic-frame.bdf", temp / "frame.vtu", "--accept-all-approximations-and-infill", expected_code=1)
+        run("convert", "examples/nonbasic-frame.bdf", temp / "frame.vtu", "--accept-all", expected_code=1)
         assert not (temp / "frame.vtu").exists()
         checks.append("unaccepted losses, unknown geometry and frame failures leave no output")
         before = destination.read_bytes()
-        run("convert", source, destination, "--accept-all-approximations-and-infill", expected_code=1)
+        run("convert", source, destination, "--accept-all", expected_code=1)
         assert destination.read_bytes() == before
         checks.append("existing output is not overwritten")
     print(json.dumps({"kind": "executed-cli-interoperability", "checks_passed": checks}, indent=2))

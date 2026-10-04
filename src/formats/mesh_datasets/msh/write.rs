@@ -1,9 +1,20 @@
 //! ASCII writers for Gmsh MSH 4.1 and 2.2.
 
-use super::{Version, code, err};
+use super::read::{code, err};
 use crate::core::{Cell, Dataset, FieldLocation, Mesh, Result};
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::Write;
+
+/// Output dialect for the shared MSH format family.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub enum Version {
+    /// Traditional flat node and element sections.
+    V2_2,
+
+    /// Entity-block node and element sections; the default output dialect.
+    #[default]
+    V4_1,
+}
 
 /// Write the discrete entities referenced by node and element blocks.
 fn write_entities(mesh: &Mesh, writer: &mut impl Write) -> Result<Option<u32>> {

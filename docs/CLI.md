@@ -85,7 +85,7 @@ For INP, retain the source mesh or use `--mesh-out` to export a companion.
 For each reported change, the prompt names its acceptance flag.
 `--accept-omissions` covers source and destination losses. Specific assumption
 flags cover the basic frame, zero rotations, and synthetic zero results.
-`--accept-all-approximations-and-infill` covers every listed change. If stdin
+`--accept-all` covers every listed change. If stdin
 is not a terminal, or `--json` is selected, an unaccepted change fails before
 output installation and reports the needed flags. A conversion with no reported
 changes proceeds without confirmation.

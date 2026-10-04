@@ -77,7 +77,7 @@ Any card outside the geometry subset and this allowlist blocks projection.
 `convert` lists reported source and destination omissions and assumptions
 before installing output. A terminal user can confirm them. An unattended
 caller supplies the corresponding `--accept-...` flags or the catchall
-`--accept-all-approximations-and-infill`. A conversion with no reported changes
+`--accept-all`. A conversion with no reported changes
 needs no confirmation. The BDF adapter projects supported geometry and reports
 omitted solver data.
 

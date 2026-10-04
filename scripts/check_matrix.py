@@ -69,10 +69,10 @@ def main() -> None:
                    'frd': ROOT / 'tests/fixtures/linear-results.frd'}
         for extension in ('vtu', 'vtk', 'msh', 'inp'):
             path = folder / f'source.{extension}'
-            run('convert', sources['bdf'], path, '--accept-all-approximations-and-infill')
+            run('convert', sources['bdf'], path, '--accept-all')
             sources[extension] = path
         msh22 = folder / 'source22.msh'
-        run('convert', sources['bdf'], msh22, '--msh-version', '2.2', '--accept-all-approximations-and-infill')
+        run('convert', sources['bdf'], msh22, '--msh-version', '2.2', '--accept-all')
         sources['msh22'] = msh22
         sources['pch'] = ROOT / 'tests/fixtures/pch-multiple.pch'
         if options.op2_check:
@@ -89,7 +89,7 @@ def main() -> None:
             for target_format in ('bdf', 'vtu', 'vtk', 'msh', 'inp'):
                 # Check basic identity and field counts for every route.
                 target = folder / f'{source_format}-to-{target_format}.{target_format}'
-                report = run('convert', source, target, '--accept-all-approximations-and-infill', *extra)
+                report = run('convert', source, target, '--accept-all', *extra)
                 assert target.is_file() and report['points'] > 0 and report['cells'] > 0
                 expected = (72, 186) if source_format == 'op2' else ((3, 1) if source_format == 'frd' else (2, 1) if source_format == 'pch' else (4, 1))
                 assert (report['points'], report['cells']) == expected, (source_format, target_format, report)
@@ -122,14 +122,14 @@ def main() -> None:
             dialect = folder / f'{source_format}-to-msh22.msh'
             # MSH 2.2 is an explicit writer dialect of the same format family.
             report = run('convert', source, dialect, '--msh-version', '2.2',
-                         '--accept-all-approximations-and-infill', *extra)
+                         '--accept-all', *extra)
             assert dialect.read_text().startswith('$MeshFormat\n2.2 0 8\n')
             assert (report['points'], report['cells']) == expected
             assert run('validate', dialect)['fields'] == (2 if source_format == 'frd' else
                                                          1 if source_format in ('op2', 'pch') else 0)
             routes += 1
             target = folder / f'{source_format}-to-frd.frd'
-            report = run('convert', source, target, '--accept-all-approximations-and-infill', *extra)
+            report = run('convert', source, target, '--accept-all', *extra)
             assert target.is_file() and report['points'] == expected[0]
             validation = run('validate', target)
             assert (validation['points'], validation['cells']) == expected
@@ -151,7 +151,7 @@ def main() -> None:
                 result = folder / f'{source_format}-to-op2.op2'
                 if source_format == 'frd':
                     mesh = folder / 'frd-for-op2.bdf'
-                    report = run('convert', source, result, '--accept-all-approximations-and-infill',
+                    report = run('convert', source, result, '--accept-all',
                                  '--accept-zero-rotations',
                                  '--mesh-out', mesh)
                     assert report['mesh_output']['path'] == str(mesh)
@@ -159,7 +159,7 @@ def main() -> None:
                     assert any('excluded from companion mesh' in item['detail']
                                for item in report['mesh_output']['omissions'])
                 else:
-                    report = run('convert', source, result, '--accept-all-approximations-and-infill', *extra)
+                    report = run('convert', source, result, '--accept-all', *extra)
                 assert result.is_file() and report['fields'] >= 1
                 independent_op2(result, expected_rows={
                     1: [0., 0., 0., 0., 0., 0.],
@@ -172,7 +172,7 @@ def main() -> None:
                     assert mesh.is_file() and run('validate', mesh)['passed']
                     assert any('typed float 0.0' in item['detail'] for item in report['omissions'])
                 reread = folder / f'{source_format}-op2-reread.vtu'
-                run('convert', result, reread, '--mesh', mesh, '--accept-all-approximations-and-infill')
+                run('convert', result, reread, '--mesh', mesh, '--accept-all')
                 piece = ET.parse(reread).find('./UnstructuredGrid/Piece')
                 field = piece.find("./PointData/DataArray[@Name='DISPLACEMENT_SUBCASE_1']")
                 assert field is not None
@@ -188,10 +188,10 @@ def main() -> None:
                     assert result['error']['code'] == 'E_USAGE' and not target.exists()
                     assert '--accept-synthetic-zero' in result['error']['message']
                 else:
-                    result = run('convert', source, target, '--accept-all-approximations-and-infill', code=1)
+                    result = run('convert', source, target, '--accept-all', code=1)
                     assert result['error']['code'] == 'E_OP2' and not target.exists()
                 if options.op2_check and source_format in ('bdf', 'inp'):
-                    report = run('convert', source, target, '--accept-all-approximations-and-infill',
+                    report = run('convert', source, target, '--accept-all',
                                  '--accept-synthetic-zero')
                     assert target.is_file()
                     independent_op2(target, assumed_zero=True)
@@ -200,7 +200,7 @@ def main() -> None:
                     mesh = (source if source_format == 'bdf'
                             else folder / 'inp-to-bdf.bdf')
                     reread = folder / f'{source_format}-zero-reread.vtu'
-                    loaded = run('convert', target, reread, '--mesh', mesh, '--accept-all-approximations-and-infill')
+                    loaded = run('convert', target, reread, '--mesh', mesh, '--accept-all')
                     assert any('synthetic all-zero' in item['detail']
                                for item in loaded['omissions'])
                     piece = ET.parse(reread).find('./UnstructuredGrid/Piece')
@@ -208,7 +208,7 @@ def main() -> None:
                     assert field is not None and all(float(x) == 0.0 for x in field.text.split())
                     if source_format == 'bdf':
                         rewritten = folder / 'synthetic-op2-rewritten.op2'
-                        run('convert', target, rewritten, '--mesh', mesh, '--accept-all-approximations-and-infill')
+                        run('convert', target, rewritten, '--mesh', mesh, '--accept-all')
                         reread_report = run('validate', rewritten, '--mesh', mesh)
                         assert any('synthetic all-zero' in item for item in reread_report['omissions'])
                     routes += 1
@@ -218,7 +218,7 @@ def main() -> None:
             pch_mesh = ROOT / 'tests/fixtures/pch-companion.bdf'
             pch_op2 = folder / 'pch-to-op2.op2'
             run('convert', sources['pch'], pch_op2, '--mesh', pch_mesh,
-                '--subcase', '1', '--accept-all-approximations-and-infill')
+                '--subcase', '1', '--accept-all')
             independent_op2(pch_op2, expected_rows={
                 10: [1., 2., 3., 4., 5., 6.],
                 20: [7., 8., 9., 10., 11., 12.],
@@ -229,7 +229,7 @@ def main() -> None:
             op2_mesh = ROOT / 'tests/fixtures/solid_bending.bdf'
             for extension in ('vtu', 'msh', 'inp', 'frd'):
                 companion = folder / f'op2-companion.{extension}'
-                run('convert', op2_mesh, companion, '--accept-all-approximations-and-infill')
+                run('convert', op2_mesh, companion, '--accept-all')
                 destination = folder / f'op2-with-{extension}-mesh.vtu'
                 refused = run('convert', op2_source, destination, '--mesh', companion,
                               '--accept-omissions', code=2)
@@ -237,25 +237,25 @@ def main() -> None:
                 assert '--accept-basic-frame' in refused['error']['message']
                 report = run('convert', op2_source, destination, '--mesh', companion,
                              '--accept-basic-frame',
-                             '--accept-all-approximations-and-infill')
+                             '--accept-all')
                 assert (report['points'], report['cells'], report['fields']) == (72, 186, 1)
                 assert any(item['stage'] == 'assumption' and 'basic-frame' in item['detail']
                            for item in report['omissions'])
                 routes += 1
             enriched_mesh = folder / 'op2-enriched-companion.vtu'
             run('convert', op2_source, enriched_mesh, '--mesh', op2_mesh,
-                '--accept-all-approximations-and-infill')
+                '--accept-all')
             enriched_result = folder / 'op2-with-enriched-mesh.vtu'
             enriched_report = run('convert', op2_source, enriched_result,
                                   '--mesh', enriched_mesh, '--accept-basic-frame',
-                                  '--accept-all-approximations-and-infill')
+                                  '--accept-all')
             assert any('numeric field(s) in companion mesh ignored' in item['detail']
                        for item in enriched_report['omissions'])
             routes += 1
             mismatched = folder / 'op2-mismatched-mesh.vtu'
             refused = run('convert', op2_source, mismatched,
                           '--mesh', sources['vtu'], '--accept-basic-frame',
-                          '--accept-all-approximations-and-infill', code=1)
+                          '--accept-all', code=1)
             assert refused['error']['code'] == 'E_OP2' and not mismatched.exists()
             existing = folder / 'existing-companion.bdf'
             # Paired output must leave an existing companion untouched and
@@ -264,30 +264,30 @@ def main() -> None:
             failed_pair = folder / 'no-partial-pair.op2'
             refused = run('convert', sources['frd'], failed_pair, '--mesh-out', existing,
                           '--accept-zero-rotations',
-                          '--accept-all-approximations-and-infill', code=1)
+                          '--accept-all', code=1)
             assert refused['error']['code'] == 'E_EXISTS' and not failed_pair.exists()
             assert existing.read_text() == 'already here'
             paired_op2 = folder / 'paired-with-vtu.op2'
             paired_vtu = folder / 'paired-mesh.vtu'
             paired_report = run('convert', sources['frd'], paired_op2,
                                 '--mesh-out', paired_vtu, '--accept-zero-rotations',
-                                '--accept-all-approximations-and-infill')
+                                '--accept-all')
             assert paired_report['mesh_output']['format'] == 'vtu'
             assert run('validate', paired_vtu)['fields'] == 0
             paired_readback = folder / 'paired-vtu-readback.msh'
             readback_report = run('convert', paired_op2, paired_readback,
                                   '--mesh', paired_vtu, '--accept-basic-frame',
-                                  '--accept-all-approximations-and-infill')
+                                  '--accept-all')
             assert readback_report['fields'] == 1
             routes += 1
             mesh = folder / 'result-carrier-mesh.bdf'
-            run('convert', sources['frd'], mesh, '--accept-all-approximations-and-infill')
+            run('convert', sources['frd'], mesh, '--accept-all')
             for carrier in ('vtu', 'msh'):
                 enriched = folder / f'frd-fields.{carrier}'
-                run('convert', sources['frd'], enriched, '--accept-all-approximations-and-infill')
+                run('convert', sources['frd'], enriched, '--accept-all')
                 target = folder / f'{carrier}-fields-to-op2.op2'
                 report = run('convert', enriched, target,
-                             '--accept-zero-rotations', '--accept-all-approximations-and-infill')
+                             '--accept-zero-rotations', '--accept-all')
                 assert target.is_file()
                 assert any('typed float 0.0' in item['detail'] for item in report['omissions'])
                 assert run('validate', target, '--mesh', mesh)['fields'] == 1
