@@ -70,11 +70,6 @@ fn main() -> Result<()> {
 }
 ```
 
-The two public library operations use the same supported-subset checks and
-default no-clobber file output as the CLI. Conversion omissions and assumptions
-require explicit options before a file is installed. See the
-[library guide](docs/LIBRARY.md) and [format limits](docs/SUPPORT.md).
-
 `convert` lists reported losses and assumptions before asking for confirmation.
 For scripts, pass the specific `--accept-...` flags named in that list, or use
 `--accept-all` to accept every reported change.
