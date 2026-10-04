@@ -3,21 +3,20 @@
 `caexfer` is one Rust package with a library and a CLI. It uses the Rust 2024
 edition, requires Rust 1.86 or newer, and uses `quick-xml` for VTU parsing and
 pure Rust `netcdf3` for classic Exodus II. It
-is available as a versioned dependency after publication:
+is available from crates.io:
 
-```toml
-[dependencies]
-caexfer = "0.1.0"
+```sh
+cargo add caexfer
 ```
 
-For unreleased commits, use GitHub:
+For development commits, use GitHub:
 
 ```toml
 [dependencies]
 caexfer = { git = "https://github.com/cmccomb/caexfer.git" }
 ```
 
-Your application's Cargo.lock records the resolved Git revision. For a local
+Your application's `Cargo.lock` records the resolved Git revision. For a local
 checkout, use `caexfer = { path = "../caexfer" }`. Run
 `cargo doc --no-deps --open` in the checkout to browse every public type and
 method.

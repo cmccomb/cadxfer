@@ -1,7 +1,8 @@
 # CLI contract
 
-Install with `cargo install --git https://github.com/cmccomb/caexfer.git`
-(Rust 2024 edition, toolchain 1.86+). In a checkout,
+Install the published CLI with `cargo install caexfer`
+(Rust 2024 edition, toolchain 1.86+). For a development build, use
+`cargo install --git https://github.com/cmccomb/caexfer.git`. In a checkout,
 `cargo run -- COMMAND ...` runs the same CLI without installation. All routes
 run without Python.
 

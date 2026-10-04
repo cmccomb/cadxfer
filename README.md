@@ -1,3 +1,5 @@
+[![Crates.io version](https://img.shields.io/crates/v/caexfer.svg)](https://crates.io/crates/caexfer)
+[![Documentation](https://img.shields.io/docsrs/caexfer.svg)](https://docs.rs/caexfer)
 [![CI](https://github.com/cmccomb/caexfer/actions/workflows/ci.yml/badge.svg)](https://github.com/cmccomb/caexfer/actions/workflows/ci.yml)
 [![Measured Rust line coverage](https://raw.githubusercontent.com/cmccomb/caexfer/coverage-badge/coverage.svg)](https://github.com/cmccomb/caexfer/actions/workflows/coverage.yml)
 
@@ -7,7 +9,6 @@
 
 **Exchange finite-element meshes and results across formats.**
 
-
 `caexfer` reads and writes supported subsets of STL, SU2, UNV, Exodus II,
 VTU, legacy VTK, Gmsh MSH 4.1/2.2, Abaqus/CalculiX INP, CalculiX FRD,
 Nastran BDF, and Nastran OP2. It also reads PCH displacement results when
@@ -15,29 +16,34 @@ given a matching mesh. Each conversion reports omissions and assumptions.
 
 ## Get started
 
-Requires Rust 1.86 or newer. Until version 0.1.0 is published, install the
-CLI from GitHub or add the library as a Git dependency:
+Requires Rust 1.86 or newer. Install the published CLI from crates.io:
+
+```sh
+cargo install caexfer
+caexfer --formats
+```
+
+Add the published library to your Rust project:
+
+```sh
+cargo add caexfer
+```
+
+For the latest development commit, install from GitHub or add a Git dependency:
 
 ```sh
 cargo install --git https://github.com/cmccomb/caexfer.git
-caexfer --help
+cargo add caexfer --git https://github.com/cmccomb/caexfer.git
 ```
 
-```toml
-[dependencies]
-caexfer = { git = "https://github.com/cmccomb/caexfer.git" }
-```
+A local checkout can also be used as a path dependency.
 
-Your application's `Cargo.lock` pins the Git commit. After publication, use
-`cargo install caexfer` for the CLI or `caexfer = "0.1.0"` for the library.
-For a local checkout, use `caexfer = { path = "../caexfer" }`.
-
-These examples use fixtures from a checkout:
+The examples below use fixtures from a repository checkout. Clone it to get
+the inputs, then run the examples from its root:
 
 ```sh
 git clone https://github.com/cmccomb/caexfer.git
 cd caexfer
-caexfer --formats
 ```
 
 The CLI and library can perform the same conversions. This sequence carries
@@ -118,8 +124,9 @@ explain topology, field, group, and result restrictions for each adapter.
 
 Format adapters live at paths such as `caexfer::formats::vtu` and
 `caexfer::formats::msh`. See the
+[API documentation](https://docs.rs/caexfer) for public items and the
 [library guide](https://github.com/cmccomb/caexfer/blob/main/docs/LIBRARY.md)
-for the conversion API and format adapters.
+for conversion workflows.
 
 Licensed under MIT OR Apache-2.0. The imported pyNastran fixtures retain their
 upstream BSD license;
