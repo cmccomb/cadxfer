@@ -12,6 +12,9 @@ subdirectory. `src/formats/mod.rs` exposes every adapter directly under
 `caexfer::formats`, so callers do not depend on role folders. `src/cli/`
 contains parsing, dispatch, JSON rendering, and staged output. `src/main.rs`
 only starts the private CLI.
+Each `mod.rs` is a module map; implementation and tests live in the files it
+declares. CLI arguments, conversion, validation, and dispatch have separate
+files, as do OP2 binary records and displacement handling.
 
 ## Project deliberately
 

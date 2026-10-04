@@ -921,6 +921,25 @@ mod tests {
         assert_eq!(parsed, dataset);
     }
 
+    /// Decode escaped field labels with the current XML reader API.
+    #[test]
+    fn escaped_field_attributes_roundtrip() {
+        let dataset = Dataset {
+            mesh: triangle(),
+            fields: vec![Field {
+                name: "A&B<\"C\"".into(),
+                location: FieldLocation::Point,
+                components: vec!["T&1".into()],
+                values: vec![1., 2., 3.],
+                step: None,
+                time: None,
+            }],
+        };
+        let mut bytes = Vec::new();
+        write_data(&dataset, &mut bytes).unwrap();
+        assert_eq!(read(std::str::from_utf8(&bytes).unwrap()).unwrap(), dataset);
+    }
+
     /// Ignore commented XML tags when selecting mesh coordinates.
     #[test]
     fn xml_comments_cannot_spoof_geometry() {
