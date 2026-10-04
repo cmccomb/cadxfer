@@ -567,6 +567,47 @@ fn geometry_only_writers_reject_fields_while_conversion_reports_them() {
 }
 
 #[test]
+fn writers_reject_unmapped_properties_while_conversion_reports_them() {
+    let stl = caexfer::stl::read_projection(b"solid s\nfacet normal 0 0 1\nouter loop\nvertex 0 0 0\nvertex 1 0 0\nvertex 0 1 0\nendloop\nendfacet\nendsolid s\n")
+        .unwrap()
+        .dataset;
+    let su2 = caexfer::su2::read_projection(
+        "NDIME= 2\nNELEM= 1\n5 0 1 2\nNPOIN= 3\n0 0\n1 0\n0 1\nNMARK= 0\n",
+    )
+    .unwrap()
+    .dataset;
+    let frd = caexfer::frd::read(include_bytes!("fixtures/linear-results.frd")).unwrap();
+    for (format, mut dataset) in [(Format::Stl, stl), (Format::Su2, su2), (Format::Frd, frd)] {
+        dataset.mesh.cells[0].property_id = Some(17);
+        let error = match format {
+            Format::Stl => caexfer::stl::write_data(&dataset, Vec::new()),
+            Format::Su2 => caexfer::su2::write_data(&dataset, Vec::new()),
+            Format::Frd => caexfer::frd::write(&dataset, Vec::new()),
+            _ => unreachable!(),
+        }
+        .unwrap_err();
+        assert!(error.message.contains("property IDs"));
+        let mut output = Vec::new();
+        let report = conversion::convert(
+            ReadResult {
+                format,
+                dataset,
+                omissions: Vec::new(),
+                assumed_zero: false,
+            },
+            format,
+            &Options::default(),
+            &mut output,
+        )
+        .unwrap();
+        assert!(report.omissions.iter().any(|item| {
+            item.stage == Stage::Destination && item.detail.contains("property IDs")
+        }));
+        assert!(!output.is_empty());
+    }
+}
+
+#[test]
 fn result_companion_frames_and_frd_steps_fail_explicitly() {
     let scratch = Scratch::new();
     let companion = scratch.write(

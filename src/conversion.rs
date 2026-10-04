@@ -316,6 +316,14 @@ pub struct ConversionReport {
     pub omissions: Vec<Omission>,
 }
 
+/// Remove unmapped solver property IDs and return the number removed.
+fn omit_property_ids(mesh: &mut Mesh) -> usize {
+    mesh.cells
+        .iter_mut()
+        .map(|cell| usize::from(cell.property_id.take().is_some()))
+        .sum()
+}
+
 /// Read BDF through its source-preserving parser under the requested byte cap.
 fn read_bdf(path: &Path, max_bytes: usize) -> Result<Document> {
     Document::read_with_options(
@@ -926,12 +934,7 @@ pub fn convert(
                     ),
                 ));
             }
-            if dataset
-                .mesh
-                .cells
-                .iter()
-                .any(|cell| cell.property_id.is_some())
-            {
+            if omit_property_ids(&mut dataset.mesh) > 0 {
                 omissions.push(Omission::new(
                     Stage::Destination,
                     "property IDs have no STL mapping",
@@ -987,12 +990,7 @@ pub fn convert(
                 .mesh
                 .cell_sets
                 .retain(|set| set.dimension == dimension.saturating_sub(1));
-            if dataset
-                .mesh
-                .cells
-                .iter()
-                .any(|cell| cell.property_id.is_some())
-            {
+            if omit_property_ids(&mut dataset.mesh) > 0 {
                 omissions.push(Omission::new(
                     Stage::Destination,
                     "property IDs have no SU2 mapping",
@@ -1015,12 +1013,7 @@ pub fn convert(
                     ),
                 ));
             }
-            let properties = dataset
-                .mesh
-                .cells
-                .iter()
-                .filter(|cell| cell.property_id.is_some())
-                .count();
+            let properties = omit_property_ids(&mut dataset.mesh);
             if properties > 0 {
                 omissions.push(Omission::new(
                     Stage::Destination,
@@ -1028,26 +1021,15 @@ pub fn convert(
                 ));
             }
             dataset.fields.clear();
-            for cell in &mut dataset.mesh.cells {
-                cell.property_id = None;
-            }
             unv::write_data(dataset, &mut writer)?;
         }
         Format::Exodus => {
-            let properties = dataset
-                .mesh
-                .cells
-                .iter()
-                .filter(|cell| cell.property_id.is_some())
-                .count();
+            let properties = omit_property_ids(&mut dataset.mesh);
             if properties > 0 {
                 omissions.push(Omission::new(
                     Stage::Destination,
                     format!("{properties} solver property ID(s) have no Exodus block mapping"),
                 ));
-            }
-            for cell in &mut dataset.mesh.cells {
-                cell.property_id = None;
             }
             omissions.push(Omission::new(
                 Stage::Destination,
@@ -1086,20 +1068,12 @@ pub fn convert(
                     format!("{labels} field(s) lose component labels in MSH NodeData/ElementData"),
                 ));
             }
-            let props = dataset
-                .mesh
-                .cells
-                .iter()
-                .filter(|cell| cell.property_id.is_some())
-                .count();
+            let props = omit_property_ids(&mut dataset.mesh);
             if props > 0 {
                 omissions.push(Omission::new(
                     Stage::Destination,
                     format!("{props} property IDs have no MSH entity mapping in this exporter"),
                 ));
-            }
-            for cell in &mut dataset.mesh.cells {
-                cell.property_id = None;
             }
             msh::write_version(
                 dataset,
@@ -1121,20 +1095,12 @@ pub fn convert(
             }
             if target == Format::Inp {
                 // The bounded INP writer has no property definition mapping.
-                let props = dataset
-                    .mesh
-                    .cells
-                    .iter()
-                    .filter(|cell| cell.property_id.is_some())
-                    .count();
+                let props = omit_property_ids(&mut dataset.mesh);
                 if props > 0 {
                     omissions.push(Omission::new(
                         Stage::Destination,
                         format!("{props} property IDs omitted from INP"),
                     ));
-                }
-                for cell in &mut dataset.mesh.cells {
-                    cell.property_id = None;
                 }
                 inp::write(&dataset.mesh, &mut writer)?;
             } else {
@@ -1194,12 +1160,7 @@ pub fn convert(
                     ));
                 }
             }
-            if dataset
-                .mesh
-                .cells
-                .iter()
-                .any(|cell| cell.property_id.is_some())
-            {
+            if omit_property_ids(&mut dataset.mesh) > 0 {
                 omissions.push(Omission::new(
                     Stage::Destination,
                     "BDF property IDs have no direct FRD mesh mapping",

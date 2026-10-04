@@ -223,6 +223,14 @@ fn triangles(dataset: &Dataset) -> Result<Vec<[[f32; 3]; 3]>> {
     if !dataset.fields.is_empty() {
         return Err(err("STL cannot encode numeric fields"));
     }
+    if dataset
+        .mesh
+        .cells
+        .iter()
+        .any(|cell| cell.property_id.is_some())
+    {
+        return Err(err("STL cannot encode property IDs"));
+    }
     let mut output = Vec::with_capacity(dataset.mesh.cells.len());
     for cell in &dataset.mesh.cells {
         if cell.kind != CellKind::Triangle3 {
@@ -280,8 +288,8 @@ fn normal(vertices: &[[f32; 3]; 3]) -> Result<[f32; 3]> {
 /// Write a binary STL triangle surface to a caller-owned stream.
 ///
 /// Geometry and facet winding are written. Numeric fields and named sets are
-/// rejected; use the conversion API to report and omit them. IDs and properties
-/// have no STL representation.
+/// rejected, as are property IDs; use the conversion API to report and omit
+/// them. Original node and element IDs have no STL representation.
 ///
 /// # Errors
 ///
@@ -320,6 +328,14 @@ pub fn write_ascii(dataset: &Dataset, mut writer: impl Write) -> Result<()> {
     dataset.mesh.require_no_sets("E_STL")?;
     if !dataset.fields.is_empty() {
         return Err(err("STL cannot encode numeric fields"));
+    }
+    if dataset
+        .mesh
+        .cells
+        .iter()
+        .any(|cell| cell.property_id.is_some())
+    {
+        return Err(err("STL cannot encode property IDs"));
     }
     if dataset
         .mesh

@@ -128,7 +128,7 @@ computed from written triangle winding. The library also offers `stl::write_asci
 with f64 coordinate text. Only triangle cells are accepted; volume meshes are
 not silently reduced to their boundary. Numeric fields, properties, IDs, and
 shared-vertex identity have no STL mapping and are reported as destination
-losses by conversion. Direct writers reject numeric fields and named sets.
+losses by conversion. Direct writers reject numeric fields, property IDs, and named sets.
 Degenerate facets and values that overflow or underflow
 binary float32 fail.
 
@@ -170,7 +170,7 @@ The writer requires every lower-dimensional cell to belong to a named marker
 set. It does not invent a marker for an ungrouped face or extract a volume
 boundary. A 2D mesh must have z=0. Node sets, interior cell sets, properties,
 numeric fields, and source IDs cannot be encoded; conversion reports these
-losses. The direct writer rejects numeric fields and unsupported sets. Marker names carry no
+losses. The direct writer rejects numeric fields, property IDs, and unsupported sets. Marker names carry no
 boundary-condition values. An opt-in test converts a Gmsh-generated named
 boundary mesh and verifies the output with SU2_CFD 8.4.0.
 

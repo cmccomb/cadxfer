@@ -265,6 +265,9 @@ pub fn write_data(dataset: &Dataset, mut writer: impl Write) -> Result<()> {
         return Err(err("SU2 cannot encode numeric fields"));
     }
     let mesh = &dataset.mesh;
+    if mesh.cells.iter().any(|cell| cell.property_id.is_some()) {
+        return Err(err("SU2 cannot encode property IDs"));
+    }
     let dimension = mesh
         .cells
         .iter()

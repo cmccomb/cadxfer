@@ -110,6 +110,14 @@ pub fn write(dataset: &Dataset, mut output: impl Write) -> Result<()> {
     // writing any bytes to the caller's stream.
     dataset.validate()?;
     dataset.mesh.require_no_sets("E_FRD")?;
+    if dataset
+        .mesh
+        .cells
+        .iter()
+        .any(|cell| cell.property_id.is_some())
+    {
+        return Err(err("FRD cannot encode property IDs"));
+    }
     if dataset.mesh.points.is_empty() || dataset.mesh.cells.is_empty() {
         return Err(err("FRD requires nodes and elements"));
     }
@@ -712,6 +720,9 @@ mod tests {
                 .unwrap()
                 .mesh;
         mesh.cells.retain(|cell| cell.kind != CellKind::Pyramid5);
+        for cell in &mut mesh.cells {
+            cell.property_id = None;
+        }
         let expected = mesh.cells.iter().map(|cell| cell.kind).collect::<Vec<_>>();
         let mut encoded = Vec::new();
         write(
