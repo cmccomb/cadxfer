@@ -18,4 +18,5 @@ published until the registry confirms the upload.
 6. Tag the published commit `v0.1.0` and push the tag only after confirmation.
 
 The [support contract](docs/SUPPORT.md) defines the release's format scope.
-The [changelog](CHANGELOG.md) summarizes user-visible behavior.
+Use [GitHub Releases](https://github.com/cmccomb/caexfer/releases) for version
+history. The repository does not maintain a changelog file.
