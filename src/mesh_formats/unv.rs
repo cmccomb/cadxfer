@@ -326,9 +326,8 @@ mod tests {
         assert!(read_projection("    -1\n  2411\n1 1 1 11\n0 0 0\n").is_err());
         let source = include_str!("../../tests/fixtures/gmsh-six-kind.unv");
         assert!(read_projection(&source.replace("       111", "       999")).is_err());
-        assert!(
-            read_projection(&source.replace("         1         2\n", "         1       999\n"))
-                .is_err()
-        );
+        let missing_node = source.replacen("         1         2", "         1       999", 1);
+        assert_ne!(missing_node, source);
+        assert!(read_projection(&missing_node).is_err());
     }
 }
