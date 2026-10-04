@@ -37,6 +37,8 @@ and writable with a companion mesh; PCH is read-only. The diagram describes
 supported projections, so it does not promise lossless transfer. Keep its
 accessible title and description current when adapter capabilities change.
 Review it at full size and at the README's typical displayed width.
+The README image URL names a commit so cached branch images do not show an old
+diagram. Update that commit in `README.md` after changing the SVG.
 
 ## Ferris source and license
 
