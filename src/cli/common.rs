@@ -39,6 +39,7 @@ pub(super) fn conversion_options(args: &Args) -> Result<Options> {
         step: args.step,
         max_bytes: args.max_bytes.unwrap_or(Options::default().max_bytes),
         msh_version: args.msh_version,
+        voxel_size: args.voxel_size,
         zero_missing_rotations: args.accept_zero_rotations,
         accept_omissions: args.accept_omissions || args.accept_all,
         accept_synthetic_zero: args.accept_synthetic_zero || args.accept_all,

@@ -61,6 +61,7 @@ INPUT OPTIONS
 
 DESTINATION OPTIONS
   --msh-version 2.2|4.1      MSH output dialect (default: 4.1)
+  --voxel-size N             Cubic cell size for mesh/STL to VTI/VOX, or STL to volume mesh
   --mesh-out FILE            Write a companion mesh alongside OP2 output
   --overwrite                Replace existing regular output files
 

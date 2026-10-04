@@ -24,6 +24,10 @@ pub mod exodus;
 pub mod frd;
 #[path = "mesh_datasets/msh/mod.rs"]
 pub mod msh;
+#[path = "mesh_datasets/vox.rs"]
+pub mod vox;
+#[path = "mesh_datasets/vti.rs"]
+pub mod vti;
 #[path = "mesh_datasets/vtk/mod.rs"]
 pub mod vtk;
 #[path = "mesh_datasets/vtu/mod.rs"]

@@ -27,6 +27,7 @@ pub(super) struct Args {
     pub(super) step: Option<usize>,
     pub(super) max_bytes: Option<usize>,
     pub(super) msh_version: Option<MshVersion>,
+    pub(super) voxel_size: Option<f64>,
 }
 
 /// Wrap a command-line usage failure with the exit-code-selecting `E_USAGE`.
@@ -222,6 +223,17 @@ pub(super) fn parse_args(raw: &[OsString]) -> Result<Args> {
                 _ => Err(usage("--msh-version requires 2.2 or 4.1")),
             })?;
             index += 1;
+        } else if options && arg == "--voxel-size" {
+            set_option(&mut args.voxel_size, "--voxel-size", || {
+                let size: f64 = value(1)?
+                    .parse()
+                    .map_err(|_| usage("--voxel-size requires a positive finite number"))?;
+                if !size.is_finite() || size <= 0.0 {
+                    return Err(usage("--voxel-size requires a positive finite number"));
+                }
+                Ok(size)
+            })?;
+            index += 1;
         } else if options && arg == "--step" {
             set_option(&mut args.step, "--step", || {
                 value(1)?
@@ -306,6 +318,9 @@ pub(super) fn parse_args(raw: &[OsString]) -> Result<Args> {
         if !msh_target && !msh_companion {
             return Err(usage("--msh-version applies only to MSH output"));
         }
+    }
+    if args.voxel_size.is_some() && args.command != "convert" {
+        return Err(usage("--voxel-size applies only to convert"));
     }
     Ok(args)
 }

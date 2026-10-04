@@ -3,7 +3,7 @@ use std::io::Read;
 use std::path::Path;
 
 use crate::core::{Dataset, Error, Mesh, Result};
-use crate::formats::{bdf, exodus, frd, inp, msh, op2, pch, stl, su2, unv, vtk, vtu};
+use crate::formats::{bdf, exodus, frd, inp, msh, op2, pch, stl, su2, unv, vox, vti, vtk, vtu};
 
 use super::{AssumptionKind, Format, Omission, Options, ReadResult, Stage};
 
@@ -184,6 +184,7 @@ pub fn read_path(path: &Path, options: &Options) -> Result<ReadResult> {
         ));
     }
     let mut generated_point_ids = false;
+    let mut voxel_grid = None;
     let (dataset, omissions, assumed_zero) = match format {
         Format::Bdf => {
             // BDF projection can lose solver cards while retaining geometry.
@@ -225,6 +226,49 @@ pub fn read_path(path: &Path, options: &Options) -> Result<ReadResult> {
                 ));
             }
             (projection.dataset, omissions, false)
+        }
+        Format::Vti => {
+            let text = read_text(path, options.max_bytes, "E_VTI", "VTI must be UTF-8 XML")?;
+            let grid = vti::read(&text)?;
+            let mesh = grid.volume_mesh()?;
+            voxel_grid = Some(grid);
+            generated_point_ids = true;
+            (
+                Dataset {
+                    mesh,
+                    fields: Vec::new(),
+                },
+                vec![Omission::new(
+                    Stage::Source,
+                    "VTI occupancy has no original mesh node or element IDs; grid IDs were generated",
+                )],
+                false,
+            )
+        }
+        Format::Vox => {
+            let bytes = read_limited(path, options.max_bytes)?;
+            let projection = vox::read(&bytes)?;
+            let mesh = projection.grid.volume_mesh()?;
+            voxel_grid = Some(projection.grid);
+            generated_point_ids = true;
+            let mut omissions = vec![Omission::new(
+                Stage::Source,
+                "VOX has no physical origin or spacing; origin 0 and unit spacing are used",
+            )];
+            if projection.colored_voxels > 0 || projection.palette {
+                omissions.push(Omission::new(
+                    Stage::Source,
+                    "VOX color indices and palette are omitted from occupancy",
+                ));
+            }
+            (
+                Dataset {
+                    mesh,
+                    fields: Vec::new(),
+                },
+                omissions,
+                false,
+            )
         }
         Format::Vtk => {
             let text = read_text(
@@ -463,6 +507,7 @@ pub fn read_path(path: &Path, options: &Options) -> Result<ReadResult> {
     Ok(ReadResult {
         format,
         dataset,
+        voxel_grid,
         omissions,
         generated_point_ids,
         assumed_zero,

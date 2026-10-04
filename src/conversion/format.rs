@@ -13,6 +13,12 @@ pub enum Format {
     /// VTK XML `UnstructuredGrid`.
     Vtu,
 
+    /// VTK XML `ImageData` binary occupancy grid.
+    Vti,
+
+    /// `MagicaVoxel` version 150 single-model occupancy.
+    Vox,
+
     /// ASCII legacy VTK unstructured grid.
     Vtk,
 
@@ -46,9 +52,11 @@ pub enum Format {
 
 impl Format {
     /// Every supported format in the order used by capability listings.
-    pub const ALL: [Self; 12] = [
+    pub const ALL: [Self; 14] = [
         Self::Bdf,
         Self::Vtu,
+        Self::Vti,
+        Self::Vox,
         Self::Vtk,
         Self::Msh,
         Self::Inp,
@@ -67,6 +75,8 @@ impl Format {
         match self {
             Self::Bdf => "bdf",
             Self::Vtu => "vtu",
+            Self::Vti => "vti",
+            Self::Vox => "vox",
             Self::Vtk => "vtk",
             Self::Msh => "msh",
             Self::Inp => "inp",
@@ -169,7 +179,7 @@ fn extension(path: &Path) -> String {
 /// Defaults detect the input format from its extension, bound reads to 256 MiB,
 /// and do not silently assert a Nastran result frame
 /// or missing rotation values.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 #[allow(clippy::struct_excessive_bools)] // Independent conversion assertions and acceptance choices.
 pub struct Options {
     /// Override source extension detection.
@@ -192,6 +202,9 @@ pub struct Options {
 
     /// Requested MSH output dialect; `None` uses 4.1.
     pub msh_version: Option<msh::Version>,
+
+    /// Cubic voxel edge length for mesh/surface to voxel conversion.
+    pub voxel_size: Option<f64>,
 
     /// Assert that absent OP2 R1/R2/R3 components are known float zero.
     pub zero_missing_rotations: bool,
@@ -223,6 +236,7 @@ impl Default for Options {
             step: None,
             max_bytes: 256 * 1024 * 1024,
             msh_version: None,
+            voxel_size: None,
             zero_missing_rotations: false,
             accept_omissions: false,
             accept_synthetic_zero: false,
