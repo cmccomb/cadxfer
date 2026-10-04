@@ -30,8 +30,7 @@ same result type for both caexfer and filesystem operations.
 
 | Need | Start with | Outcome |
 | --- | --- | --- |
-| Inspect or copy a BDF without rewriting its source | `bdf::Document` | Original bytes, indexed cards, typed GRID access |
-| Extract supported BDF geometry | `bdf::mesh::read(bytes)` or `Document::geometry()` | `GeometryProjection { mesh, omissions }` |
+| Extract supported BDF geometry | `bdf::mesh::read(bytes)` or `bdf::mesh::read_from(reader, max_bytes)` | `GeometryProjection { mesh, omissions, has_nonbasic_output_frame }` |
 | Read a mesh and numeric results | `vtu::read`, `msh::read`, or `frd::read` | `core::Dataset` |
 | Read a flat INP mesh | `inp::read` | `Inspection { mesh, omitted_keywords }` |
 | Read an STL triangle surface | `stl::read_projection` | Generated facet-local IDs and explicit source losses |
@@ -52,26 +51,24 @@ or cells. `Mesh::validate()` and `Dataset::validate()` check structural
 invariants, not solver correctness or whether a specific output format can
 represent every field.
 
-## Inspect, copy, and project BDF
+## Project BDF geometry
 
 ```rust
-use caexfer::{bdf::Document, core::Result};
+use caexfer::{bdf, core::Result};
 
 fn main() -> Result<()> {
-    let doc = Document::open("model.bdf")?;
-    for grid in doc.grids() {
-        println!("GRID {}: {:?}", grid?.id, grid?.coordinates);
+    let input = std::fs::File::open("model.bdf")?;
+    let projection = bdf::mesh::read_from(input, 256 * 1024 * 1024)?;
+    for omission in &projection.omissions {
+        eprintln!("{}: {}", omission.category, omission.detail);
     }
-    let output = std::fs::OpenOptions::new()
-        .write(true).create_new(true).open("model-copy.bdf")?;
-    doc.write_to(output)?;
     Ok(())
 }
 ```
 
-GRID coordinates are in the card's native CP frame. `write_to` copies the
-original bytes. For conversion, call `geometry()` and inspect `omissions`
-before writing its mesh. Run the executable
+Only basic-frame GRID coordinates enter the mesh. Inspect `omissions` before
+writing it. The output is a geometry deck, not a copy of the input. Run the
+executable
 [`project_geometry.rs`](../examples/project_geometry.rs) example with
 `cargo run --example project_geometry`.
 
@@ -142,7 +139,6 @@ stages no-clobber output. If those attributes matter, check the
 
 | Output | Library call | Input |
 | --- | --- | --- |
-| Source-preserving BDF | `Document::write_to(writer)` | `&Document` |
 | Geometry-only BDF | `bdf::mesh::write(&mesh, writer)` | `&Mesh` |
 | VTU | `vtu::write(&mesh, writer)` or `vtu::write_data(&dataset, writer)` | `&Mesh` or `&Dataset` |
 | Legacy VTK | `vtk::write(&mesh, writer)` or `vtk::write_data(&dataset, writer)` | `&Mesh` or `&Dataset` |
@@ -166,10 +162,14 @@ first project the matching BDF into a basic-frame mesh, then pass the OP2 bytes
 and mesh to `op2::read_displacements`:
 
 ```rust
-use caexfer::{bdf::Document, core::Result, op2};
+use caexfer::{bdf, core::Result, op2};
 fn main() -> Result<()> {
-    let doc = Document::open("model.bdf")?;
-    let mesh = doc.geometry()?.mesh;
+    let input = std::fs::File::open("model.bdf")?;
+    let projection = bdf::mesh::read_from(input, 256 * 1024 * 1024)?;
+    if projection.has_nonbasic_output_frame {
+        return Err(caexfer::core::Error::new("E_FRAME", "GRID CD is not basic"));
+    }
+    let mesh = projection.mesh;
     let bytes = std::fs::read("results.op2")?;
     let (dataset, assumed_zero) = op2::read_displacements(
         &bytes, &mesh, None, None,
@@ -182,7 +182,7 @@ fn main() -> Result<()> {
 The low-level OP2 reader accepts any validated `Mesh` with matching node IDs.
 Its caller must ensure basic-frame coordinates and displacement components.
 All GRID CD values in a BDF must be zero because OP2 displacements in
-nonbasic output frames are not transformed. Check `doc.grids()` before calling
+nonbasic output frames are not transformed. Check `has_nonbasic_output_frame` before calling
 the adapter; the file-level conversion API performs this check for BDF and
 requires an explicit assertion for the other formats. The returned boolean marks
 an explicitly assumed all-zero table. The OP2 file contains results but no
@@ -197,8 +197,7 @@ enforces the same BDF frame check as OP2. PCH has no writer.
 
 All `read` functions report `core::Error` with a stable `code` and optional
 one-based source `line`. Human-readable `message` wording is not a stable
-interface. BDF reads have configurable [`ParseOptions`](../src/formats/solver_inputs/bdf/syntax.rs)
-limits. Other format readers accept source text or bytes supplied by the caller;
+interface. `bdf::mesh::read_from` takes an explicit byte limit. Other format readers accept source text or bytes supplied by the caller;
 bound file reads yourself. Library writers use caller-owned streams and can
 leave partial output after an I/O error. Use a temporary file and rename or
 another persistence policy appropriate to your application, or use the CLI's

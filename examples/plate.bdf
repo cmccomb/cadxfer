@@ -16,4 +16,4 @@ MAT1,9,2.1+11,,0.3
 SPC1,1,123456,10,40
 FORCE,2,20,0,100.,0.,0.,1.
 ENDDATA
-$ The BDF library retains every source byte; VTU contains geometry only.
+$ The VTU projection contains geometry only.

@@ -1,7 +1,6 @@
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 
-use crate::bdf::ParseOptions;
 use crate::core::{Error, Result};
 use crate::msh;
 
@@ -167,8 +166,8 @@ fn extension(path: &Path) -> String {
 }
 
 /// Source selection, limits, and explicit result assumptions.
-/// Defaults detect the input format from its extension, bound reads to the BDF
-/// parser's default byte limit, and do not silently assert a Nastran result frame
+/// Defaults detect the input format from its extension, bound reads to 256 MiB,
+/// and do not silently assert a Nastran result frame
 /// or missing rotation values.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Options {
@@ -206,7 +205,7 @@ impl Default for Options {
             assume_basic_frame: false,
             subcase: None,
             step: None,
-            max_bytes: ParseOptions::default().max_bytes,
+            max_bytes: 256 * 1024 * 1024,
             msh_version: None,
             zero_missing_rotations: false,
         }

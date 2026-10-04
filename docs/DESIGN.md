@@ -12,23 +12,16 @@ subdirectory. `src/cli/` contains JSON rendering and staged output;
 `src/main.rs` handles commands. Public module paths such as `caexfer::vtu`
 and `caexfer::op2` remain unchanged through explicit paths in `src/lib.rs`.
 
-## Decode first. Interpret second. Project deliberately.
+## Project deliberately
 
-A document is not a mesh. Keeping a BDF source buffer and an index of its native
-fields prevents unfamiliar records from disappearing simply because an adapter
-does not understand them. The original document can be copied byte-for-byte.
+BDF parsing is internal to its geometry adapter. The public reader returns a
+mesh and omission report, refuses unknown geometry-affecting inputs, and never
+invents units or coordinate transformations. Its writer emits a new geometry
+deck. It does not copy or validate a complete solver model.
 
-The geometry projection is explicitly narrower. It returns geometry plus an
-omission report, refuses unknown geometry-affecting inputs, and never invents
-units or coordinate transformations. A BDF-to-VTU operation is not labeled
-lossless. Native byte preservation and semantic preservation are separate claims.
-`bdf::mesh::read` and `bdf::mesh::write` provide paired mesh-exchange entry
-points; `Document` remains the source-preserving entry point.
+## Projected datasets
 
-## Source documents and projected datasets
-
-BDF remains a byte-preserving document with narrow typed views. Other readers
-project directly into a linear `Mesh` plus located numeric `Field`s. This is
+Readers project into a linear `Mesh` plus located numeric `Field`s. This is
 not a universal solver schema: loads, constraints, units and constitutive laws
 are never inferred from a mesh. Every CLI conversion needs an explicit
 `--accept-projection` acknowledgement and reports source/destination omissions.
@@ -66,10 +59,9 @@ coordinate system has been resolved or is the basic frame.
 
 ## Scope-aware validation
 
-There is no unqualified `is_valid()` for a full BDF model. The public operation
-is `validate_geometry()`, and CLI JSON identifies its scope and explicitly says
-`full_solver_validation: false`. Nongeometry cards are not silently blessed as
-valid simply because they survived lexical parsing.
+`info` and `validate` use the same supported-subset reader for every format.
+Successful BDF validation establishes a usable geometry projection; it says
+nothing about solver-model correctness. Opaque solver cards appear as omissions.
 
 ## Safe file operations
 

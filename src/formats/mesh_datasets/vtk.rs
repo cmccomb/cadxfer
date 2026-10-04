@@ -683,13 +683,11 @@ pub fn write(mesh: &Mesh, writer: impl Write) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::bdf::Document;
+    use crate::bdf;
 
     #[test]
     fn all_linear_cells_ids_and_fields_roundtrip() {
-        let mesh = Document::parse(include_bytes!("../../../tests/fixtures/mixed-linear.bdf"))
-            .unwrap()
-            .geometry()
+        let mesh = bdf::mesh::read(include_bytes!("../../../tests/fixtures/mixed-linear.bdf"))
             .unwrap()
             .mesh;
         let dataset = Dataset {

@@ -715,9 +715,7 @@ mod tests {
     #[test]
     fn all_supported_linear_topologies_roundtrip_in_one_file() {
         let mut mesh =
-            crate::bdf::Document::parse(include_bytes!("../../../tests/fixtures/mixed-linear.bdf"))
-                .unwrap()
-                .geometry()
+            crate::bdf::mesh::read(include_bytes!("../../../tests/fixtures/mixed-linear.bdf"))
                 .unwrap()
                 .mesh;
         mesh.cells.retain(|cell| cell.kind != CellKind::Pyramid5);

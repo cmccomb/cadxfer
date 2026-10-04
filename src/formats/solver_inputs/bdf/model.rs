@@ -1,13 +1,13 @@
 use std::collections::{BTreeMap, BTreeSet, btree_map::Entry};
 
-use super::{Card, Document, parse_real};
+use super::{Card, ParsedBdf, parse_real};
 use crate::core::{
     Cell, CellKind, Diagnostic, Error, Mesh, Point, Result, Severity, ValidationReport,
 };
 
 /// Parsed GRID values in the native coordinate frame of the source card.
 #[derive(Debug, Clone, PartialEq)]
-pub struct Grid {
+pub(crate) struct Grid {
     /// Positive GRID identifier.
     pub id: u64,
 
@@ -19,9 +19,6 @@ pub struct Grid {
 
     /// Output coordinate frame identifier.
     pub cd: i64,
-
-    /// Permanent single-point constraint digits, if any.
-    pub ps: String,
 
     /// Superelement identifier.
     pub seid: u64,
@@ -51,6 +48,9 @@ pub struct GeometryProjection {
 
     /// Information intentionally absent from this geometry-only projection.
     pub omissions: Vec<Omission>,
+
+    /// True when a GRID output displacement frame is not the basic frame.
+    pub has_nonbasic_output_frame: bool,
 }
 
 /// Parse a required positive BDF ID with the originating physical line.
@@ -82,8 +82,8 @@ fn nonnegative(input: &str, field: &str, line: usize) -> Result<u64> {
     })
 }
 
-/// These cards can be excluded from a *geometry-only* view. They are preserved
-/// as source, not claimed to be semantically supported or solver-validated.
+/// These cards can be excluded from a geometry projection. Their meanings
+/// are not interpreted or solver-validated.
 fn opaque_nongeometry(name: &str) -> bool {
     matches!(
         name,
@@ -174,9 +174,9 @@ struct NativeElement {
     line: usize,
 }
 
-impl Document {
+impl ParsedBdf {
     /// Decode one GRID's native values without resolving external defaults.
-    /// GRDSET and INCLUDE make those defaults ambiguous and block typed access.
+    /// GRDSET and INCLUDE make those defaults ambiguous and block projection.
     pub(crate) fn parse_grid(&self, card: &Card) -> Result<Grid> {
         // A native GRID cannot be interpreted while external defaults may
         // change its coordinate or output frame.
@@ -235,28 +235,13 @@ impl Document {
             cp,
             coordinates,
             cd,
-            ps,
             seid,
             line: card.line,
         })
     }
 
-    /// Iterate over GRID cards in source order, reporting a parse error per card.
-    /// Coordinates remain in each GRID's native CP frame. A blank CP is zero;
-    /// an unresolved GRDSET or INCLUDE blocks typed interpretation.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use caexfer::bdf::Document;
-    /// let doc = Document::parse("GRID,42,,1.0,2.0,3.0\n")?;
-    /// let grid = doc.grids().next().unwrap()?;
-    /// assert_eq!(grid.id, 42);
-    /// assert_eq!(grid.cp, 0);
-    /// assert_eq!(grid.coordinates, [1.0, 2.0, 3.0]);
-    /// # Ok::<(), caexfer::core::Error>(())
-    /// ```
-    pub fn grids(&self) -> impl Iterator<Item = Result<Grid>> + '_ {
+    /// Iterate over GRID cards in source order after default checks.
+    fn grids(&self) -> impl Iterator<Item = Result<Grid>> + '_ {
         self.cards
             .iter()
             .filter(|card| card.name() == "GRID")
@@ -265,7 +250,7 @@ impl Document {
 
     /// Read one supported element's ID, explicit property, and GRID references.
     /// Extra solid-element fields are rejected to avoid silently linearizing
-    /// higher-order cells; BDF source bytes are never modified here.
+    /// higher-order cells.
     fn parse_element(&self, card: &Card, kind: CellKind) -> Result<NativeElement> {
         // CONROD has no property field; other supported cards require an
         // explicit PID so dialect-specific defaults are never guessed.
@@ -336,7 +321,7 @@ impl Document {
                     }
                     Err(error) => report.diagnostics.push(error.into()),
                 },
-                "INCLUDE" => report.diagnostics.push(Error::new("E_INCLUDE_UNRESOLVED", "INCLUDE is preserved but never followed; flatten the deck with a trusted tool before geometry projection").at(card.line).into()),
+                "INCLUDE" => report.diagnostics.push(Error::new("E_INCLUDE_UNRESOLVED", "INCLUDE is not followed; flatten the deck with a trusted tool before geometry projection").at(card.line).into()),
                 "GRDSET" => report.diagnostics.push(Error::new("E_GRDSET", "GRID defaults from GRDSET are not implemented; no coordinate defaults will be guessed").at(card.line).into()),
                 "ENDDATA" => {},
                 name if element_kind(name).is_some() => {
@@ -358,7 +343,7 @@ impl Document {
 
                     // Counted once per card type below, not once per large deck record.
                 }
-                name => report.diagnostics.push(Error::new("E_UNSUPPORTED_CARD", format!("{name} is preserved, but its effect on geometry is unknown; projection is refused")).at(card.line).into()),
+                name => report.diagnostics.push(Error::new("E_UNSUPPORTED_CARD", format!("{name} has an unknown effect on geometry; projection is refused")).at(card.line).into()),
             }
         }
 
@@ -367,7 +352,7 @@ impl Document {
             if opaque_nongeometry(&name) {
                 report.diagnostics.push(Diagnostic {
                     severity: Severity::Warning, code: "W_OPAQUE_CARD",
-                    message: format!("{count} {name} card(s) preserved but not semantically validated; absent from geometry export"),
+                    message: format!("{count} {name} card(s) not semantically validated; absent from geometry export"),
                     line: None,
                 });
             }
@@ -434,26 +419,6 @@ impl Document {
         (report, mesh)
     }
 
-    /// Check the documented geometry subset, **not** solver correctness.
-    /// Unimplemented geometry-affecting cards, defaults, and coordinate frames
-    /// cause errors. Materials, properties, and loads are opaque warnings.
-    /// Call this before [`Self::geometry`] when all diagnostics are needed.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use caexfer::bdf::Document;
-    /// let doc = Document::parse("GRID,1,,0,0,0\nMAT1,5,1.0\n")?;
-    /// let report = doc.validate_geometry();
-    /// assert!(report.valid_in_scope());
-    /// assert!(report.warning_count() > 0); // MAT1 is outside the geometry view
-    /// # Ok::<(), caexfer::core::Error>(())
-    /// ```
-    #[must_use]
-    pub fn validate_geometry(&self) -> ValidationReport {
-        self.analyze_geometry().0
-    }
-
     /// Explicitly lossy projection. Original IDs survive; materials, loads,
     /// constraints, section details, element offsets/orientations, GRID CD/PS,
     /// comments, and source formatting do not. Always inspect `omissions`.
@@ -465,22 +430,7 @@ impl Document {
     /// Returns the first blocking geometry diagnostic, or an error if the
     /// projected mesh fails its structural checks.
     ///
-    /// # Examples
-    ///
-    /// ```
-    /// use caexfer::bdf::Document;
-    /// let doc = Document::parse(
-    ///     "GRID,10,,0,0,0\nGRID,20,,1,0,0\nCROD,30,7,10,20\n"
-    /// )?;
-    /// // The projected indices refer to the sorted points, not GRID IDs.
-    /// let projection = doc.geometry()?;
-    /// assert_eq!(projection.mesh.points[0].id, 10);
-    /// assert_eq!(projection.mesh.cells[0].id, 30);
-    /// assert_eq!(projection.mesh.cells[0].connectivity, [0, 1]);
-    /// assert!(!projection.omissions.is_empty());
-    /// # Ok::<(), caexfer::core::Error>(())
-    /// ```
-    pub fn geometry(&self) -> Result<GeometryProjection> {
+    pub(crate) fn geometry(&self) -> Result<GeometryProjection> {
         // Refuse a partial mesh if scoped validation found any blocking error.
         let (report, mesh) = self.analyze_geometry();
         if let Some(diagnostic) = report
@@ -519,6 +469,12 @@ impl Document {
                 });
             }
         }
-        Ok(GeometryProjection { mesh, omissions })
+        let has_nonbasic_output_frame =
+            self.grids().any(|grid| grid.is_ok_and(|grid| grid.cd != 0));
+        Ok(GeometryProjection {
+            mesh,
+            omissions,
+            has_nonbasic_output_frame,
+        })
     }
 }

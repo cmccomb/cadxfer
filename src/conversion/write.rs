@@ -65,15 +65,15 @@ pub fn convert_path(
 /// # Examples
 ///
 /// ```
-/// use caexfer::bdf::Document;
+/// use caexfer::bdf;
 /// use caexfer::conversion::{convert, Format, Options, ReadResult, Stage};
 /// use caexfer::core::Dataset;
-/// let document = Document::parse(
+/// let projection = bdf::mesh::read(
 ///     "GRID,10,,0,0,0\nGRID,20,,1,0,0\nCROD,30,7,10,20\n"
 /// )?;
 /// let source = ReadResult {
 ///     format: Format::Bdf,
-///     dataset: Dataset { mesh: document.geometry()?.mesh, fields: vec![] },
+///     dataset: Dataset { mesh: projection.mesh, fields: vec![] },
 ///     omissions: vec![], generated_point_ids: false, assumed_zero: false,
 /// };
 /// let mut inp = Vec::new();

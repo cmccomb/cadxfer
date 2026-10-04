@@ -51,9 +51,8 @@ fn vtk_type(kind: CellKind) -> u8 {
 /// # Examples
 ///
 /// ```
-/// use caexfer::{bdf::Document, vtu};
-/// let mesh = Document::parse("GRID,1,,0,0,0\nGRID,2,,1,0,0\nCROD,10,7,1,2\n")?
-///     .geometry()?.mesh;
+/// use caexfer::{bdf, vtu};
+/// let mesh = bdf::mesh::read("GRID,1,,0,0,0\nGRID,2,,1,0,0\nCROD,10,7,1,2\n")?.mesh;
 /// // Geometry-only output still retains the original node IDs.
 /// let mut bytes = Vec::new();
 /// vtu::write(&mesh, &mut bytes)?;

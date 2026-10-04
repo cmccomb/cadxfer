@@ -8,13 +8,14 @@ use std::fs::File;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-use caexfer::bdf::{Document, ParseOptions};
+use caexfer::bdf;
 use caexfer::conversion::{self, Format, Omission, Options, ReadResult, Stage};
-use caexfer::core::{Error, Field, FieldLocation, Result, Severity, ValidationReport};
+use caexfer::core::{Error, Field, FieldLocation, Result};
 use caexfer::msh;
 use json::{array, object, quote};
 
-const HELP: &str = "caexfer — inspect, preserve, and explicitly project engineering files
+/// The help text
+const HELP: &str = "caexfer: exchange finite-element meshes and results across formats
 
 USAGE
   caexfer formats [--json]
@@ -38,6 +39,7 @@ NASTRAN RESULT OPTIONS
   --mesh FILE                 Companion mesh with original node IDs for OP2/PCH input
   --assume-basic-frame        Assert basic frame for non-BDF mesh and result
   --subcase N                 Select a displacement subcase when reading
+
 OP2 OUTPUT OPTIONS
   --mesh-out FILE             Also write a separate mesh with OP2 output
   --zero-missing-rotations    Assert absent R1/R2/R3 are zero when writing
@@ -324,53 +326,6 @@ fn emit(value: &str) -> Result<()> {
     Ok(())
 }
 
-/// Encode scoped geometry diagnostics, counts, and validity as CLI JSON.
-/// This explicitly says validation is not full solver validation.
-fn report_json(report: &ValidationReport) -> String {
-    // Make the geometry-only validation scope explicit in machine output.
-    object([
-        ("scope", quote("geometry-subset")),
-        ("full_solver_validation", "false".into()),
-        ("valid_in_scope", report.valid_in_scope().to_string()),
-        ("errors", report.error_count().to_string()),
-        ("warnings", report.warning_count().to_string()),
-        (
-            "diagnostics",
-            array(report.diagnostics.iter().map(|d| {
-                object([
-                    (
-                        "severity",
-                        quote(if d.severity == Severity::Error {
-                            "error"
-                        } else {
-                            "warning"
-                        }),
-                    ),
-                    ("code", quote(d.code)),
-                    ("message", quote(&d.message)),
-                    (
-                        "line",
-                        d.line
-                            .map_or_else(|| "null".into(), |line| line.to_string()),
-                    ),
-                ])
-            })),
-        ),
-    ])
-}
-
-/// Read a source-preserving BDF under the CLI's selected byte cap.
-fn read_bdf(path: &Path, max_bytes: usize) -> Result<Document> {
-    // Apply the CLI cap while preserving the BDF parser's other limits.
-    Document::read_with_options(
-        File::open(path)?,
-        ParseOptions {
-            max_bytes,
-            ..ParseOptions::default()
-        },
-    )
-}
-
 /// Quote an OS path for JSON, using a displayable lossy form when needed.
 fn path_json(path: &Path) -> String {
     quote(&path.to_string_lossy())
@@ -392,7 +347,7 @@ fn conversion_options(args: &Args) -> Result<Options> {
         assume_basic_frame: args.assume_basic_frame,
         subcase: args.subcase,
         step: args.step,
-        max_bytes: args.max_bytes.unwrap_or(ParseOptions::default().max_bytes),
+        max_bytes: args.max_bytes.unwrap_or(Options::default().max_bytes),
         msh_version: args.msh_version,
         zero_missing_rotations: args.zero_missing_rotations,
     })
@@ -417,13 +372,11 @@ fn assume_zero_displacement(args: &Args, source: &mut ReadResult, max_bytes: usi
     if source.format == Format::Bdf {
         // OP2 rereads against the BDF mesh, so its GRID output frame must be
         // basic even though the synthetic displacement values are all zero.
-        for grid in read_bdf(&args.paths[0], max_bytes)?.grids() {
-            if grid?.cd != 0 {
-                return Err(Error::new(
-                    "E_OP2",
-                    "synthetic OP2 output requires basic-frame GRID CD=0 for matching BDF reread",
-                ));
-            }
+        if bdf::mesh::read_from(File::open(&args.paths[0])?, max_bytes)?.has_nonbasic_output_frame {
+            return Err(Error::new(
+                "E_OP2",
+                "synthetic OP2 output requires basic-frame GRID CD=0 for matching BDF reread",
+            ));
         }
     }
     let count = source
@@ -571,10 +524,10 @@ fn omissions_json(omissions: &[Omission]) -> String {
     }))
 }
 
-/// Inspect or validate a non-BDF source through the shared format reader.
+/// Inspect or validate a source through the shared format reader.
 /// Strict validation fails when the supported projection reports omissions.
-fn run_generic_info(args: &Args) -> Result<u8> {
-    // Non-BDF readers return projected datasets and explicit source losses.
+fn run_info(args: &Args) -> Result<u8> {
+    // Readers return projected datasets and explicit source losses.
     let read = conversion::read_path(&args.paths[0], &conversion_options(args)?)?;
     let format = read.format.name();
     let dataset = read.dataset;
@@ -632,7 +585,7 @@ fn run_generic_info(args: &Args) -> Result<u8> {
 }
 
 /// Dispatch the parsed CLI command and return its process exit status.
-/// BDF uses its richer document inspection path; other formats use datasets.
+/// Every format uses the same projected-dataset inspection path.
 #[allow(clippy::too_many_lines)] // Command branches keep exit codes and output together.
 fn run(args: &Args) -> Result<u8> {
     // Commands without input return before any format or file selection.
@@ -648,7 +601,11 @@ fn run(args: &Args) -> Result<u8> {
         "formats" => {
             if args.json {
                 let rows = [
-                    ("bdf", "document + linear mesh", "geometry mesh projection"),
+                    (
+                        "bdf",
+                        "supported linear geometry and source omissions",
+                        "geometry-only mesh projection",
+                    ),
                     (
                         "vtu",
                         "ASCII one-piece linear mesh + numeric fields",
@@ -722,7 +679,7 @@ fn run(args: &Args) -> Result<u8> {
                 ]))?;
             } else {
                 emit(
-                    "bdf  document + linear mesh; geometry export\nvtu  ASCII XML mesh + numeric fields, read/write\nvtk  ASCII legacy unstructured grid + numeric fields, read/write\nmsh  ASCII 4.1/2.2 mesh + numeric fields, read/write (output defaults to 4.1)\ninp  flat mesh subset, read/geometry write\nfrd  ASCII mesh + nodal fields, read/write\nop2  32-bit real OUGV1 displacement, read/write; explicit synthetic-zero option; optional companion mesh\npch  ASCII real SORT1 displacement, read-only; matching mesh required\nstl  ASCII/binary triangle surface, binary write; no IDs or fields\nsu2  ASCII mesh and named boundary markers, read/write\nunv  ASCII 2411/2412 linear geometry, read/write; no pyramids\nexodus  NetCDF-3 classic mesh + complete scalar fields, read/write",
+                    "bdf  linear geometry subset, read/write\nvtu  ASCII XML mesh + numeric fields, read/write\nvtk  ASCII legacy unstructured grid + numeric fields, read/write\nmsh  ASCII 4.1/2.2 mesh + numeric fields, read/write (output defaults to 4.1)\ninp  flat mesh subset, read/geometry write\nfrd  ASCII mesh + nodal fields, read/write\nop2  32-bit real OUGV1 displacement, read/write; explicit synthetic-zero option; optional companion mesh\npch  ASCII real SORT1 displacement, read-only; matching mesh required\nstl  ASCII/binary triangle surface, binary write; no IDs or fields\nsu2  ASCII mesh and named boundary markers, read/write\nunv  ASCII 2411/2412 linear geometry, read/write; no pyramids\nexodus  NetCDF-3 classic mesh + complete scalar fields, read/write",
                 )?;
             }
             return Ok(0);
@@ -730,109 +687,10 @@ fn run(args: &Args) -> Result<u8> {
         _ => {}
     }
 
-    // Conversion owns staged output; inspection dispatches BDF documents to
-    // their richer source-preserving report path.
     if args.command == "convert" {
         return run_convert(args);
     }
-    let format = format_of(args)?;
-    if format != Format::Bdf && matches!(args.command.as_str(), "info" | "validate") {
-        return run_generic_info(args);
-    }
-    if args.mesh.is_some()
-        || args.assume_basic_frame
-        || args.subcase.is_some()
-        || args.step.is_some()
-    {
-        return Err(usage(
-            "result mesh, frame, subcase, and step options do not apply to BDF inspection",
-        ));
-    }
-    let doc = read_bdf(
-        &args.paths[0],
-        args.max_bytes.unwrap_or(ParseOptions::default().max_bytes),
-    )?;
-    match args.command.as_str() {
-        "info" => {
-            // Report document counts separately from scoped geometry checks.
-            let counts = doc.card_counts();
-            let report = doc.validate_geometry();
-            if args.json {
-                emit(&object([
-                    ("schema_version", "1".into()),
-                    ("format", quote("bdf")),
-                    ("path", path_json(&args.paths[0])),
-                    ("bytes", doc.to_bytes().len().to_string()),
-                    ("full_deck", doc.is_full_deck().to_string()),
-                    (
-                        "card_counts",
-                        object(
-                            counts
-                                .iter()
-                                .map(|(key, value)| (key.as_str(), value.to_string())),
-                        ),
-                    ),
-                    ("units", quote("unspecified")),
-                    ("geometry", report_json(&report)),
-                ]))?;
-            } else {
-                emit(&format!(
-                    "BDF document: {}\nBytes: {}\nFull deck: {}\nUnits: unspecified",
-                    args.paths[0].display(),
-                    doc.to_bytes().len(),
-                    doc.is_full_deck()
-                ))?;
-                for (name, count) in counts {
-                    emit(&format!("  {name:<10} {count}"))?;
-                }
-                emit(&format!(
-                    "Geometry projection available: {} ({} error(s), {} warning(s))",
-                    report.valid_in_scope(),
-                    report.error_count(),
-                    report.warning_count()
-                ))?;
-                for d in report
-                    .diagnostics
-                    .iter()
-                    .filter(|d| d.severity == Severity::Error)
-                    .take(5)
-                {
-                    emit(&format!("  {}: {}", d.code, d.message))?;
-                }
-            }
-        }
-        "validate" => {
-            // Warnings only fail when strict validation was requested.
-            let report = doc.validate_geometry();
-            let passed = report.valid_in_scope() && (!args.strict || report.warning_count() == 0);
-            if args.json {
-                emit(&object([
-                    ("schema_version", "1".into()),
-                    ("strict", args.strict.to_string()),
-                    ("passed", passed.to_string()),
-                    ("validation", report_json(&report)),
-                ]))?;
-            } else {
-                emit(&format!(
-                    "Geometry-subset checks: {}. Not a full Nastran solver validation.",
-                    if passed { "passed" } else { "failed" }
-                ))?;
-                for d in &report.diagnostics {
-                    emit(&format!(
-                        "{:?} {}{}: {}",
-                        d.severity,
-                        d.code,
-                        d.line
-                            .map_or_else(String::new, |line| format!(" at line {line}")),
-                        d.message
-                    ))?;
-                }
-            }
-            return Ok(u8::from(!passed));
-        }
-        _ => return Err(usage("unknown command")),
-    }
-    Ok(0)
+    run_info(args)
 }
 
 /// Convert structured failures into human or JSON diagnostics and exit codes.

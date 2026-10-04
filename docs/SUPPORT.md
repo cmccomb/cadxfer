@@ -1,21 +1,12 @@
 # 0.1.0 support contract
 
-## Three different promises
+## BDF geometry contract
 
-1. **Source preservation.** For input that `Document::parse` accepts, writing the
-   parsed document reproduces its bytes exactly. This includes unknown card
-   contents, comments, CRLF/LF mixtures, and an absent final newline. It does not
-   mean every dialect or malformed file is accepted.
-2. **Typed access.** GRID records have a typed view. Blank coordinate fields
-   default to zero only in the supported scope. GRDSET or any INCLUDE disables
-   typed GRID interpretation because those records may supply defaults. The
-   reported coordinates remain in the GRID's native CP frame.
-3. **Geometry projection.** Only the geometry subset below is interpreted.
-   Unknown geometry, unresolved frames/defaults/includes, and unsupported
-   higher-order connectivity fail. The API returns an omission report; the CLI
-   additionally requires `--accept-projection`.
-
-These are intentionally not described by one generic `read/write: yes` flag.
+The BDF reader projects only the geometry subset below. Unknown geometry,
+unresolved frames/defaults/includes, and unsupported higher-order connectivity
+fail. It returns a mesh, an omission report, and a flag for nonbasic GRID output
+frames. The CLI additionally requires `--accept-projection` for conversion.
+Blank GRID coordinate fields default to zero in the supported subset.
 
 ## BDF syntax
 
@@ -32,14 +23,14 @@ must match literally, including their prefix. Dialects using numerically
 matched labels without the same prefix are outside this version's scope.
 
 Single full-deck `BEGIN BULK` and punch-style input are supported. Executive and
-case-control text is retained, not interpreted. Superelement sections and
-multiple bulk sections fail. Text after ENDDATA is retained but not interpreted.
-INCLUDE text, including quoted multiline paths, is retained; no path is opened.
+case-control text is omitted, not interpreted. Superelement sections and
+multiple bulk sections fail. Text after ENDDATA is ignored.
+INCLUDE text, including quoted multiline paths, is parsed but never opened.
 
 ASCII data fields are required. `$` comments can contain arbitrary bytes.
 UTF-8 BOMs, tab-expanded fields, vendor `#`/`//` comments, replication syntax,
 compressed input, and non-adjacent continuation matching are not implemented.
-Fixed-format text after column 80 is retained but not interpreted as a field.
+Fixed-format text after column 80 is not interpreted as a field.
 
 Finite Nastran real forms include ordinary decimal/E notation, D notation, and
 implicit exponents such as `1.2-3`. NaN and infinity are rejected. Integer
@@ -73,7 +64,7 @@ Collapsed/degenerate solids that intentionally repeat nodes are not supported.
 Geometric degeneracy, signed volumes, inversion, Jacobians, physical units,
 material validity, and solution correctness are not checked.
 
-A finite allowlist of familiar nongeometry cards is retained but treated as
+A finite allowlist of familiar nongeometry cards is recognized but treated as
 opaque, including material, property, load, constraint, table, and coordinate
 system records. The exact allowlist is `opaque_nongeometry` in `model.rs`.
 These records produce warnings and appear in the omission report. A coordinate
@@ -86,8 +77,8 @@ Any card outside the geometry subset and this allowlist blocks projection.
 All `convert` operations require `--accept-projection`, including routes that carry
 supported numeric fields. This acknowledges projection from a native source to
 our linear mesh and numeric-field subset. The CLI emits source and destination
-omissions. The BDF library `Document` retains source bytes and can write them
-unchanged; conversion always works from the supported projection.
+omissions. The BDF adapter projects supported geometry and reports omitted
+solver data.
 
 ### VTU
 
@@ -299,15 +290,13 @@ an excerpt, not a complete solver-generated PCH qualification file.
 
 `convert` can emit basic-frame GRID and linear element cards. It preserves known
 property IDs or uses placeholder PID 1 when absent. No property, material,
-load, constraint or case-control cards are generated. Use the BDF library
-`Document::write_to` when source preservation matters.
+load, constraint or case-control cards are generated.
 
 ## Resource and storage limits
 
-The BDF document and its indices are resident in memory. This is not streaming,
-lazy, zero-copy-from-disk, or mmap I/O. The original bytes are retained rather
-than duplicated into per-field strings, but the parser creates a line index and
-field index, and parsing can temporarily duplicate the source buffer.
+The BDF parser and its indices are resident in memory. This is not streaming,
+lazy, zero-copy-from-disk, or mmap I/O. Parsing can temporarily duplicate the
+source buffer.
 Defaults: 256 MiB input, 1 MiB per line, two million physical lines, two million
 cards, and 65,536 indexed fields per card. These are rejection thresholds, not
 a hard total-memory budget. Use OS process limits for hostile or very large data.

@@ -2,22 +2,10 @@ use std::fs::File;
 use std::io::Read;
 use std::path::Path;
 
-use crate::bdf::{Document, ParseOptions};
 use crate::core::{Dataset, Error, Mesh, Result};
-use crate::{exodus, frd, inp, msh, op2, pch, stl, su2, unv, vtk, vtu};
+use crate::{bdf, exodus, frd, inp, msh, op2, pch, stl, su2, unv, vtk, vtu};
 
 use super::{Format, Omission, Options, ReadResult, Stage};
-
-/// Read BDF through its source-preserving parser under the requested byte cap.
-fn read_bdf(path: &Path, max_bytes: usize) -> Result<Document> {
-    Document::read_with_options(
-        File::open(path)?,
-        ParseOptions {
-            max_bytes,
-            ..ParseOptions::default()
-        },
-    )
-}
 
 /// Bound non-BDF file reads with both a metadata check and an actual read cap.
 /// The second check handles files growing between the metadata and read calls.
@@ -66,20 +54,17 @@ fn read_result_mesh(
     match format {
         Format::Bdf => {
             // BDF exposes GRID output frames, so verify them directly.
-            let document = read_bdf(path, options.max_bytes)?;
-            for grid in document.grids() {
-                if grid?.cd != 0 {
-                    return Err(Error::new(
-                        if result == Format::Pch {
-                            "E_PCH"
-                        } else {
-                            "E_OP2"
-                        },
-                        "nonbasic GRID CD requires displacement frame transformation",
-                    ));
-                }
+            let projection = bdf::mesh::read_from(File::open(path)?, options.max_bytes)?;
+            if projection.has_nonbasic_output_frame {
+                return Err(Error::new(
+                    if result == Format::Pch {
+                        "E_PCH"
+                    } else {
+                        "E_OP2"
+                    },
+                    "nonbasic GRID CD requires displacement frame transformation",
+                ));
             }
-            let projection = document.geometry()?;
 
             // Keep source losses from the companion deck visible in the
             // result conversion report.
@@ -215,7 +200,7 @@ pub fn read_path(path: &Path, options: &Options) -> Result<ReadResult> {
     let (dataset, omissions, assumed_zero) = match format {
         Format::Bdf => {
             // BDF projection can lose solver cards while retaining geometry.
-            let projection = read_bdf(path, options.max_bytes)?.geometry()?;
+            let projection = bdf::mesh::read_from(File::open(path)?, options.max_bytes)?;
             let omissions = projection
                 .omissions
                 .into_iter()

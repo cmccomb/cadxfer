@@ -20,4 +20,4 @@ netcdf3 = "=0.6.1"
 unsafe_code = "forbid"
 
 [lints.clippy]
-pedantic = "warn"
+pedantic = "deny"

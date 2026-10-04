@@ -44,8 +44,8 @@ JSON/human display of non-UTF-8 paths is lossy, not an exact path serialization.
 | Command | Result |
 | --- | --- |
 | `formats` | Actual read/write capabilities, not a roadmap |
-| `info INPUT` | Record counts and whether geometry projection is available |
-| `validate INPUT` | BDF geometry diagnostics or supported mesh/field subset checks |
+| `info INPUT` | Projected point, cell, and field counts |
+| `validate INPUT` | Supported mesh and field subset checks, with source omissions |
 | `convert INPUT OUTPUT --accept-projection` | Explicit projection to any writable format listed by `caexfer formats`, subject to that format's supported geometry and fields |
 
 Input extensions are `.bdf`, `.nas`, `.dat`, `.pch`, `.vtu`, `.vtk`, `.msh`, `.inp`,
@@ -85,8 +85,8 @@ an `omissions` array with each item's `stage` (`source`, `destination`, or
 format, and separate omissions. JSON error output also goes to stdout. Schema version 1
 is intentionally small; consumers should tolerate new keys.
 
-Exit 0 means the requested scoped operation succeeded. `info` succeeds after
-native parsing even when geometry cannot be projected; consult its report.
+Exit 0 means the requested scoped operation succeeded. `info` fails if the
+source cannot be safely projected into the supported subset.
 Exit 1 means I/O, parsing, projection, or validation failed. `validate
 --strict` also exits 1 on a warning. Exit 2 means invalid CLI usage, including
 conversion without `--accept-projection`. Use stable diagnostic `code` values rather

@@ -8,11 +8,9 @@
 **Exchange finite-element meshes and results across formats.**
 
 `caexfer` reads and writes supported subsets of STL, SU2, UNV, Exodus II,
-VTU, legacy VTK, Gmsh MSH
-4.1/2.2, Abaqus/CalculiX INP, CalculiX FRD, Nastran BDF, and Nastran OP2.
-It also reads displacement results from PCH when given a
-matching mesh. Each conversion reports omitted data and explicit assumptions.
-BDF users can also keep and inspect the original document bytes.
+VTU, legacy VTK, Gmsh MSH 4.1/2.2, Abaqus/CalculiX INP, CalculiX FRD,
+Nastran BDF, and Nastran OP2. It also reads PCH displacement results when
+given a matching mesh. Each conversion reports omissions and assumptions.
 
 ## Install and try the CLI
 
@@ -104,9 +102,10 @@ fn main() -> Result<()> {
 ```
 
 The library accepts caller-owned output streams. The CLI stages files and
-refuses to overwrite them. For source-preserving BDF work, use
-`bdf::Document`; see the [library guide](https://github.com/cmccomb/caexfer/blob/main/docs/LIBRARY.md)
-for that API and other format adapters.
+refuses to overwrite them. See the
+[library guide](https://github.com/cmccomb/caexfer/blob/main/docs/LIBRARY.md)
+for the conversion API and format adapters.
 
 Licensed under MIT OR Apache-2.0. The imported pyNastran fixtures retain their
-upstream BSD license; see [fixture provenance](https://github.com/cmccomb/caexfer/blob/main/tests/fixtures/PROVENANCE.md).
+upstream BSD license;
+see [fixture provenance](https://github.com/cmccomb/caexfer/blob/main/tests/fixtures/PROVENANCE.md).

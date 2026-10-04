@@ -53,7 +53,8 @@ fn info_json_has_version_and_scope() {
     assert!(result.status.success());
     let out = String::from_utf8(result.stdout).unwrap();
     assert!(out.contains("\"schema_version\":1"));
-    assert!(out.contains("\"full_solver_validation\":false"));
+    assert!(out.contains("\"points\":2"));
+    assert!(out.contains("\"cells\":1"));
 }
 
 #[test]
@@ -212,14 +213,14 @@ fn human_inspection_and_validation_report_their_scopes() {
     assert!(
         String::from_utf8(bdf.stdout)
             .unwrap()
-            .contains("Geometry projection available: true")
+            .contains("BDF: 2 points, 1 cells, 0 fields")
     );
     let validated = s.run(&["validate", "mesh.bdf"]);
     assert!(validated.status.success());
     assert!(
         String::from_utf8(validated.stdout)
             .unwrap()
-            .contains("Not a full Nastran solver validation")
+            .contains("BDF supported-subset checks passed")
     );
 
     std::fs::write(
@@ -403,11 +404,11 @@ fn entry_help_and_bdf_diagnostics_are_visible_to_human_users() {
     );
     std::fs::write(s.0.join("invalid.bdf"), "GRID,1,42,0,0,0\n").unwrap();
     let info = s.run(&["info", "invalid.bdf"]);
-    assert!(info.status.success());
+    assert_eq!(info.status.code(), Some(1));
     assert!(
-        String::from_utf8(info.stdout)
+        String::from_utf8(info.stderr)
             .unwrap()
-            .contains("Geometry projection available: false")
+            .contains("E_COORDINATE_SYSTEM")
     );
 }
 

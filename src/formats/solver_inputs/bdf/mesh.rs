@@ -1,13 +1,12 @@
 //! Geometry-only BDF exchange. Output is a mesh deck, not a solver-ready model.
-use super::{Document, GeometryProjection};
+use super::{GeometryProjection, ParseOptions, ParsedBdf};
 use crate::core::{CellKind, Error, Mesh, Result};
-use std::io::Write;
+use std::io::{Read, Write};
 
 /// Parse BDF bytes and project supported linear geometry with an omission report.
 ///
-/// This convenience entry point is for mesh exchange. It rejects unresolved
-/// geometry and does not return the source document. Use [`Document::parse`]
-/// when comments, unknown cards, and exact source bytes must remain available.
+/// It rejects unresolved geometry. Source formatting and solver cards are
+/// outside the projected mesh and appear in the omission report.
 ///
 /// # Errors
 ///
@@ -18,7 +17,7 @@ use std::io::Write;
 /// ```
 /// use caexfer::bdf;
 /// let source = b"$ original comment\nGRID,10,,0,0,0\nGRID,20,,1,0,0\nCROD,30,7,10,20\n";
-/// // The input bytes stay unchanged while this result is a projection.
+/// // Geometry exchange does not reproduce the original source text.
 /// let projection = bdf::mesh::read(source)?;
 /// assert_eq!(projection.mesh.points.len(), 2);
 /// let mut output = Vec::new();
@@ -27,8 +26,28 @@ use std::io::Write;
 /// # Ok::<(), caexfer::core::Error>(())
 /// ```
 pub fn read(input: impl AsRef<[u8]>) -> Result<GeometryProjection> {
-    // Keep document parsing and lossy geometry projection as explicit steps.
-    Document::parse(input)?.geometry()
+    ParsedBdf::parse(input)?.geometry()
+}
+
+/// Read geometry from a stream with an explicit byte limit.
+///
+/// # Errors
+///
+/// Returns a read, limit, syntax, or geometry error.
+pub fn read_from(input: impl Read, max_bytes: usize) -> Result<GeometryProjection> {
+    let limit = max_bytes
+        .checked_add(1)
+        .ok_or_else(|| Error::new("E_LIMIT", "max_bytes is too large"))?;
+    let mut bytes = Vec::new();
+    input.take(limit as u64).read_to_end(&mut bytes)?;
+    ParsedBdf::parse_with_options(
+        bytes,
+        ParseOptions {
+            max_bytes,
+            ..ParseOptions::default()
+        },
+    )?
+    .geometry()
 }
 
 /// Map a linear topology to the BDF geometry card emitted by this writer.
@@ -56,16 +75,13 @@ fn name(kind: CellKind) -> &'static str {
 /// # Examples
 ///
 /// ```
-/// use caexfer::bdf::{mesh, Document};
-/// let source = Document::parse(
-///     "GRID,10,,0,0,0\nGRID,20,,1,0,0\nCROD,30,7,10,20\n"
-/// )?;
+/// use caexfer::bdf::mesh;
+/// let source = mesh::read("GRID,10,,0,0,0\nGRID,20,,1,0,0\nCROD,30,7,10,20\n")?;
 /// // Export a new geometry deck, then parse it independently.
 /// let mut bytes = Vec::new();
-/// mesh::write(&source.geometry()?.mesh, &mut bytes)?;
-/// let exported = Document::parse(&bytes)?;
-/// assert_eq!(exported.geometry()?.mesh.cells[0].id, 30);
-/// assert_ne!(exported.to_bytes(), source.to_bytes()); // projection is not a byte copy
+/// mesh::write(&source.mesh, &mut bytes)?;
+/// let exported = mesh::read(&bytes)?;
+/// assert_eq!(exported.mesh.cells[0].id, 30);
 /// # Ok::<(), caexfer::core::Error>(())
 /// ```
 pub fn write(mesh: &Mesh, mut writer: impl Write) -> Result<()> {

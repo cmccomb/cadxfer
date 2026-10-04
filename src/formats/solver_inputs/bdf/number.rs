@@ -8,16 +8,7 @@ use crate::core::{Error, Result};
 /// Returns `E_REAL` for invalid syntax and `E_NONFINITE` for values outside
 /// the finite floating-point range.
 ///
-/// # Examples
-///
-/// ```
-/// use caexfer::bdf::parse_real;
-/// assert_eq!(parse_real("1.2-3")?, 0.0012);
-/// assert_eq!(parse_real(".7+2")?, 70.0);
-/// assert_eq!(parse_real(" ").unwrap_err().code, "E_REAL");
-/// # Ok::<(), caexfer::core::Error>(())
-/// ```
-pub fn parse_real(input: &str) -> Result<f64> {
+pub(crate) fn parse_real(input: &str) -> Result<f64> {
     // Reject whitespace inside the token before normalizing exponent syntax.
     let trimmed = input.trim();
     if trimmed.is_empty() || !trimmed.is_ascii() || trimmed.bytes().any(|b| b.is_ascii_whitespace())
@@ -40,6 +31,8 @@ pub fn parse_real(input: &str) -> Result<f64> {
             normalized.insert(index, 'E');
         }
     }
+
+    // The normalized form is now a valid Rust number literal.
     let value = normalized
         .parse::<f64>()
         .map_err(|_| Error::new("E_REAL", format!("invalid Nastran real {input:?}")))?;

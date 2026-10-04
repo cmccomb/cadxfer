@@ -30,9 +30,9 @@ def main() -> None:
     with tempfile.TemporaryDirectory(prefix="caexfer-interop-") as temp:
         temp = Path(temp)
         info = json.loads(run("info", "examples/plate.bdf", "--json").stdout)
-        assert info["schema_version"] == 1 and info["card_counts"]["GRID"] == 4
-        assert info["geometry"]["full_solver_validation"] is False
-        checks.append("CLI info emits valid, scope-aware JSON")
+        assert info["schema_version"] == 1 and (info["points"], info["cells"], info["fields"]) == (4, 1, 0)
+        assert info["format"] == "bdf" and info["omissions"]
+        checks.append("CLI info emits projected counts and source omissions")
         source = ROOT / "tests/fixtures/mixed-linear.bdf"
         destination = temp / "mixed.vtu"
         result = run("convert", source, destination, "--accept-projection", "--json")
