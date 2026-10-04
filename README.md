@@ -7,10 +7,11 @@
 
 <p align="center"><img src="https://raw.githubusercontent.com/cmccomb/caexfer/main/assets/logo.svg" alt="caexfer logo" width="320"></p>
 
-**Exchange finite-element meshes and results across formats.**
+**Transfer finite-element meshes and results across formats.**
 
-`caexfer` reads and writes supported subsets of STL, SU2, UNV, Exodus II,
-VTU, legacy VTK, Gmsh MSH 4.1/2.2, Abaqus/CalculiX INP, CalculiX FRD,
+`caexfer` reads and writes supported subsets of STL, VTK ImageData VTI,
+MagicaVoxel VOX, SU2, UNV, Exodus II, VTU, legacy VTK,
+Gmsh MSH 4.1/2.2, Abaqus/CalculiX INP, CalculiX FRD,
 Nastran BDF, and Nastran OP2. It also reads PCH displacement results when
 given a matching mesh. Each conversion reports omissions and assumptions.
 
@@ -76,7 +77,7 @@ For scripts, pass the specific `--accept-...` flags named in that list, or use
 
 ## Conversion routes
 
-[![Flowchart of solver inputs, geometry formats, mesh datasets, and companion results connecting through caexfer](https://raw.githubusercontent.com/cmccomb/caexfer/84eb011cc7b7e4214b9e83b2b54016d0f14a149f/assets/conversion-flow.svg)](https://github.com/cmccomb/caexfer/blob/main/assets/conversion-flow.svg)
+[![Flowchart of solver inputs, geometry formats, mesh and voxel datasets, and companion results connecting through caexfer](assets/conversion-flow.svg)](assets/conversion-flow.svg)
 
 `caexfer --formats` lists the current readers and writers. Mesh sources can be
 converted when the destination supports their cell types and data. VTU, legacy
@@ -86,3 +87,20 @@ geometry routes. MSH physical groups become named selections, and SU2 carries
 named boundary markers. OP2 and PCH displacement results require a companion
 mesh with original node IDs; OP2 can write a selected displacement table, while
 PCH is read-only.
+
+VTI and VOX carry binary voxel occupancy. Convert a closed triangle or quad
+surface (including STL), or the external boundary of a linear volume mesh,
+with `--voxel-size`. Voxel input becomes shared-corner Hex8 volume cells in
+mesh formats or exposed, triangulated faces in STL. STL can also become a
+Hex8 volume mesh with `--voxel-size`:
+
+```sh
+caexfer convert closed.stl solid.vti --voxel-size 0.5 --accept-omissions
+caexfer convert solid.vti solid.vox --accept-omissions
+caexfer convert solid.vox shell.stl --accept-omissions
+caexfer convert closed.stl volume.vtu --voxel-size 0.5 --accept-omissions
+```
+
+These are voxel-center samples and blocky meshes, not conforming tetrahedral
+meshing. VOX has no physical origin or spacing, and its palette is not carried
+through the occupancy model. The conversion report lists those losses.

@@ -32,12 +32,14 @@ pub fn convert(
     options: &Options,
     mut writer: impl Write,
 ) -> Result<ConversionReport> {
-    if options.voxel_size.is_some()
-        && !(matches!(target, Format::Vti | Format::Vox)
-            && !matches!(source.format, Format::Vti | Format::Vox)
-            || source.format == Format::Stl
-                && !matches!(target, Format::Stl | Format::Vti | Format::Vox))
-    {
+    let voxel_size_allowed = match (source.format, target) {
+        (Format::Vti | Format::Vox, _) | (Format::Stl, Format::Stl | Format::Op2 | Format::Pch) => {
+            false
+        }
+        (_, Format::Vti | Format::Vox) | (Format::Stl, _) => true,
+        _ => false,
+    };
+    if options.voxel_size.is_some() && !voxel_size_allowed {
         return Err(Error::new(
             "E_USAGE",
             "--voxel-size applies to mesh/STL to VTI/VOX or STL to a volume mesh",
@@ -74,7 +76,28 @@ pub fn convert(
             .iter()
             .filter(|c| c.kind.dimension() < 3)
             .count();
+        let properties = source
+            .dataset
+            .mesh
+            .cells
+            .iter()
+            .filter(|c| c.property_id.is_some())
+            .count();
+        let node_sets = source.dataset.mesh.node_sets.len();
+        let cell_sets = source.dataset.mesh.cell_sets.len();
         source.dataset.mesh = boundary_surface(&source.dataset.mesh)?;
+        for (count, label) in [
+            (properties, "property ID(s)"),
+            (node_sets, "named node set(s)"),
+            (cell_sets, "named cell set(s)"),
+        ] {
+            if count > 0 {
+                source.omissions.push(Omission::new(
+                    Stage::Destination,
+                    format!("{count} {label} omitted during STL boundary extraction"),
+                ));
+            }
+        }
         source.omissions.push(Omission::new(Stage::Destination,
             if volume { format!("external volume faces triangulated for STL; {lower} lower-dimensional cell(s) excluded") }
             else { "quadrilateral faces triangulated for STL".to_owned() }));
@@ -140,9 +163,15 @@ pub fn convert(
                 omissions.push(Omission::new(Stage::Destination,
                     "closed surface sampled at voxel centers; features below grid spacing may disappear"));
                 let surface = if dataset.mesh.cells.iter().any(|c| c.kind.dimension() == 3) {
+                    let excluded = dataset
+                        .mesh
+                        .cells
+                        .iter()
+                        .filter(|c| c.kind.dimension() < 3)
+                        .count();
                     omissions.push(Omission::new(
                         Stage::Destination,
-                        "external faces of volume cells extracted before voxel-center sampling",
+                        format!("external faces of volume cells extracted before voxel-center sampling; {excluded} lower-dimensional cell(s) excluded"),
                     ));
                     boundary_surface(&dataset.mesh)?
                 } else {

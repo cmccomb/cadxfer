@@ -239,6 +239,15 @@ impl VoxelGrid {
             .try_fold(1usize, |a, &b| a.checked_mul(b))
             .filter(|&n| n <= 2_000_000)
             .ok_or_else(|| Error::new("E_VOXEL", "voxel grid exceeds 2,000,000 cells"))?;
+        if count
+            .checked_mul(triangles.len())
+            .is_none_or(|work| work > 100_000_000)
+        {
+            return Err(Error::new(
+                "E_VOXEL",
+                "voxel sampling exceeds 100 million triangle checks; increase --voxel-size or simplify the surface",
+            ));
+        }
         let mut grid = Self {
             origin: minimum,
             spacing,
