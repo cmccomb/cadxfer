@@ -220,6 +220,9 @@ pub fn read_projection(bytes: &[u8]) -> Result<Projection> {
 fn triangles(dataset: &Dataset) -> Result<Vec<[[f32; 3]; 3]>> {
     dataset.validate()?;
     dataset.mesh.require_no_sets("E_STL")?;
+    if !dataset.fields.is_empty() {
+        return Err(err("STL cannot encode numeric fields"));
+    }
     let mut output = Vec::with_capacity(dataset.mesh.cells.len());
     for cell in &dataset.mesh.cells {
         if cell.kind != CellKind::Triangle3 {
@@ -276,8 +279,9 @@ fn normal(vertices: &[[f32; 3]; 3]) -> Result<[f32; 3]> {
 
 /// Write a binary STL triangle surface to a caller-owned stream.
 ///
-/// Geometry and facet winding are written; IDs, fields, and properties have no
-/// STL representation. Use the conversion API for omission reporting.
+/// Geometry and facet winding are written. Numeric fields and named sets are
+/// rejected; use the conversion API to report and omit them. IDs and properties
+/// have no STL representation.
 ///
 /// # Errors
 ///
@@ -314,6 +318,9 @@ pub fn write_data(dataset: &Dataset, mut writer: impl Write) -> Result<()> {
 pub fn write_ascii(dataset: &Dataset, mut writer: impl Write) -> Result<()> {
     dataset.validate()?;
     dataset.mesh.require_no_sets("E_STL")?;
+    if !dataset.fields.is_empty() {
+        return Err(err("STL cannot encode numeric fields"));
+    }
     if dataset
         .mesh
         .cells

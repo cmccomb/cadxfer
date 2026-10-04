@@ -494,6 +494,79 @@ fn source_receipts_include_binary_stl_attributes_and_result_titles() {
 }
 
 #[test]
+fn geometry_only_writers_reject_fields_while_conversion_reports_them() {
+    let inputs = [
+        (
+            Format::Stl,
+            "solid s\nfacet normal 0 0 1\nouter loop\nvertex 0 0 0\nvertex 1 0 0\nvertex 0 1 0\nendloop\nendfacet\nendsolid s\n",
+        ),
+        (
+            Format::Su2,
+            "NDIME= 2\nNELEM= 1\n5 0 1 2\nNPOIN= 3\n0 0\n1 0\n0 1\nNMARK= 0\n",
+        ),
+    ];
+    for (format, input) in inputs {
+        let mut dataset = match format {
+            Format::Stl => {
+                caexfer::stl::read_projection(input.as_bytes())
+                    .unwrap()
+                    .dataset
+            }
+            Format::Su2 => caexfer::su2::read_projection(input).unwrap().dataset,
+            _ => unreachable!(),
+        };
+        dataset.fields.push(Field {
+            name: "TEMPERATURE".into(),
+            location: FieldLocation::Point,
+            components: vec!["C1".into()],
+            values: vec![1.0; dataset.mesh.points.len()],
+            step: None,
+            time: None,
+        });
+        assert_eq!(
+            match format {
+                Format::Stl => caexfer::stl::write_data(&dataset, Vec::new()),
+                Format::Su2 => caexfer::su2::write_data(&dataset, Vec::new()),
+                _ => unreachable!(),
+            }
+            .unwrap_err()
+            .code,
+            match format {
+                Format::Stl => "E_STL",
+                Format::Su2 => "E_SU2",
+                _ => unreachable!(),
+            }
+        );
+        if format == Format::Stl {
+            assert_eq!(
+                caexfer::stl::write_ascii(&dataset, Vec::new())
+                    .unwrap_err()
+                    .code,
+                "E_STL"
+            );
+        }
+        let mut output = Vec::new();
+        let report = conversion::convert(
+            ReadResult {
+                format,
+                dataset,
+                omissions: Vec::new(),
+                assumed_zero: false,
+            },
+            format,
+            &Options::default(),
+            &mut output,
+        )
+        .unwrap();
+        assert_eq!(report.fields, 1);
+        assert!(report.omissions.iter().any(|item| {
+            item.stage == Stage::Destination && item.detail.contains("numeric field")
+        }));
+        assert!(!output.is_empty());
+    }
+}
+
+#[test]
 fn result_companion_frames_and_frd_steps_fail_explicitly() {
     let scratch = Scratch::new();
     let companion = scratch.write(

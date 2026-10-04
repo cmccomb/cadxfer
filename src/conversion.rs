@@ -941,6 +941,7 @@ pub fn convert(
                 Stage::Destination,
                 "STL has no node or element IDs or shared-vertex identity; binary coordinates use float32",
             ));
+            dataset.fields.clear();
             stl::write_data(dataset, &mut writer)?;
         }
         Format::Su2 => {
@@ -1001,6 +1002,7 @@ pub fn convert(
                 Stage::Destination,
                 "SU2 uses positional connectivity; original node and element IDs are not encoded",
             ));
+            dataset.fields.clear();
             su2::write_data(dataset, &mut writer)?;
         }
         Format::Unv => {

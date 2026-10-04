@@ -261,6 +261,9 @@ fn write_cell(cell: &Cell, writer: &mut impl Write) -> Result<()> {
 /// unmarked, a marker name is invalid, or the mesh is not representable.
 pub fn write_data(dataset: &Dataset, mut writer: impl Write) -> Result<()> {
     dataset.validate()?;
+    if !dataset.fields.is_empty() {
+        return Err(err("SU2 cannot encode numeric fields"));
+    }
     let mesh = &dataset.mesh;
     let dimension = mesh
         .cells
