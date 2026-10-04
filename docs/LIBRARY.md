@@ -35,6 +35,7 @@ same result type for both caexfer and filesystem operations.
 | Read a flat INP mesh | `inp::read` | `Inspection { mesh, omitted_keywords }` |
 | Read an STL triangle surface | `stl::read_projection` | Generated facet-local IDs and explicit source losses |
 | Read SU2 markers or Gmsh physical groups | `su2::read_projection` or `msh::read_projection` | `Mesh` with named boundary cell sets |
+| Read UNV geometry | `unv::read_projection` | Original node and element labels; other datasets reported |
 | Read one OP2 displacement result | `op2::read_displacements` | `(Dataset, assumed_zero)`; matching `Mesh` required |
 | Read one PCH displacement result | `pch::read` | `Projection { dataset, skipped_blocks }`; matching `Mesh` required |
 | Convert a file and inspect losses | `conversion::convert_path` | Caller-owned output stream and `ConversionReport` |
@@ -146,6 +147,7 @@ stages no-clobber output. If those attributes matter, check the
 | Geometry-only INP | `inp::write(&mesh, writer)` | `&Mesh` |
 | FRD | `frd::write(&dataset, writer)` | `&Dataset` with supported nodal fields |
 | OP2 | `op2::write_displacements(...)` | One real displacement field; native Rust writer |
+| UNV geometry | `unv::write_data(&dataset, writer)` | Six supported linear cell families; no pyramids |
 
 The BDF and INP exporters emit mesh exchange decks, not runnable solver
 models. FRD rounds ASCII values. Each writer can reject a dataset that is

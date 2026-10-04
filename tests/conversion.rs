@@ -243,6 +243,38 @@ fn named_msh_boundary_survives_su2_conversion() {
 }
 
 #[test]
+fn unv_geometry_route_reports_native_omissions() {
+    let source = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/gmsh-six-kind.unv");
+    let read = conversion::read_path(&source, &Options::default()).unwrap();
+    assert_eq!(read.format, Format::Unv);
+    assert_eq!(
+        (
+            read.dataset.mesh.points.len(),
+            read.dataset.mesh.cells.len()
+        ),
+        (9, 6)
+    );
+    assert!(
+        read.omissions
+            .iter()
+            .any(|item| item.detail.contains("2477"))
+    );
+    let mut output = Vec::new();
+    let report = conversion::convert(read, Format::Unv, &Options::default(), &mut output).unwrap();
+    assert_eq!((report.points, report.cells), (9, 6));
+    let decoded = caexfer::unv::read_projection(std::str::from_utf8(&output).unwrap()).unwrap();
+    assert_eq!(decoded.dataset.mesh.cells[5].id, 6);
+
+    let pyramid = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/gmsh-2.2-mixed.msh");
+    assert_eq!(
+        conversion::convert_path(&pyramid, Format::Unv, &Options::default(), Vec::new())
+            .unwrap_err()
+            .code,
+        "E_UNV"
+    );
+}
+
+#[test]
 fn result_options_cannot_change_unrelated_mesh_readers() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"));
     let source = root.join("examples/plate.bdf");

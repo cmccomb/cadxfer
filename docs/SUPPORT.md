@@ -173,6 +173,20 @@ losses. The direct writer rejects unsupported sets. Marker names carry no
 boundary-condition values. An opt-in test converts a Gmsh-generated named
 boundary mesh and verifies the output with SU2_CFD 8.4.0.
 
+### UNV
+
+Read/write ASCII UNV node dataset 2411 and element dataset 2412. Positive
+integer node and element labels and connectivity are retained. The supported
+linear descriptors cover lines, triangles, quadrilaterals, tetrahedra, wedges,
+and hexahedra. Linear pyramids have no verified descriptor in Gmsh's UNV reader
+and fail explicitly. A beam orientation record is checked but has no mesh
+mapping. Other datasets, including groups and results, are skipped at dataset
+boundaries and reported. Nonzero entity, physical, and color header tags are
+reported as omissions. The writer emits geometry only and requires labels
+within signed 32-bit range for Gmsh interoperability; conversion reports
+omitted fields, properties, and named sets. It does not infer units or solver
+semantics. Gmsh 4.15.2 is used for independent input and output checks.
+
 ### Abaqus/CalculiX INP
 
 Read global `*NODE` and supported linear `*ELEMENT, TYPE=...` blocks. Node IDs

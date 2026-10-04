@@ -24,6 +24,10 @@ linear mesh. Gmsh renumbered its elements; the fixture tests independent MSH
 2.2 syntax and all seven linear topologies, not ID preservation across Gmsh's
 own resave operation.
 
+`gmsh-six-kind.unv` was exported by Gmsh 4.15.2 from
+`gmsh-2.2-mixed.msh`. Gmsh emitted six linear cell families and omitted the
+pyramid. It includes an empty 2477 group dataset and Fortran `D` coordinates.
+
 `su2-triangle.geo` is an authored Gmsh geometry with a named wall and fluid
 region. Gmsh 4.15.2 generated `su2-triangle.msh` from it using ASCII MSH 4.1.
 The opt-in SU2 interop test converts that file to `.su2` and asks SU2_CFD 8.4.0

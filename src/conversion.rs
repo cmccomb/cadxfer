@@ -14,7 +14,7 @@ use std::path::{Path, PathBuf};
 
 use crate::bdf::{self, Document, ParseOptions};
 use crate::core::{Dataset, Error, FieldLocation, Mesh, Result};
-use crate::{frd, inp, msh, op2, pch, stl, su2, vtk, vtu};
+use crate::{frd, inp, msh, op2, pch, stl, su2, unv, vtk, vtu};
 
 /// Supported conversion format.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -48,6 +48,9 @@ pub enum Format {
 
     /// Single-zone SU2 ASCII mesh with named boundary markers.
     Su2,
+
+    /// UNV 2411/2412 ASCII geometry datasets.
+    Unv,
 }
 
 impl Format {
@@ -65,6 +68,7 @@ impl Format {
             Self::Pch => "pch",
             Self::Stl => "stl",
             Self::Su2 => "su2",
+            Self::Unv => "unv",
         }
     }
 
@@ -94,6 +98,7 @@ impl Format {
             "pch" => Ok(Self::Pch),
             "stl" => Ok(Self::Stl),
             "su2" => Ok(Self::Su2),
+            "unv" => Ok(Self::Unv),
             _ => Err(Error::new(
                 "E_FORMAT",
                 format!("unknown input format {name}"),
@@ -119,7 +124,7 @@ impl Format {
         let extension = extension(path);
         match extension.as_str() {
             "bdf" | "nas" | "dat" => Ok(Self::Bdf),
-            "vtu" | "vtk" | "msh" | "inp" | "frd" | "op2" | "pch" | "stl" | "su2" => {
+            "vtu" | "vtk" | "msh" | "inp" | "frd" | "op2" | "pch" | "stl" | "su2" | "unv" => {
                 Self::parse(&extension)
             }
             _ => Err(Error::new(
@@ -148,7 +153,7 @@ impl Format {
         let extension = extension(path);
         match extension.as_str() {
             "bdf" | "nas" => Ok(Self::Bdf),
-            "vtu" | "vtk" | "msh" | "inp" | "frd" | "op2" | "stl" | "su2" => {
+            "vtu" | "vtk" | "msh" | "inp" | "frd" | "op2" | "stl" | "su2" | "unv" => {
                 Self::parse(&extension)
             }
             _ => Err(Error::new(
@@ -566,6 +571,24 @@ pub fn read_path(path: &Path, options: &Options) -> Result<ReadResult> {
             )];
             (projection.dataset, omissions, false)
         }
+        Format::Unv => {
+            let bytes = read_limited(path, options.max_bytes)?;
+            let text = std::str::from_utf8(&bytes)
+                .map_err(|_| Error::new("E_UNV", "UNV must be UTF-8 ASCII"))?;
+            let projection = unv::read_projection(text)?;
+            let mut omissions = projection
+                .omitted_datasets
+                .into_iter()
+                .map(|number| Omission::new(Stage::Source, format!("UNV dataset {number} omitted")))
+                .collect::<Vec<_>>();
+            if projection.tagged_elements > 0 {
+                omissions.push(Omission::new(
+                    Stage::Source,
+                    format!("{} UNV element header(s) have entity, physical, or color tags without a mapping", projection.tagged_elements),
+                ));
+            }
+            (projection.dataset, omissions, false)
+        }
         Format::Msh => {
             // The MSH reader handles geometry and data; other sections are
             // recorded as source omissions for the caller to review.
@@ -950,6 +973,34 @@ pub fn convert(
                 "SU2 uses positional connectivity; original node and element IDs are not encoded",
             ));
             su2::write_data(dataset, &mut writer)?;
+        }
+        Format::Unv => {
+            if !dataset.fields.is_empty() {
+                omissions.push(Omission::new(
+                    Stage::Destination,
+                    format!(
+                        "{} numeric field(s) omitted from UNV geometry",
+                        dataset.fields.len()
+                    ),
+                ));
+            }
+            let properties = dataset
+                .mesh
+                .cells
+                .iter()
+                .filter(|cell| cell.property_id.is_some())
+                .count();
+            if properties > 0 {
+                omissions.push(Omission::new(
+                    Stage::Destination,
+                    format!("{properties} property ID(s) omitted from UNV geometry"),
+                ));
+            }
+            dataset.fields.clear();
+            for cell in &mut dataset.mesh.cells {
+                cell.property_id = None;
+            }
+            unv::write_data(dataset, &mut writer)?;
         }
         Format::Msh => {
             // MSH stores numeric tuples but loses these component labels and

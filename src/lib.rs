@@ -49,6 +49,8 @@ pub mod pch;
 pub mod stl;
 #[path = "mesh_formats/su2.rs"]
 pub mod su2;
+#[path = "mesh_formats/unv.rs"]
+pub mod unv;
 #[path = "mesh_formats/vtk.rs"]
 pub mod vtk;
 #[path = "mesh_formats/vtu.rs"]
