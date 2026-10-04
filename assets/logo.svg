@@ -841,46 +841,47 @@
 
   <!-- The orbit of exchanged engineering documents. -->
   <!-- Six arrow shafts share the circle centered at (620,650), radius 500. -->
+  <!-- Card centers are 28 degrees apart, from 234 to 346 degrees. -->
   <g id="arrows" fill="none" stroke-linecap="round">
-    <path d="M150.153690 478.989928 A500 500 0 0 1 231.427019 335.339804" stroke="#c95618" stroke-width="12"/>
-    <path d="M150.153690 478.989928 A500 500 0 0 1 231.427019 335.339804" stroke="#ff9d27" stroke-width="7"/>
-    <path d="M248.427587 315.434697 240.551891 343.133181 222.302148 327.546428Z" fill="#ff9d27" stroke="#c95618" stroke-width="3" stroke-linejoin="round"/>
-    <path d="M355.040368 225.975952 A500 500 0 0 1 440.816025 183.209787" stroke="#c95618" stroke-width="12"/>
-    <path d="M355.040368 225.975952 A500 500 0 0 1 440.816025 183.209787" stroke="#ff9d27" stroke-width="7"/>
-    <path d="M465.491503 174.471742 444.821708 194.521485 436.810343 171.898089Z" fill="#ff9d27" stroke="#c95618" stroke-width="3" stroke-linejoin="round"/>
-    <path d="M602.550252 150.304586 A500 500 0 0 1 698.217233 156.155830" stroke="#c95618" stroke-width="12"/>
-    <path d="M602.550252 150.304586 A500 500 0 0 1 698.217233 156.155830" stroke="#ff9d27" stroke-width="7"/>
-    <path d="M723.955845 160.926200 696.030406 167.954889 700.404059 144.356771Z" fill="#ff9d27" stroke="#c95618" stroke-width="3" stroke-linejoin="round"/>
-    <path d="M854.735781 208.526204 A500 500 0 0 1 934.660196 261.427019" stroke="#c95618" stroke-width="12"/>
-    <path d="M854.735781 208.526204 A500 500 0 0 1 934.660196 261.427019" stroke="#ff9d27" stroke-width="7"/>
-    <path d="M954.565303 278.427587 926.866819 270.551891 942.453572 252.302148Z" fill="#ff9d27" stroke="#c95618" stroke-width="3" stroke-linejoin="round"/>
-    <path d="M1044.024048 385.040368 A500 500 0 0 1 1086.790213 470.816025" stroke="#c95618" stroke-width="12"/>
-    <path d="M1044.024048 385.040368 A500 500 0 0 1 1086.790213 470.816025" stroke="#ff9d27" stroke-width="7"/>
-    <path d="M1095.528258 495.491503 1075.478515 474.821708 1098.101911 466.810343Z" fill="#ff9d27" stroke="#c95618" stroke-width="3" stroke-linejoin="round"/>
-    <path d="M1120.000000 650.000000 A500 500 0 0 1 1098.152378 796.185852" stroke="#c95618" stroke-width="12"/>
-    <path d="M1120.000000 650.000000 A500 500 0 0 1 1098.152378 796.185852" stroke="#ff9d27" stroke-width="7"/>
-    <path d="M1089.846310 821.010072 1086.772494 792.378196 1109.532262 799.993508Z" fill="#ff9d27" stroke="#c95618" stroke-width="3" stroke-linejoin="round"/>
+    <path d="M186.987298 400.000000 A500 500 0 0 1 260.330100 302.670815" stroke="#c95618" stroke-width="12"/>
+    <path d="M186.987298 400.000000 A500 500 0 0 1 260.330100 302.670815" stroke="#ff9d27" stroke-width="7"/>
+    <path d="M279.000820 284.323149 251.698022 294.334914 268.962177 311.006715Z" fill="#ff9d27" stroke="#c95618" stroke-width="3" stroke-linejoin="round"/>
+    <path d="M377.595190 212.690146 A500 500 0 0 1 465.491503 174.471742" stroke="#c95618" stroke-width="12"/>
+    <path d="M377.595190 212.690146 A500 500 0 0 1 465.491503 174.471742" stroke="#ff9d27" stroke-width="7"/>
+    <path d="M490.590477 167.037087 461.783299 163.059064 469.199707 185.884420Z" fill="#ff9d27" stroke="#c95618" stroke-width="3" stroke-linejoin="round"/>
+    <path d="M611.273797 150.076152 A500 500 0 0 1 706.824089 157.596123" stroke="#c95618" stroke-width="12"/>
+    <path d="M611.273797 150.076152 A500 500 0 0 1 706.824089 157.596123" stroke="#ff9d27" stroke-width="7"/>
+    <path d="M732.475527 162.814968 708.907867 145.778430 704.740311 169.413817Z" fill="#ff9d27" stroke="#c95618" stroke-width="3" stroke-linejoin="round"/>
+    <path d="M846.995250 204.496738 A500 500 0 0 1 927.830738 255.994623" stroke="#c95618" stroke-width="12"/>
+    <path d="M846.995250 204.496738 A500 500 0 0 1 927.830738 255.994623" stroke="#ff9d27" stroke-width="7"/>
+    <path d="M948.029514 272.645210 935.218675 246.538494 920.442800 265.450752Z" fill="#ff9d27" stroke="#c95618" stroke-width="3" stroke-linejoin="round"/>
+    <path d="M1029.576022 363.211782 A500 500 0 0 1 1076.772729 446.631678" stroke="#c95618" stroke-width="12"/>
+    <path d="M1029.576022 363.211782 A500 500 0 0 1 1076.772729 446.631678" stroke="#ff9d27" stroke-width="7"/>
+    <path d="M1086.790213 470.816025 1087.735274 441.750839 1065.810183 451.512518Z" fill="#ff9d27" stroke="#c95618" stroke-width="3" stroke-linejoin="round"/>
+    <path d="M1116.273076 589.065328 A500 500 0 0 1 1115.134034 719.586550" stroke="#c95618" stroke-width="12"/>
+    <path d="M1116.273076 589.065328 A500 500 0 0 1 1115.134034 719.586550" stroke="#ff9d27" stroke-width="7"/>
+    <path d="M1110.813592 745.404498 1127.017251 721.256628 1103.250818 717.916473Z" fill="#ff9d27" stroke="#c95618" stroke-width="3" stroke-linejoin="round"/>
   </g>
 
-  <g id="cube-card" transform="translate(298.606195 266.977778) rotate(-12) scale(.9) translate(-322 -215)">
+  <g id="cube-card" transform="translate(326.107374 245.491503) rotate(-12) scale(.85) translate(-322 -215)">
     <use xlink:href="#file" x="247" y="120" width="150" height="190"/>
     <path d="M325 160 278 188 325 216 372 188Z" fill="#e3e6ec" stroke="#465060" stroke-width="4.5" stroke-linejoin="round"/>
     <path d="M278 188 325 216 325 273 278 246Z" fill="#c6cbd4" stroke="#465060" stroke-width="4.5" stroke-linejoin="round"/>
     <path d="M325 216 372 188 372 246 325 273Z" fill="#9da6b4" stroke="#465060" stroke-width="4.5" stroke-linejoin="round"/>
   </g>
-  <g id="lattice-card" transform="translate(533.175911 157.596123) rotate(-6) scale(.9) translate(-635 -147)">
+  <g id="lattice-card" transform="translate(550.413450 154.865966) rotate(-6) scale(.85) translate(-635 -147)">
     <use xlink:href="#file" x="560" y="52" width="150" height="190"/>
     <path d="M635 106 585 192 685 192Z" fill="#e5e7e9"/>
     <path d="M622.5 127.5 647.5 127.5 M647.5 127.5 610.0 192.0 M622.5 127.5 660.0 192.0 M610.0 149.0 660.0 149.0 M660.0 149.0 635.0 192.0 M610.0 149.0 635.0 192.0 M597.5 170.5 672.5 170.5 M672.5 170.5 660.0 192.0 M597.5 170.5 610.0 192.0" fill="none" stroke="#89919f" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
     <path d="M635 106 585 192 685 192Z" fill="none" stroke="#505867" stroke-width="5" stroke-linejoin="round"/>
   </g>
-  <g id="gear-card" transform="translate(791.010072 180.153690) scale(.9) translate(-939 -223)">
+  <g id="gear-card" transform="translate(791.010072 180.153690) scale(.85) translate(-939 -223)">
     <use xlink:href="#file" x="864" y="128" width="150" height="190"/>
     <path d="M939 185 945 176 959 180 960 191 964 193 974 190 983 201 978 210 979 214 989 217 990 232 980 236 979 240 985 249 977 261 967 259 964 261 964 272 950 277 943 269 939 269 933 278 919 274 918 263 914 261 904 264 895 253 901 244 899 240 889 237 888 222 898 218 899 214 893 205 901 193 911 196 914 193 914 182 928 177 935 185Z" fill="#aeb1b8" stroke="#505665" stroke-width="5" stroke-linejoin="round"/>
     <circle cx="939" cy="227" r="31" fill="#c3c5ca" stroke="#767b86" stroke-width="3"/>
     <circle cx="939" cy="227" r="18" fill="url(#page)" stroke="#515461" stroke-width="4"/>
   </g>
-  <g id="part-card" transform="translate(1003.022222 328.606195) rotate(6) scale(.9) translate(-1078 -430)">
+  <g id="part-card" transform="translate(991.572413 315.434697) rotate(6) scale(.85) translate(-1078 -430)">
     <use xlink:href="#file" x="1003" y="335" width="150" height="190"/>
     <path d="m1036 431 49-27 45 23-47 29Z" fill="#c7cbd1" stroke="#555c69" stroke-width="4" stroke-linejoin="round"/>
     <path d="m1036 431 47 25v44l-47-25Z" fill="#a9aeb8" stroke="#555c69" stroke-width="4" stroke-linejoin="round"/>
@@ -890,7 +891,7 @@
     <ellipse cx="1058" cy="462" rx="8" ry="11" transform="rotate(-27 1058 462)" fill="#58616f" stroke="#444b59" stroke-width="3"/>
     <ellipse cx="1106" cy="460" rx="8" ry="11" transform="rotate(27 1106 460)" fill="#58616f" stroke="#444b59" stroke-width="3"/>
   </g>
-  <g id="graph-card" transform="translate(1115.134034 580.413450) rotate(12) scale(.9) translate(-1080 -643)">
+  <g id="graph-card" transform="translate(1105.147863 529.039052) rotate(12) scale(.85) translate(-1080 -643)">
     <use xlink:href="#file" x="1005" y="548" width="150" height="190"/>
     <path d="M1037 681h100m-91-1v-91" fill="none" stroke="#505868" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
     <path d="M1047 665q23 2 39-21 17-25 28-28 16-4 19 32 2 15 11 17" fill="none" stroke="#505868" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
