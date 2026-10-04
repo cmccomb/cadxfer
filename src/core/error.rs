@@ -160,3 +160,29 @@ impl ValidationReport {
             .count()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn warnings_do_not_claim_full_validation() {
+        let mut report = ValidationReport::default();
+        report.diagnostics.push(Diagnostic {
+            severity: Severity::Warning,
+            code: "W_TEST",
+            message: "not checked".into(),
+            line: None,
+        });
+        assert!(report.valid_in_scope());
+        assert_eq!(report.warning_count(), 1);
+    }
+
+    #[test]
+    fn error_display_carries_line() {
+        assert_eq!(
+            Error::new("E_TEST", "bad field").at(3).to_string(),
+            "E_TEST at line 3: bad field"
+        );
+    }
+}
