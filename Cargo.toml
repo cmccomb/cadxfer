@@ -7,9 +7,9 @@ license = "MIT OR Apache-2.0"
 authors = ["Christopher McComb"]
 repository = "https://github.com/cmccomb/caexfer"
 documentation = "https://docs.rs/caexfer"
-description = "Transfer linear finite-element meshes and results across CAE formats"
+description = "Transfer meshes, voxel occupancy, and results across CAE formats"
 readme = "README.md"
-keywords = ["engineering", "nastran", "file-formats", "mesh"]
+keywords = ["engineering", "nastran", "file-formats", "mesh", "voxel"]
 categories = ["science", "parser-implementations"]
 
 [dependencies]

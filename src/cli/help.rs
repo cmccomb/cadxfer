@@ -1,7 +1,7 @@
 //! Human-facing command help. Keep option descriptions beside the CLI parser.
 
 /// Show the command hierarchy and the shortest useful next step.
-pub(super) const OVERVIEW: &str = "caexfer: transfer finite-element meshes and results
+pub(super) const OVERVIEW: &str = "caexfer: transfer meshes, voxel occupancy, and results
 
 USAGE
   caexfer --help

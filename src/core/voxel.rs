@@ -512,6 +512,10 @@ mod tests {
         assert_eq!(grid.surface_mesh().unwrap().cells.len(), 20);
         assert_eq!(boundary_surface(&volume).unwrap().cells.len(), 20);
         assert_eq!(
+            VoxelGrid::from_surface(&boundary_surface(&volume).unwrap(), 1.0).unwrap(),
+            grid
+        );
+        assert_eq!(
             VoxelGrid::from_surface(&grid.surface_mesh().unwrap(), 1.0).unwrap(),
             grid
         );

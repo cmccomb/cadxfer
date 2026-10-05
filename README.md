@@ -7,7 +7,7 @@
 
 <p align="center"><img src="https://raw.githubusercontent.com/cmccomb/caexfer/main/assets/logo.svg" alt="caexfer logo" width="320"></p>
 
-**Transfer finite-element meshes and results across formats.**
+**Transfer finite-element meshes, voxel occupancy, and results across formats.**
 
 `caexfer` reads and writes supported subsets of STL, VTK ImageData VTI,
 MagicaVoxel VOX, SU2, UNV, Exodus II, VTU, legacy VTK,

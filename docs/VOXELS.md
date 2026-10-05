@@ -1,4 +1,4 @@
-# Voxel geometry scope (draft for 0.2.0)
+# Voxel geometry scope for 0.2.0
 
 This branch covers two workflows: exchange an existing regular voxel grid, and
 voxelize supported mesh geometry. Neither workflow infers physical units.
@@ -6,9 +6,10 @@ voxelize supported mesh geometry. Neither workflow infers physical units.
 ## Existing grids
 
 Read and write VTK XML ImageData (`.vti`) within a documented subset. Retain
-the grid extent, origin, spacing, and point-versus-cell association when a
-conversion can represent them. Converting a grid to an explicit mesh must use
-the correct VTK voxel-to-hexahedron corner order. Reject or report metadata
+the grid extent, origin, and spacing. This release accepts one cell-associated
+binary occupancy array; point arrays and other cell arrays are unsupported.
+Converting a grid to an explicit mesh must use the correct VTK
+voxel-to-hexahedron corner order. Reject or report metadata
 that the destination cannot retain; do not silently reinterpret a grid as an
 unrelated collection of hexahedra.
 

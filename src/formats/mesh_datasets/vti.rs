@@ -64,7 +64,9 @@ pub fn read(source: &str) -> Result<VoxelGrid> {
                         return Err(err("unexpected ImageData"));
                     }
                     if let Some(direction) = attr(&start, "Direction")? {
-                        if numbers::<f64>(&direction, 9)? != [1.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,1.0] {
+                        if numbers::<f64>(&direction, 9)?
+                            != [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
+                        {
                             return Err(err("rotated ImageData is unsupported"));
                         }
                     }
@@ -109,6 +111,10 @@ pub fn read(source: &str) -> Result<VoxelGrid> {
                 } else if name == "CellData" {
                     if stack.last().map(String::as_str) != Some("Piece") {
                         return Err(err("unexpected CellData"));
+                    }
+                } else if name == "PointData" {
+                    if stack.last().map(String::as_str) != Some("Piece") {
+                        return Err(err("unexpected PointData"));
                     }
                 } else if name == "DataArray" {
                     if stack.last().map(String::as_str) != Some("CellData")
@@ -224,6 +230,10 @@ mod tests {
         let mut bytes = Vec::new();
         write(&grid, &mut bytes).unwrap();
         assert_eq!(read(std::str::from_utf8(&bytes).unwrap()).unwrap(), grid);
+        let vtk_style = String::from_utf8(bytes)
+            .unwrap()
+            .replace("<PointData/>", "<PointData>\n</PointData>");
+        assert_eq!(read(&vtk_style).unwrap(), grid);
     }
 
     #[test]

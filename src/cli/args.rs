@@ -433,8 +433,12 @@ mod tests {
 
     #[test]
     fn voxel_size_requires_positive_finite_conversion_value() {
-        assert_eq!(args(&["convert", "shape.stl", "shape.vti", "--voxel-size", "0.5"])
-            .unwrap().voxel_size, Some(0.5));
+        assert_eq!(
+            args(&["convert", "shape.stl", "shape.vti", "--voxel-size", "0.5"])
+                .unwrap()
+                .voxel_size,
+            Some(0.5)
+        );
         for bad in ["0", "-1", "NaN", "inf"] {
             assert!(args(&["convert", "shape.stl", "shape.vox", "--voxel-size", bad]).is_err());
         }

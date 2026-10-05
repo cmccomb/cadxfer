@@ -1,4 +1,4 @@
-//! Convert and validate supported engineering mesh and result files.
+//! Convert and validate supported engineering mesh, voxel, and result files.
 //!
 //! [`convert`] writes a new output file and returns a typed report of omissions
 //! and assumptions. [`validate`] checks the supported source subset without

@@ -257,6 +257,10 @@ pub fn read_path(path: &Path, options: &Options) -> Result<ReadResult> {
             )];
             omissions.push(Omission::new(
                 Stage::Source,
+                "VOX has no original mesh node or element IDs; grid IDs were generated",
+            ));
+            omissions.push(Omission::new(
+                Stage::Source,
                 format!("VOX color indices and palette are omitted from occupancy ({} non-default color index voxel(s), palette present: {})",
                     projection.colored_voxels, projection.palette),
             ));
