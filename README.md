@@ -98,9 +98,14 @@ Hex8 volume mesh with `--voxel-size`:
 caexfer convert closed.stl solid.vti --voxel-size 0.5 --accept-omissions
 caexfer convert solid.vti solid.vox --accept-omissions
 caexfer convert solid.vox shell.stl --accept-omissions
+caexfer convert solid.vti smooth-shell.stl --smooth-iterations 10 --accept-omissions
 caexfer convert closed.stl volume.vtu --voxel-size 0.5 --accept-omissions
 ```
 
 These are voxel-center samples and blocky meshes, not conforming tetrahedral
 meshing. VOX has no physical origin or spacing, and its palette is not carried
 through the occupancy model. The conversion report lists those losses.
+The optional `--smooth-iterations N` (1–50) moves shared surface vertices with
+paired smoothing passes when exporting VTI or VOX to STL. It rounds the voxel
+steps but can soften small features and does not recover detail lost during
+voxelization. Without this option, STL output follows voxel boundaries exactly.

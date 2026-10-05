@@ -45,15 +45,35 @@ pub fn convert(
             "--voxel-size applies to mesh/STL to VTI/VOX or STL to a volume mesh",
         ));
     }
+    if options.smooth_iterations > 50
+        || (options.smooth_iterations > 0
+            && !(target == Format::Stl && source.voxel_grid.is_some()))
+    {
+        return Err(Error::new(
+            "E_USAGE",
+            "smooth_iterations must be 1-50 and applies only to VTI/VOX to STL",
+        ));
+    }
     if target == Format::Stl && source.voxel_grid.is_some() {
         source.dataset.mesh = source
             .voxel_grid
             .as_ref()
             .ok_or_else(|| Error::new("E_VOXEL", "missing voxel grid"))?
             .surface_mesh()?;
+        if options.smooth_iterations > 0 {
+            crate::core::smooth_surface(&mut source.dataset.mesh, options.smooth_iterations)?;
+            source.omissions.push(Omission::new(
+                Stage::Destination,
+                format!("voxel STL surface smoothed for {} Taubin cycle(s); geometry no longer exactly follows voxel boundaries", options.smooth_iterations),
+            ));
+        }
         source.omissions.push(Omission::new(
             Stage::Destination,
-            "exposed voxel faces triangulated; stair-step surface retains grid resolution",
+            if options.smooth_iterations > 0 {
+                "exposed voxel faces triangulated before smoothing; STL detail remains limited by grid resolution"
+            } else {
+                "exposed voxel faces triangulated; stair-step surface retains grid resolution"
+            },
         ));
     } else if target == Format::Stl
         && source

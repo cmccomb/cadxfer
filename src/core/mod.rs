@@ -11,4 +11,5 @@ mod voxel;
 pub use error::{Diagnostic, Error, Result, Severity, ValidationReport};
 pub use field::{Dataset, Field, FieldLocation};
 pub use mesh::{Cell, CellKind, CellSet, Mesh, NodeSet, Point};
+pub(crate) use voxel::smooth_surface;
 pub use voxel::{VoxelGrid, boundary_surface};

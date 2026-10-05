@@ -206,6 +206,9 @@ pub struct Options {
     /// Cubic voxel edge length for mesh/surface to voxel conversion.
     pub voxel_size: Option<f64>,
 
+    /// Number of Taubin smoothing cycles for voxel-to-STL surfaces (0 disables).
+    pub smooth_iterations: usize,
+
     /// Assert that absent OP2 R1/R2/R3 components are known float zero.
     pub zero_missing_rotations: bool,
 
@@ -237,6 +240,7 @@ impl Default for Options {
             max_bytes: 256 * 1024 * 1024,
             msh_version: None,
             voxel_size: None,
+            smooth_iterations: 0,
             zero_missing_rotations: false,
             accept_omissions: false,
             accept_synthetic_zero: false,

@@ -23,6 +23,65 @@ pub struct VoxelGrid {
     pub occupied: Vec<u8>,
 }
 
+/// Smooth a shared-vertex triangle surface with paired Laplacian steps.
+/// The negative pass offsets some of the shrinkage of ordinary Laplacian
+/// smoothing. Connectivity is unchanged, but geometric fidelity to the grid
+/// is deliberately reduced.
+pub(crate) fn smooth_surface(mesh: &mut Mesh, iterations: usize) -> Result<()> {
+    mesh.validate()?;
+    if iterations > 50
+        || mesh
+            .cells
+            .iter()
+            .any(|cell| cell.kind != CellKind::Triangle3)
+    {
+        return Err(Error::new(
+            "E_VOXEL",
+            "smoothing requires a triangle surface and at most 50 cycles",
+        ));
+    }
+    let mut neighbors = vec![Vec::new(); mesh.points.len()];
+    for cell in &mesh.cells {
+        let [a, b, c] = [
+            cell.connectivity[0],
+            cell.connectivity[1],
+            cell.connectivity[2],
+        ];
+        for (u, v) in [(a, b), (b, c), (c, a)] {
+            neighbors[u].push(v);
+            neighbors[v].push(u);
+        }
+    }
+    for adjacent in &mut neighbors {
+        adjacent.sort_unstable();
+        adjacent.dedup();
+    }
+    let mut positions: Vec<[f64; 3]> = mesh.points.iter().map(|point| point.position).collect();
+    for _ in 0..iterations {
+        // Taubin-style two-pass smoothing: the second pass expands slightly
+        // to counter the first pass's tendency to shrink closed objects.
+        for weight in [0.5_f64, -0.53_f64] {
+            let mut next = positions.clone();
+            for (index, adjacent) in neighbors.iter().enumerate() {
+                if adjacent.is_empty() {
+                    continue;
+                }
+                for axis in 0..3 {
+                    let mean = adjacent.iter().map(|&v| positions[v][axis]).sum::<f64>()
+                        / adjacent.len() as f64;
+                    next[index][axis] =
+                        weight.mul_add(mean - positions[index][axis], positions[index][axis]);
+                }
+            }
+            positions = next;
+        }
+    }
+    for (point, position) in mesh.points.iter_mut().zip(positions) {
+        point.position = position;
+    }
+    mesh.validate()
+}
+
 impl VoxelGrid {
     /// Check finite geometry, dimensions, and binary occupancy.
     pub fn validate(&self) -> Result<()> {

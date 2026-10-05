@@ -343,6 +343,60 @@ fn voxel_formats_bridge_surface_and_volume_meshes() {
     );
 }
 
+/// Smoothing moves voxel surface vertices while retaining triangle topology.
+#[test]
+fn voxel_stl_smoothing_is_opt_in_and_route_limited() {
+    use crate::core::VoxelGrid;
+    let scratch = Scratch::new();
+    let grid = VoxelGrid {
+        origin: [0.0; 3],
+        spacing: 1.0,
+        dims: [2, 1, 1],
+        occupied: vec![1, 1],
+    };
+    let mut vti = Vec::new();
+    crate::formats::vti::write(&grid, &mut vti).unwrap();
+    let source =
+        conversion::read_path(&scratch.write("blocks.vti", vti), &Options::default()).unwrap();
+    let mut original = Vec::new();
+    conversion::convert(
+        source.clone(),
+        Format::Stl,
+        &Options::default(),
+        &mut original,
+    )
+    .unwrap();
+    let options = Options {
+        smooth_iterations: 10,
+        ..Options::default()
+    };
+    let mut smoothed = Vec::new();
+    let report = conversion::convert(source.clone(), Format::Stl, &options, &mut smoothed).unwrap();
+    assert_ne!(smoothed, original);
+    assert_eq!(report.cells, 20);
+    assert!(
+        report
+            .omissions
+            .iter()
+            .any(|item| item.detail.contains("smoothed for 10"))
+    );
+    assert_eq!(
+        crate::formats::stl::read_projection(&smoothed)
+            .unwrap()
+            .dataset
+            .mesh
+            .cells
+            .len(),
+        20
+    );
+    assert_eq!(
+        conversion::convert(source, Format::Vtu, &options, Vec::new())
+            .unwrap_err()
+            .code,
+        "E_USAGE"
+    );
+}
+
 /// Carry a named Gmsh boundary through SU2 marker output.
 #[test]
 fn named_msh_boundary_survives_su2_conversion() {
