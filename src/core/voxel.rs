@@ -470,21 +470,21 @@ fn ray_triangle(origin: [f64; 3], direction: [f64; 3], triangle: [[f64; 3]; 3]) 
             a[0] * b[1] - a[1] * b[0],
         ]
     };
-    let dot = |a: [f64; 3], b: [f64; 3]| a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+    let dot_product = |a: [f64; 3], b: [f64; 3]| a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
     let e1 = subtract(triangle[1], triangle[0]);
     let e2 = subtract(triangle[2], triangle[0]);
     let p = cross(direction, e2);
-    let det = dot(e1, p);
+    let det = dot_product(e1, p);
     if det.abs() <= 1e-12 {
         return Hit::None;
     }
     let t = subtract(origin, triangle[0]);
-    let u = dot(t, p) / det;
-    let v = dot(direction, cross(t, e1)) / det;
+    let u = dot_product(t, p) / det;
+    let v = dot_product(direction, cross(t, e1)) / det;
     if u < -1e-10 || v < -1e-10 || u + v > 1.0 + 1e-10 {
         return Hit::None;
     }
-    let distance = dot(e2, cross(t, e1)) / det;
+    let distance = dot_product(e2, cross(t, e1)) / det;
     if distance <= 1e-10 {
         return Hit::None;
     }

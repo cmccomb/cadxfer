@@ -330,10 +330,10 @@ fn voxel_formats_bridge_surface_and_volume_meshes() {
         20
     );
 
-    let mut vtu = Vec::new();
-    conversion::convert(vti_read, Format::Vtu, &Options::default(), &mut vtu).unwrap();
+    let mut vtu_bytes = Vec::new();
+    conversion::convert(vti_read, Format::Vtu, &Options::default(), &mut vtu_bytes).unwrap();
     assert_eq!(
-        crate::formats::vtu::read_projection(std::str::from_utf8(&vtu).unwrap())
+        crate::formats::vtu::read_projection(std::str::from_utf8(&vtu_bytes).unwrap())
             .unwrap()
             .dataset
             .mesh
