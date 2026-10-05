@@ -601,4 +601,62 @@ mod tests {
             "E_VOXEL"
         );
     }
+
+    #[test]
+    fn rejects_invalid_grid_bounds_and_keeps_empty_meshes_empty() {
+        let empty = VoxelGrid {
+            origin: [0.0; 3],
+            spacing: 1.0,
+            dims: [2, 1, 1],
+            occupied: vec![0, 0],
+        };
+        assert_eq!(empty.volume_mesh().unwrap().cells.len(), 0);
+        assert_eq!(empty.surface_mesh().unwrap().cells.len(), 0);
+        let mut invalid = empty.clone();
+        invalid.spacing = 0.0;
+        assert_eq!(invalid.validate().unwrap_err().code, "E_VOXEL");
+        invalid = empty.clone();
+        invalid.origin[0] = f64::NAN;
+        assert_eq!(invalid.validate().unwrap_err().code, "E_VOXEL");
+        invalid = empty.clone();
+        invalid.dims[0] = 0;
+        assert_eq!(invalid.validate().unwrap_err().code, "E_VOXEL");
+        invalid = empty.clone();
+        invalid.occupied[0] = 2;
+        assert_eq!(invalid.validate().unwrap_err().code, "E_VOXEL");
+        invalid = empty;
+        invalid.origin[0] = f64::MAX;
+        invalid.spacing = f64::MAX;
+        assert_eq!(invalid.validate().unwrap_err().code, "E_VOXEL");
+    }
+
+    #[test]
+    fn closed_quad_surface_round_trips_through_voxel_sampling() {
+        let grid = VoxelGrid {
+            origin: [0.0; 3],
+            spacing: 1.0,
+            dims: [1, 1, 1],
+            occupied: vec![1],
+        };
+        let mut quad_mesh = grid.volume_mesh().unwrap();
+        quad_mesh.cells = [
+            [0, 3, 2, 1],
+            [4, 5, 6, 7],
+            [0, 1, 5, 4],
+            [1, 2, 6, 5],
+            [2, 3, 7, 6],
+            [3, 0, 4, 7],
+        ]
+        .into_iter()
+        .enumerate()
+        .map(|(index, face)| Cell {
+            id: (index + 1) as u64,
+            kind: CellKind::Quad4,
+            connectivity: face.to_vec(),
+            property_id: None,
+        })
+        .collect();
+        assert_eq!(boundary_surface(&quad_mesh).unwrap().cells.len(), 12);
+        assert_eq!(VoxelGrid::from_surface(&quad_mesh, 1.0).unwrap(), grid);
+    }
 }

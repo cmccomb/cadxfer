@@ -397,6 +397,110 @@ fn voxel_stl_smoothing_is_opt_in_and_route_limited() {
     );
 }
 
+/// Exercise voxel routes from a physical volume and back from its STL shell.
+#[test]
+fn volume_and_stl_voxel_routes_report_geometry_and_field_losses() {
+    use crate::core::{Dataset, VoxelGrid};
+    let grid = VoxelGrid {
+        origin: [1.0, 2.0, 3.0],
+        spacing: 0.5,
+        dims: [1, 1, 1],
+        occupied: vec![1],
+    };
+    let mut volume = grid.volume_mesh().unwrap();
+    volume.cells[0].property_id = Some(9);
+    let source = ReadResult {
+        format: Format::Vtu,
+        dataset: Dataset {
+            mesh: volume,
+            fields: vec![Field {
+                name: "stress".into(),
+                location: FieldLocation::Cell,
+                components: vec!["C1".into()],
+                values: vec![3.0],
+                step: None,
+                time: None,
+            }],
+        },
+        voxel_grid: None,
+        omissions: Vec::new(),
+        generated_point_ids: false,
+        assumed_zero: false,
+    };
+    let options = Options {
+        voxel_size: Some(0.5),
+        ..Options::default()
+    };
+    let mut vti = Vec::new();
+    let report = conversion::convert(source.clone(), Format::Vti, &options, &mut vti).unwrap();
+    assert_eq!(report.voxel_grid, Some(([1, 1, 1], 1)));
+    assert_eq!(
+        crate::formats::vti::read(std::str::from_utf8(&vti).unwrap()).unwrap(),
+        grid
+    );
+    assert!(
+        report
+            .omissions
+            .iter()
+            .any(|item| item.detail.contains("property IDs"))
+    );
+    assert!(
+        report
+            .omissions
+            .iter()
+            .any(|item| item.detail.contains("numeric field"))
+    );
+
+    let mut vox = Vec::new();
+    let vox_report = conversion::convert(source.clone(), Format::Vox, &options, &mut vox).unwrap();
+    assert_eq!(
+        crate::formats::vox::read(&vox).unwrap().grid.occupied,
+        vec![1]
+    );
+    assert!(
+        vox_report
+            .omissions
+            .iter()
+            .any(|item| item.detail.contains("physical origin"))
+    );
+
+    let mut stl = Vec::new();
+    let stl_report =
+        conversion::convert(source.clone(), Format::Stl, &Options::default(), &mut stl).unwrap();
+    assert_eq!(stl_report.cells, 12);
+    assert!(
+        stl_report
+            .omissions
+            .iter()
+            .any(|item| item.detail.contains("external volume faces"))
+    );
+    assert_eq!(
+        conversion::convert(source, Format::Vti, &Options::default(), Vec::new())
+            .unwrap_err()
+            .code,
+        "E_USAGE"
+    );
+
+    let scratch = Scratch::new();
+    let stl_path = scratch.write("cube.stl", stl);
+    let stl_source = conversion::read_path(&stl_path, &Options::default()).unwrap();
+    let mut vtu = Vec::new();
+    let volume_report = conversion::convert(stl_source, Format::Vtu, &options, &mut vtu).unwrap();
+    assert_eq!(volume_report.cells, 1);
+    assert!(
+        volume_report
+            .omissions
+            .iter()
+            .any(|item| item.detail.contains("Hex8 volume"))
+    );
+    let restored =
+        crate::formats::vtu::read_projection(std::str::from_utf8(&vtu).unwrap()).unwrap();
+    assert_eq!(
+        restored.dataset.mesh.cells[0].kind,
+        crate::core::CellKind::Hex8
+    );
+}
+
 /// Carry a named Gmsh boundary through SU2 marker output.
 #[test]
 fn named_msh_boundary_survives_su2_conversion() {

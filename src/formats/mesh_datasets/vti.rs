@@ -258,4 +258,48 @@ mod tests {
             "E_VTI"
         );
     }
+
+    #[test]
+    fn rejects_geometry_metadata_and_occupancy_that_cannot_be_preserved() {
+        let grid = VoxelGrid {
+            origin: [0.0; 3],
+            spacing: 1.0,
+            dims: [1, 1, 1],
+            occupied: vec![1],
+        };
+        let mut bytes = Vec::new();
+        write(&grid, &mut bytes).unwrap();
+        let valid = String::from_utf8(bytes).unwrap();
+        for (needle, replacement, expected) in [
+            ("type=\"ImageData\"", "type=\"PolyData\"", "E_VTI"),
+            (
+                "<ImageData ",
+                "<ImageData Direction=\"0 1 0 1 0 0 0 0 1\" ",
+                "E_VTI",
+            ),
+            ("Spacing=\"1 1 1\"", "Spacing=\"1 2 1\"", "E_VTI"),
+            (
+                "WholeExtent=\"0 1 0 1 0 1\"",
+                "WholeExtent=\"1 2 0 1 0 1\"",
+                "E_VTI",
+            ),
+            (
+                "<Piece Extent=\"0 1 0 1 0 1\"",
+                "<Piece Extent=\"0 2 0 1 0 1\"",
+                "E_VTI",
+            ),
+            ("Name=\"occupancy\"", "Name=\"density\"", "E_VTI"),
+            ("format=\"ascii\"", "format=\"binary\"", "E_VTI"),
+            ("Origin=\"0 0 0\" ", "", "E_VTI"),
+            ("1 \n</DataArray>", "2 \n</DataArray>", "E_VOXEL"),
+        ] {
+            assert!(valid.contains(needle), "missing fixture substring {needle}");
+            let changed = valid.replacen(needle, replacement, 1);
+            assert_eq!(read(&changed).unwrap_err().code, expected, "{needle}");
+        }
+        let start = valid.find("<DataArray").unwrap();
+        let end = valid.find("</DataArray>").unwrap() + "</DataArray>".len();
+        let without_occupancy = format!("{}{}", &valid[..start], &valid[end..]);
+        assert_eq!(read(&without_occupancy).unwrap_err().code, "E_VTI");
+    }
 }

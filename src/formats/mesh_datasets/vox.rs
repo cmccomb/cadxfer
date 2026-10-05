@@ -215,4 +215,57 @@ mod tests {
         bytes[16..20].copy_from_slice(&children.to_le_bytes());
         assert_eq!(read(&bytes).unwrap_err().code, "E_VOX");
     }
+
+    #[test]
+    fn rejects_corrupt_geometry_and_preserves_palette_notice() {
+        let grid = VoxelGrid {
+            origin: [0.0; 3],
+            spacing: 1.0,
+            dims: [2, 1, 1],
+            occupied: vec![1, 1],
+        };
+        let mut valid = Vec::new();
+        write(&grid, &mut valid).unwrap();
+        assert_eq!(valid.len(), 68);
+        for (index, value) in [
+            (4, 149),
+            (16, 0),
+            (32, 0),
+            (56, 3),
+            (63, 0),
+            (64, 2),
+            (64, 0),
+        ] {
+            let mut changed = valid.clone();
+            changed[index] = value;
+            assert_eq!(
+                read(&changed).unwrap_err().code,
+                "E_VOX",
+                "byte {index}={value}"
+            );
+        }
+        let mut nested = valid.clone();
+        nested[28] = 1; // SIZE has unsupported child chunks.
+        assert_eq!(read(&nested).unwrap_err().code, "E_VOX");
+
+        let mut colored = valid.clone();
+        colored[63] = 3;
+        colored.extend_from_slice(b"RGBA");
+        colored.extend_from_slice(&1024_u32.to_le_bytes());
+        colored.extend_from_slice(&0_u32.to_le_bytes());
+        colored.extend_from_slice(&[0_u8; 1024]);
+        let children = u32::try_from(colored.len() - 20).unwrap();
+        colored[16..20].copy_from_slice(&children.to_le_bytes());
+        let projected = read(&colored).unwrap();
+        assert_eq!(projected.grid, grid);
+        assert_eq!(projected.colored_voxels, 1);
+        assert!(projected.palette);
+
+        let too_wide = VoxelGrid {
+            dims: [257, 1, 1],
+            occupied: vec![0; 257],
+            ..grid
+        };
+        assert_eq!(write(&too_wide, Vec::new()).unwrap_err().code, "E_VOX");
+    }
 }
