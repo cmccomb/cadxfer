@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use crate::core::Dataset;
+use crate::core::{Dataset, VoxelGrid};
 
 use super::Format;
 
@@ -87,6 +87,9 @@ pub struct ReadResult {
     /// Projected mesh and fields.
     pub dataset: Dataset,
 
+    /// Exact grid geometry when the source is VTI or VOX.
+    pub voxel_grid: Option<VoxelGrid>,
+
     /// Source information omitted or assumed in the projected dataset.
     pub omissions: Vec<Omission>,
 
@@ -112,6 +115,9 @@ pub struct ConversionReport {
 
     /// Number of source numeric fields before destination filtering.
     pub fields: usize,
+
+    /// Destination grid dimensions and occupied cell count for VTI/VOX output.
+    pub voxel_grid: Option<([usize; 3], usize)>,
 
     /// Source and destination omissions, including explicit assumptions.
     pub omissions: Vec<Omission>,

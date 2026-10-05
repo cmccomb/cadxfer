@@ -92,7 +92,7 @@ fn help_and_version_work() {
         String::from_utf8(s.run(&["--version"]).stdout)
             .unwrap()
             .trim(),
-        "caexfer 0.1.0"
+        format!("caexfer {}", env!("CARGO_PKG_VERSION"))
     );
 }
 
@@ -433,11 +433,10 @@ fn formats_advertises_read_only_pch() {
     let s = Scratch::new();
     let human = s.run(&["-f"]);
     assert!(human.status.success());
-    assert!(
-        String::from_utf8(human.stdout)
-            .unwrap()
-            .contains("pch  ASCII real SORT1 displacement, read-only")
-    );
+    let listing = String::from_utf8(human.stdout).unwrap();
+    assert!(listing.contains("vti  ASCII XML ImageData occupancy, read/write"));
+    assert!(listing.contains("vox  MagicaVoxel 150 single-model occupancy, read/write"));
+    assert!(listing.contains("pch  ASCII real SORT1 displacement, read-only"));
     let unsupported_json = s.run(&["--formats", "--json"]);
     assert_eq!(unsupported_json.status.code(), Some(2));
     assert_eq!(unsupported_json.stdout, b"");

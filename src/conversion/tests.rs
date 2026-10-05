@@ -216,9 +216,9 @@ fn format_names_and_output_capabilities_are_explicit() {
     }
 }
 
-/// Report STL-generated IDs and reject volume cells on export.
+/// Report STL-generated IDs and extract external faces from volume cells.
 #[test]
-fn stl_route_reports_missing_identity_and_refuses_volume_export() {
+fn stl_route_reports_missing_identity_and_extracts_volume_boundary() {
     let scratch = Scratch::new();
     let source = scratch.write(
         "surface.stl",
@@ -243,16 +243,262 @@ fn stl_route_reports_missing_identity_and_refuses_volume_export() {
     );
 
     let volume = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/mixed-linear.bdf");
+    let report = conversion::convert(
+        conversion::read_path(&volume, &Options::default()).unwrap(),
+        Format::Stl,
+        &Options::default(),
+        Vec::new(),
+    )
+    .unwrap();
+    assert_eq!(report.cells, 16);
+    assert!(
+        report
+            .omissions
+            .iter()
+            .any(|item| item.detail.contains("lower-dimensional"))
+    );
+}
+
+/// Exercise the full format dispatcher through both voxel formats and STL.
+#[test]
+fn voxel_formats_bridge_surface_and_volume_meshes() {
+    use crate::core::{Dataset, VoxelGrid};
+    let scratch = Scratch::new();
+    let grid = VoxelGrid {
+        origin: [0.0; 3],
+        spacing: 1.0,
+        dims: [2, 1, 1],
+        occupied: vec![1, 1],
+    };
+    let surface = Dataset {
+        mesh: grid.surface_mesh().unwrap(),
+        fields: Vec::new(),
+    };
+    let mut stl = Vec::new();
+    crate::formats::stl::write_data(&surface, &mut stl).unwrap();
+    let stl_path = scratch.write("blocks.stl", stl);
+    let mut vti = Vec::new();
+    let options = Options {
+        voxel_size: Some(1.0),
+        ..Options::default()
+    };
+    let report = conversion::convert(
+        conversion::read_path(&stl_path, &options).unwrap(),
+        Format::Vti,
+        &options,
+        &mut vti,
+    )
+    .unwrap();
+    assert!(
+        report
+            .omissions
+            .iter()
+            .any(|item| item.detail.contains("voxel centers"))
+    );
+    assert_eq!(report.voxel_grid, Some(([2, 1, 1], 2)));
+    let vti_path = scratch.write("blocks.vti", vti);
+    let vti_read = conversion::read_path(&vti_path, &Options::default()).unwrap();
+    assert_eq!(vti_read.voxel_grid.as_ref(), Some(&grid));
+    assert_eq!(vti_read.dataset.mesh.cells.len(), 2);
+
+    let mut vox = Vec::new();
+    conversion::convert(vti_read.clone(), Format::Vox, &Options::default(), &mut vox).unwrap();
+    let vox_path = scratch.write("blocks.vox", vox);
+    let vox_read = conversion::read_path(&vox_path, &Options::default()).unwrap();
+    assert_eq!(vox_read.voxel_grid.as_ref(), Some(&grid));
+    assert!(
+        vox_read
+            .omissions
+            .iter()
+            .any(|item| item.detail.contains("color indices"))
+    );
+    let mut reconstructed_stl = Vec::new();
+    conversion::convert(
+        vox_read,
+        Format::Stl,
+        &Options::default(),
+        &mut reconstructed_stl,
+    )
+    .unwrap();
     assert_eq!(
-        conversion::convert(
-            conversion::read_path(&volume, &Options::default()).unwrap(),
-            Format::Stl,
-            &Options::default(),
-            Vec::new(),
-        )
-        .unwrap_err()
-        .code,
-        "E_STL"
+        crate::formats::stl::read_projection(&reconstructed_stl)
+            .unwrap()
+            .dataset
+            .mesh
+            .cells
+            .len(),
+        20
+    );
+
+    let mut vtu_bytes = Vec::new();
+    conversion::convert(vti_read, Format::Vtu, &Options::default(), &mut vtu_bytes).unwrap();
+    assert_eq!(
+        crate::formats::vtu::read_projection(std::str::from_utf8(&vtu_bytes).unwrap())
+            .unwrap()
+            .dataset
+            .mesh
+            .cells
+            .len(),
+        2
+    );
+}
+
+/// Smoothing moves voxel surface vertices while retaining triangle topology.
+#[test]
+fn voxel_stl_smoothing_is_opt_in_and_route_limited() {
+    use crate::core::VoxelGrid;
+    let scratch = Scratch::new();
+    let grid = VoxelGrid {
+        origin: [0.0; 3],
+        spacing: 1.0,
+        dims: [2, 1, 1],
+        occupied: vec![1, 1],
+    };
+    let mut vti = Vec::new();
+    crate::formats::vti::write(&grid, &mut vti).unwrap();
+    let source =
+        conversion::read_path(&scratch.write("blocks.vti", vti), &Options::default()).unwrap();
+    let mut original = Vec::new();
+    conversion::convert(
+        source.clone(),
+        Format::Stl,
+        &Options::default(),
+        &mut original,
+    )
+    .unwrap();
+    let options = Options {
+        smooth_iterations: 10,
+        ..Options::default()
+    };
+    let mut smoothed = Vec::new();
+    let report = conversion::convert(source.clone(), Format::Stl, &options, &mut smoothed).unwrap();
+    assert_ne!(smoothed, original);
+    assert_eq!(report.cells, 20);
+    assert!(
+        report
+            .omissions
+            .iter()
+            .any(|item| item.detail.contains("smoothed for 10"))
+    );
+    assert_eq!(
+        crate::formats::stl::read_projection(&smoothed)
+            .unwrap()
+            .dataset
+            .mesh
+            .cells
+            .len(),
+        20
+    );
+    assert_eq!(
+        conversion::convert(source, Format::Vtu, &options, Vec::new())
+            .unwrap_err()
+            .code,
+        "E_USAGE"
+    );
+}
+
+/// Exercise voxel routes from a physical volume and back from its STL shell.
+#[test]
+fn volume_and_stl_voxel_routes_report_geometry_and_field_losses() {
+    use crate::core::{Dataset, VoxelGrid};
+    let grid = VoxelGrid {
+        origin: [1.0, 2.0, 3.0],
+        spacing: 0.5,
+        dims: [1, 1, 1],
+        occupied: vec![1],
+    };
+    let mut volume = grid.volume_mesh().unwrap();
+    volume.cells[0].property_id = Some(9);
+    let source = ReadResult {
+        format: Format::Vtu,
+        dataset: Dataset {
+            mesh: volume,
+            fields: vec![Field {
+                name: "stress".into(),
+                location: FieldLocation::Cell,
+                components: vec!["C1".into()],
+                values: vec![3.0],
+                step: None,
+                time: None,
+            }],
+        },
+        voxel_grid: None,
+        omissions: Vec::new(),
+        generated_point_ids: false,
+        assumed_zero: false,
+    };
+    let options = Options {
+        voxel_size: Some(0.5),
+        ..Options::default()
+    };
+    let mut vti = Vec::new();
+    let report = conversion::convert(source.clone(), Format::Vti, &options, &mut vti).unwrap();
+    assert_eq!(report.voxel_grid, Some(([1, 1, 1], 1)));
+    assert_eq!(
+        crate::formats::vti::read(std::str::from_utf8(&vti).unwrap()).unwrap(),
+        grid
+    );
+    assert!(
+        report
+            .omissions
+            .iter()
+            .any(|item| item.detail.contains("property IDs"))
+    );
+    assert!(
+        report
+            .omissions
+            .iter()
+            .any(|item| item.detail.contains("numeric field"))
+    );
+
+    let mut vox = Vec::new();
+    let vox_report = conversion::convert(source.clone(), Format::Vox, &options, &mut vox).unwrap();
+    assert_eq!(
+        crate::formats::vox::read(&vox).unwrap().grid.occupied,
+        vec![1]
+    );
+    assert!(
+        vox_report
+            .omissions
+            .iter()
+            .any(|item| item.detail.contains("physical origin"))
+    );
+
+    let mut stl = Vec::new();
+    let stl_report =
+        conversion::convert(source.clone(), Format::Stl, &Options::default(), &mut stl).unwrap();
+    assert_eq!(stl_report.cells, 12);
+    assert!(
+        stl_report
+            .omissions
+            .iter()
+            .any(|item| item.detail.contains("external volume faces"))
+    );
+    assert_eq!(
+        conversion::convert(source, Format::Vti, &Options::default(), Vec::new())
+            .unwrap_err()
+            .code,
+        "E_USAGE"
+    );
+
+    let scratch = Scratch::new();
+    let stl_path = scratch.write("cube.stl", stl);
+    let stl_source = conversion::read_path(&stl_path, &Options::default()).unwrap();
+    let mut volume_bytes = Vec::new();
+    let volume_report =
+        conversion::convert(stl_source, Format::Vtu, &options, &mut volume_bytes).unwrap();
+    assert_eq!(volume_report.cells, 1);
+    assert!(
+        volume_report
+            .omissions
+            .iter()
+            .any(|item| item.detail.contains("Hex8 volume"))
+    );
+    let restored =
+        crate::formats::vtu::read_projection(std::str::from_utf8(&volume_bytes).unwrap()).unwrap();
+    assert_eq!(
+        restored.dataset.mesh.cells[0].kind,
+        crate::core::CellKind::Hex8
     );
 }
 
@@ -459,6 +705,7 @@ fn classic_exodus_and_stl_report_destination_projection() {
     let mut read = ReadResult {
         format: Format::Stl,
         dataset: crate::formats::stl::read_projection(stl).unwrap().dataset,
+        voxel_grid: None,
         omissions: Vec::new(),
         generated_point_ids: true,
         assumed_zero: false,
@@ -599,6 +846,7 @@ fn geometry_only_writers_reject_fields_while_conversion_reports_them() {
             ReadResult {
                 format,
                 dataset,
+                voxel_grid: None,
                 omissions: Vec::new(),
                 generated_point_ids: matches!(format, Format::Stl | Format::Su2),
                 assumed_zero: false,
@@ -646,6 +894,7 @@ fn writers_reject_unmapped_properties_while_conversion_reports_them() {
             ReadResult {
                 format,
                 dataset,
+                voxel_grid: None,
                 omissions: Vec::new(),
                 generated_point_ids: matches!(format, Format::Stl | Format::Su2),
                 assumed_zero: false,

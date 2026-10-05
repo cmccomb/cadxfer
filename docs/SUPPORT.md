@@ -1,4 +1,4 @@
-# 0.1.0 support contract
+# 0.2.0 support contract
 
 ## BDF geometry contract
 
@@ -116,13 +116,39 @@ welding. Facet normals and nonstandard binary attribute bytes are reported as
 source omissions. Units are not inferred.
 
 The writer emits binary STL with float32 coordinates and unit normals
-computed from written triangle winding. Only triangle cells are accepted; volume meshes are
-not silently reduced to their boundary. Numeric fields, properties, IDs, and
+computed from written triangle winding. Conversion extracts external faces
+from linear volume cells or triangulates quad surfaces, reporting excluded
+lower-dimensional cells. The direct STL writer still accepts triangles only.
+Numeric fields, properties, IDs, and
 shared-vertex identity have no STL mapping and are reported as destination
 losses by conversion. Invalid fields, property IDs, and named sets are rejected
 before writing.
 Degenerate facets and values that overflow or underflow
 binary float32 fail.
+
+### VTI and VOX occupancy
+
+VTI reads/writes one ASCII VTK XML `ImageData` piece with zero-based extents,
+isotropic spacing, and one `UInt8` cell array named `occupancy` containing 0 or
+1 in x-fastest order. Other arrays, multiple pieces, binary/appended/compressed
+data, and anisotropic grids are rejected. VTI retains origin and spacing.
+Rotated `ImageData` direction matrices are rejected.
+
+VOX reads/writes one MagicaVoxel version 150 `SIZE`/`XYZI` model, at most 256
+cells per axis. The reader accepts an optional palette but omits colors; scene
+graphs, transformations, animations, and multiple models are rejected. VOX
+stores neither physical origin nor spacing: imported models use origin zero
+and unit spacing, while export reports omitted origin/spacing. Export uses
+color index 1 for every occupied cell.
+
+Both formats use binary occupancy, capped at 2,000,000 cells. Mesh conversion
+samples a closed, exactly coordinate-welded triangle/quad boundary at voxel
+centers. Open or nonmanifold surfaces fail; intersecting or geometrically
+degenerate surfaces are not repaired. External volume faces are extracted from
+Tet4, Hex8, Wedge6, and Pyramid5 cells. Grid-to-volume output emits Hex8 cells
+with shared corners; grid-to-STL emits exposed faces as two triangles each.
+Fine details, fields, material IDs, and original mesh identity are not preserved.
+The simple sampler rejects jobs above 100 million voxel-triangle checks.
 
 ### Gmsh MSH
 

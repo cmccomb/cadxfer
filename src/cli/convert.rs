@@ -72,6 +72,18 @@ fn present(args: &Args, report: &ConversionReport) -> Result<()> {
             ("units", quote("unspecified")),
             ("omissions", omissions_json(&report.omissions)),
         ];
+        if let Some((dimensions, occupied)) = report.voxel_grid {
+            fields.push((
+                "voxel_grid",
+                object([
+                    (
+                        "dimensions",
+                        array(dimensions.into_iter().map(|v| v.to_string())),
+                    ),
+                    ("occupied_cells", occupied.to_string()),
+                ]),
+            ));
+        }
         if let Some(companion) = &report.mesh_output {
             fields.push((
                 "mesh_output",
@@ -84,13 +96,28 @@ fn present(args: &Args, report: &ConversionReport) -> Result<()> {
         }
         emit(&object(fields))?;
     } else {
-        emit(&format!(
-            "Wrote {}: {} points, {} cells, {} source field(s). Units unspecified.",
-            args.paths[1].display(),
-            report.points,
-            report.cells,
-            report.fields
-        ))?;
+        if report.voxel_grid.is_some() {
+            emit(&format!(
+                "Wrote {} from {} source points, {} source cells, {} source field(s). Units unspecified.",
+                args.paths[1].display(),
+                report.points,
+                report.cells,
+                report.fields
+            ))?;
+        } else {
+            emit(&format!(
+                "Wrote {}: {} points, {} cells, {} source field(s). Units unspecified.",
+                args.paths[1].display(),
+                report.points,
+                report.cells,
+                report.fields
+            ))?;
+        }
+        if let Some(([nx, ny, nz], occupied)) = report.voxel_grid {
+            emit(&format!(
+                "Voxel grid: {nx} × {ny} × {nz} cells, {occupied} occupied."
+            ))?;
+        }
         let mut stderr = std::io::stderr().lock();
         for omission in &report.omissions {
             writeln!(stderr, "Omission: {}", omission.detail)?;

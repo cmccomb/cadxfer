@@ -27,6 +27,8 @@ pub(super) struct Args {
     pub(super) step: Option<usize>,
     pub(super) max_bytes: Option<usize>,
     pub(super) msh_version: Option<MshVersion>,
+    pub(super) voxel_size: Option<f64>,
+    pub(super) smooth_iterations: Option<usize>,
 }
 
 /// Wrap a command-line usage failure with the exit-code-selecting `E_USAGE`.
@@ -222,6 +224,30 @@ pub(super) fn parse_args(raw: &[OsString]) -> Result<Args> {
                 _ => Err(usage("--msh-version requires 2.2 or 4.1")),
             })?;
             index += 1;
+        } else if options && arg == "--voxel-size" {
+            set_option(&mut args.voxel_size, "--voxel-size", || {
+                let size: f64 = value(1)?
+                    .parse()
+                    .map_err(|_| usage("--voxel-size requires a positive finite number"))?;
+                if !size.is_finite() || size <= 0.0 {
+                    return Err(usage("--voxel-size requires a positive finite number"));
+                }
+                Ok(size)
+            })?;
+            index += 1;
+        } else if options && arg == "--smooth-iterations" {
+            set_option(&mut args.smooth_iterations, "--smooth-iterations", || {
+                let count: usize = value(1)?
+                    .parse()
+                    .map_err(|_| usage("--smooth-iterations requires an integer from 1 to 50"))?;
+                if !(1..=50).contains(&count) {
+                    return Err(usage(
+                        "--smooth-iterations requires an integer from 1 to 50",
+                    ));
+                }
+                Ok(count)
+            })?;
+            index += 1;
         } else if options && arg == "--step" {
             set_option(&mut args.step, "--step", || {
                 value(1)?
@@ -306,6 +332,15 @@ pub(super) fn parse_args(raw: &[OsString]) -> Result<Args> {
         if !msh_target && !msh_companion {
             return Err(usage("--msh-version applies only to MSH output"));
         }
+    }
+    if args.voxel_size.is_some() && args.command != "convert" {
+        return Err(usage("--voxel-size applies only to convert"));
+    }
+    if args.smooth_iterations.is_some()
+        && (args.command != "convert"
+            || Format::from_output_path(&args.paths[1]).ok() != Some(Format::Stl))
+    {
+        return Err(usage("--smooth-iterations applies only to STL output"));
     }
     Ok(args)
 }
@@ -414,6 +449,59 @@ mod tests {
             ])
             .is_err()
         );
+    }
+
+    #[test]
+    fn voxel_size_requires_positive_finite_conversion_value() {
+        assert_eq!(
+            args(&["convert", "shape.stl", "shape.vti", "--voxel-size", "0.5"])
+                .unwrap()
+                .voxel_size,
+            Some(0.5)
+        );
+        for bad in ["0", "-1", "NaN", "inf"] {
+            assert!(args(&["convert", "shape.stl", "shape.vox", "--voxel-size", bad]).is_err());
+        }
+        assert!(args(&["validate", "shape.vti", "--voxel-size", "1"]).is_err());
+    }
+
+    #[test]
+    fn smoothing_requires_bounded_stl_conversion() {
+        assert_eq!(
+            args(&[
+                "convert",
+                "shape.vti",
+                "shape.stl",
+                "--smooth-iterations",
+                "10"
+            ])
+            .unwrap()
+            .smooth_iterations,
+            Some(10)
+        );
+        for bad in ["0", "51", "-1", "1.5", "NaN"] {
+            assert!(
+                args(&[
+                    "convert",
+                    "shape.vti",
+                    "shape.stl",
+                    "--smooth-iterations",
+                    bad
+                ])
+                .is_err()
+            );
+        }
+        assert!(
+            args(&[
+                "convert",
+                "shape.vti",
+                "shape.vtu",
+                "--smooth-iterations",
+                "10"
+            ])
+            .is_err()
+        );
+        assert!(args(&["validate", "shape.stl", "--smooth-iterations", "10"]).is_err());
     }
 
     /// Treat paths after -- as paths even when they begin with a hyphen.

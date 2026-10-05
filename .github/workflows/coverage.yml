@@ -33,14 +33,15 @@ jobs:
       # Keep the measurement artifact even if a later publishing step fails.
       - name: Render measured coverage badge
         id: badge
-        if: ${{ always() && hashFiles('target/coverage.json') != '' }}
-        run: bash scripts/coverage_badge.sh target/coverage.json target/coverage.svg
+        if: ${{ always() && hashFiles('target/coverage-source-lines.json') != '' }}
+        run: bash scripts/coverage_badge.sh target/coverage-source-lines.json target/coverage.svg
       - uses: actions/upload-artifact@v4
         if: ${{ always() && steps.badge.outcome == 'success' }}
         with:
           name: rust-coverage
           path: |
             target/coverage.json
+            target/coverage-source-lines.json
             target/coverage.lcov
             target/coverage.svg
           retention-days: 14
