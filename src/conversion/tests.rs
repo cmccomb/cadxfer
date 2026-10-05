@@ -484,8 +484,9 @@ fn volume_and_stl_voxel_routes_report_geometry_and_field_losses() {
     let scratch = Scratch::new();
     let stl_path = scratch.write("cube.stl", stl);
     let stl_source = conversion::read_path(&stl_path, &Options::default()).unwrap();
-    let mut vtu = Vec::new();
-    let volume_report = conversion::convert(stl_source, Format::Vtu, &options, &mut vtu).unwrap();
+    let mut volume_bytes = Vec::new();
+    let volume_report =
+        conversion::convert(stl_source, Format::Vtu, &options, &mut volume_bytes).unwrap();
     assert_eq!(volume_report.cells, 1);
     assert!(
         volume_report
@@ -494,7 +495,7 @@ fn volume_and_stl_voxel_routes_report_geometry_and_field_losses() {
             .any(|item| item.detail.contains("Hex8 volume"))
     );
     let restored =
-        crate::formats::vtu::read_projection(std::str::from_utf8(&vtu).unwrap()).unwrap();
+        crate::formats::vtu::read_projection(std::str::from_utf8(&volume_bytes).unwrap()).unwrap();
     assert_eq!(
         restored.dataset.mesh.cells[0].kind,
         crate::core::CellKind::Hex8
