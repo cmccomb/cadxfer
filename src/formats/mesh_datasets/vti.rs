@@ -296,9 +296,8 @@ mod tests {
             ),
         ];
         for (source, expected) in cases {
-            let failure = match read(&source) {
-                Ok(_) => panic!("expected {expected} rejection"),
-                Err(error) => error,
+            let Err(failure) = read(&source) else {
+                panic!("expected {expected} rejection");
             };
             assert!(failure.message.contains(expected), "{expected}: {failure}");
         }
