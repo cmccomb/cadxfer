@@ -1,19 +1,19 @@
 #!/usr/bin/env bash
-# Render measured Rust line coverage from cargo-llvm-cov as an SVG badge.
-# Usage: bash scripts/coverage_badge.sh COVERAGE_JSON OUTPUT_SVG
+# Render distinct Rust source-line coverage as an SVG badge.
+# Usage: bash scripts/coverage_badge.sh SOURCE_LINE_JSON OUTPUT_SVG
 # Requires jq and awk. Reject malformed totals; write the SVG only after the
-# totals are valid. The green state follows the repository's 90% coverage gate.
+# totals are valid. The green state follows the repository's 95% coverage gate.
 set -euo pipefail
 
 if (($# != 2)); then
-    echo "usage: bash scripts/coverage_badge.sh coverage.json coverage.svg" >&2
+    echo "usage: bash scripts/coverage_badge.sh coverage-source-lines.json coverage.svg" >&2
     exit 2
 fi
 
 # Accept only nonnegative integral counts with at least one measured line.
 # This also keeps untrusted report text out of the generated XML.
 if ! totals=$(jq -er '
-    .data[0].totals.lines
+    select(.metric == "distinct Rust source lines") | .lines
     | select((.covered | type) == "number" and (.count | type) == "number")
     | select(.covered == (.covered | floor) and .count == (.count | floor))
     | select(.covered >= 0 and .count > 0 and .covered <= .count)
@@ -28,7 +28,7 @@ read -r covered total <<<"$totals"
 export LC_ALL=C
 value=$(awk -v covered="$covered" -v total="$total" 'BEGIN {printf "%.1f%%", 100 * covered / total}')
 # Use the same threshold as scripts/coverage.sh, independent of rounding.
-if awk -v covered="$covered" -v total="$total" 'BEGIN {exit (100 * covered / total >= 90) ? 0 : 1}'; then
+if awk -v covered="$covered" -v total="$total" 'BEGIN {exit (100 * covered / total >= 95) ? 0 : 1}'; then
     state_top='#34D058'
     state_bottom='#28A745'
 else

@@ -261,6 +261,35 @@ mod tests {
         assert_eq!(projected.colored_voxels, 1);
         assert!(projected.palette);
 
+        let palette = colored[colored.len() - 1036..].to_vec();
+        colored.extend_from_slice(&palette);
+        let children = u32::try_from(colored.len() - 20).unwrap();
+        colored[16..20].copy_from_slice(&children.to_le_bytes());
+        assert!(
+            read(&colored)
+                .unwrap_err()
+                .message
+                .contains("invalid RGBA palette")
+        );
+
+        let mut wrong_order = valid.clone();
+        wrong_order[20..24].copy_from_slice(b"XYZI");
+        assert!(
+            read(&wrong_order)
+                .unwrap_err()
+                .message
+                .contains("invalid XYZI chunk order")
+        );
+        let mut truncated = valid.clone();
+        truncated.truncate(25);
+        truncated[16..20].copy_from_slice(&5_u32.to_le_bytes());
+        assert!(
+            read(&truncated)
+                .unwrap_err()
+                .message
+                .contains("truncated VOX chunk")
+        );
+
         let too_wide = VoxelGrid {
             dims: [257, 1, 1],
             occupied: vec![0; 257],

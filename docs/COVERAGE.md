@@ -3,8 +3,12 @@
 The coverage workflow measures Rust source lines executed by unit and
 integration tests, independent CLI checks, and the conversion matrix with
 pyNastran as an independent OP2 reader. It enforces a
-**90% line coverage floor**. The README badge shows the latest measured run on
-`main`. Each report is available as `coverage.json` and `coverage.lcov`
+**95% distinct source-line coverage floor**. Each physical Rust file/line pair
+in the LCOV `DA` records counts once, even when a generic function has multiple
+compiled instantiations. The raw LLVM JSON summary remains available and may
+show a different percentage because it counts those instantiations. The README
+badge shows the distinct source-line result from the latest run on `main`.
+The workflow retains `coverage-source-lines.json`, `coverage.json`, and `coverage.lcov`
 workflow artifacts. If a run fails before producing a report, the badge
 retains the last measurement. Use its link to inspect workflow status.
 
@@ -26,6 +30,6 @@ If Rust was installed through Homebrew rather than rustup, set `LLVM_COV` and
 `LLVM_PROFDATA` to tools whose LLVM major version matches `rustc -vV` before
 running the script.
 
-The script writes `target/coverage.json` and `target/coverage.lcov` and fails
-when line coverage falls below 90%. The latest workflow run contains the
-current measurement.
+The script writes `target/coverage-source-lines.json`, `target/coverage.json`,
+and `target/coverage.lcov` and fails when distinct source-line coverage falls
+below 95%. The latest workflow run contains the current measurement.

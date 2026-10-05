@@ -25,12 +25,21 @@ fn omit_property_ids(mesh: &mut Mesh) -> usize {
 /// Returns a validation, representability, adapter, or output-stream error
 /// for the selected destination format.
 ///
-#[allow(clippy::too_many_lines)] // Destination branches share omission and assumption tracking.
 pub fn convert(
-    mut source: ReadResult,
+    source: ReadResult,
     target: Format,
     options: &Options,
     mut writer: impl Write,
+) -> Result<ConversionReport> {
+    convert_inner(source, target, options, &mut writer)
+}
+
+#[allow(clippy::too_many_lines)] // Destination branches share omission and assumption tracking.
+fn convert_inner(
+    mut source: ReadResult,
+    target: Format,
+    options: &Options,
+    mut writer: &mut dyn Write,
 ) -> Result<ConversionReport> {
     let voxel_size_allowed = match (source.format, target) {
         (Format::Vti | Format::Vox, _) | (Format::Stl, Format::Stl | Format::Op2 | Format::Pch) => {

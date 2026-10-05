@@ -658,5 +658,21 @@ mod tests {
         .collect();
         assert_eq!(boundary_surface(&quad_mesh).unwrap().cells.len(), 12);
         assert_eq!(VoxelGrid::from_surface(&quad_mesh, 1.0).unwrap(), grid);
+
+        let mut inverted = grid.volume_mesh().unwrap();
+        inverted.cells[0].connectivity = vec![3, 2, 1, 0, 7, 6, 5, 4];
+        assert_eq!(boundary_surface(&inverted).unwrap().cells.len(), 12);
+        let mut nonmanifold = grid.volume_mesh().unwrap();
+        for id in 2..=3 {
+            let mut extra = nonmanifold.cells[0].clone();
+            extra.id = id;
+            nonmanifold.cells.push(extra);
+        }
+        assert!(
+            boundary_surface(&nonmanifold)
+                .unwrap_err()
+                .message
+                .contains("more than two")
+        );
     }
 }

@@ -257,6 +257,57 @@ mod tests {
                 .code,
             "E_VTI"
         );
+
+        let cases = [
+            (
+                text.replace("<PointData/>", "<FieldData/>"),
+                "unsupported empty XML element",
+            ),
+            (
+                text.replace("<PointData/>", "<PointData/>unexpected"),
+                "unexpected XML text",
+            ),
+            (
+                text.replace("</DataArray>", "</OtherArray>"),
+                "ill-formed document",
+            ),
+            (text.replace("</VTKFile>", ""), "incomplete ImageData"),
+            (
+                text.replace(
+                    "<PointData/>",
+                    "<CellData><PointData></PointData></CellData>",
+                ),
+                "unexpected PointData",
+            ),
+            (
+                text.replace(
+                    "<PointData/>",
+                    "<PointData><CellData></CellData></PointData>",
+                ),
+                "unexpected CellData",
+            ),
+            (
+                text.replace("<PointData/>", "<PointData/><Other/>"),
+                "unsupported empty XML element",
+            ),
+            (
+                text.replace("1 \n</DataArray>", "1 0 \n</DataArray>"),
+                "wrong number of values",
+            ),
+        ];
+        for (source, expected) in cases {
+            let failure = match read(&source) {
+                Ok(_) => panic!("expected {expected} rejection"),
+                Err(error) => error,
+            };
+            assert!(failure.message.contains(expected), "{expected}: {failure}");
+        }
+
+        let oriented = text.replace(
+            "Spacing=\"1 1 1\"",
+            "Spacing=\"1 1 1\" Direction=\"1 0 0 0 1 0 0 0 1\"",
+        );
+        assert_eq!(read(&oriented).unwrap(), grid);
     }
 
     #[test]
